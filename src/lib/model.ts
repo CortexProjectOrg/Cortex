@@ -59,7 +59,7 @@ export const emptyWorkspace = (): Workspace => ({
   completedLectures: [],
   lectureProgress: {},
   studyPlan: {
-    activePathId: 'quaos-foundations-to-mastery',
+    activePathId: 'canonical-foundations-to-mastery',
     schedule: 'sunday-4h',
     currentWeek: 1
   },
@@ -76,7 +76,7 @@ const strings = (v: unknown): string[] =>
 
 export function validateWorkspace(value: unknown): Workspace {
   if (!record(value) || (value.version !== 1 && value.version !== 2) || !Array.isArray(value.notes)) {
-    throw new Error('This file is not a valid QuAOS Study backup.');
+    throw new Error('This file is not a valid AINotes backup.');
   }
   if (value.notes.length > 10000) throw new Error('This backup contains too many notes.');
 
@@ -146,7 +146,7 @@ export function validateWorkspace(value: unknown): Workspace {
         activePathId:
           typeof (value.studyPlan as any).activePathId === 'string'
             ? (value.studyPlan as any).activePathId
-            : 'quaos-foundations-to-mastery',
+            : 'canonical-foundations-to-mastery',
         schedule: 'sunday-4h',
         startDate: (value.studyPlan as any).startDate,
         currentWeek: Number.isInteger((value.studyPlan as any).currentWeek)
@@ -154,7 +154,7 @@ export function validateWorkspace(value: unknown): Workspace {
           : 1
       }
     : {
-        activePathId: 'quaos-foundations-to-mastery',
+        activePathId: 'canonical-foundations-to-mastery',
         schedule: 'sunday-4h',
         currentWeek: 1
       };
@@ -220,12 +220,17 @@ export function mergeWorkspace(current: Workspace, incoming: Workspace): Workspa
   };
 }
 
-export function makeNote(title = 'Untitled note', documentId?: string, lectureId?: string): Note {
+export function makeNote(
+  title = 'Untitled note',
+  documentId?: string,
+  lectureId?: string,
+  body = ''
+): Note {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID(),
     title,
-    body: '',
+    body,
     documentId,
     lectureId,
     createdAt: now,
@@ -238,17 +243,30 @@ export const notePrompt =
 
 export function noteMarkdown(note: Note): string {
   let md = `# ${note.title}\n\n${note.body}\n`;
+  if (note.updatedAt) {
+    md += `\n*Updated: ${note.updatedAt}*\n`;
+  }
   if (note.inkData) {
-    md += `\n\n<!-- INK_SKETCH_ATTACHED: ${note.id} -->\n`;
+    md += `\n<!-- INK_SKETCH_ATTACHED: ${note.id} -->\n`;
+  }
+  if (note.lectureInk) {
+    md += `\n<!-- DIRECT_LECTURE_INK_ATTACHED: ${note.id} -->\n`;
   }
   return md;
 }
 
-export const docRoute = (id: string) => '/read/' + id;
+export function exportWorkspaceJson(ws: Workspace): string {
+  return JSON.stringify(ws, null, 2);
+}
+
+export const docRoute = (id: string, anchor = '') =>
+  `/read/${id}${anchor ? `#${anchor}` : ''}`;
 export const lectureRoute = (topicId: string, lectureId: string) =>
   `/topics/${topicId}/${lectureId}`;
 export const slug = (text: string) =>
   text
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .replace(/\s/g, '-');
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');

@@ -20,13 +20,31 @@ type Context = {
 
 const WorkspaceContext = createContext<Context | null>(null);
 
-const dbPromise = openDB('quaos-study', 2, {
-  upgrade(db, oldVersion) {
-    if (!db.objectStoreNames.contains('workspace')) {
-      db.createObjectStore('workspace');
+const dbPromise = (async () => {
+  const db = await openDB('ainotes-workspace', 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains('workspace')) {
+        db.createObjectStore('workspace');
+      }
     }
-  }
-});
+  });
+
+  // Seamlessly migrate legacy local storage if present
+  try {
+    const current = await db.get('workspace', 'current');
+    if (!current) {
+      const legacyDb = await openDB('quaos-study', 2).catch(() => null);
+      if (legacyDb && legacyDb.objectStoreNames.contains('workspace')) {
+        const legacyData = await legacyDb.get('workspace', 'current');
+        if (legacyData) {
+          await db.put('workspace', legacyData, 'current');
+        }
+      }
+    }
+  } catch {}
+
+  return db;
+})();
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, token } = useAuth();

@@ -20,11 +20,12 @@ Keep reusable exercise code in that project's `src/lib.rs`, tests next to it, an
 Under the existing `[dependencies]` heading in the practice project's Cargo.toml, add:
 
 ```toml
-sympleq-core = { path = "D:/Projects_D/QuAOS-Lab/sympleq/sympleq-rust/sympleq-core" }
-rand = "0.10"
+# Canonical symplectic stabilizer library
+sympleq-core = { git = "https://github.com/ricott1/sympleq-rust.git" }
+rand = "0.9"
 ```
 
-Adjust the path if the checkout moves. The package name uses a hyphen; the Rust import is `sympleq_core`. Add the library dependency in session 1 or 2 and `rand` when running circuits. Run `cargo test` from the practice project.
+The package name uses a hyphen; the Rust import is `sympleq_core`. Add the library dependency in session 1 or 2 and `rand` when running circuits. Run `cargo test` from the practice project.
 
 ## Circuit harness for sessions 2 and 3
 

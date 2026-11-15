@@ -7,6 +7,11 @@ export default function handler(req: any, res: any) {
     return res.status(200).end();
   }
 
-  const clientId = process.env.GOOGLE_AUTH_CLIENT_API_KEY || process.env.VITE_GOOGLE_CLIENT_ID || '';
+  const rawClientId =
+    process.env.GOOGLE_AUTH_CLIENT_API_KEY ||
+    process.env.GOOGLE_CLIENT_ID ||
+    process.env.VITE_GOOGLE_CLIENT_ID ||
+    '';
+  const clientId = rawClientId.trim().replace(/^["']|["']$/g, '');
   return res.status(200).json({ clientId });
 }

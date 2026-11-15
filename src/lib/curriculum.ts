@@ -817,4 +817,5 @@ export const FOUR_HOUR_MASTERY_PATH: StudyPath = {
 };
 
 // Aliases for compatibility
+export const MASTERY_PACKS = FOUR_HOUR_MASTERY_PATH.packs;
 export const SUNDAY_SCHOLAR_PATH = FOUR_HOUR_MASTERY_PATH;

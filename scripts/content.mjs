@@ -15,10 +15,11 @@ export function linkTarget(fromId, href, ids) {
   if (/^(https?:|mailto:)/.test(href)) return { kind: 'external', href };
   if (href.startsWith('#')) return { kind: 'anchor', href };
   const [rawPath, anchor = ''] = href.split('#');
-  const target = path.posix.normalize(path.posix.join(path.posix.dirname(fromId), decodeURIComponent(rawPath)));
-  if (target.startsWith('notes/')) return { kind: 'notes', href: '/notes' };
-  if (target === 'PERSONAL_PATH.md') return { kind: 'path', href: '/path' };
-  if (target === 'PROGRESS.md') return { kind: 'progress', href: '/' };
+  const decoded = decodeURIComponent(rawPath);
+  const target = path.posix.normalize(path.posix.join(path.posix.dirname(fromId), decoded));
+  if (target.startsWith('notes/') || decoded.startsWith('notes/') || decoded.includes('/notes/')) return { kind: 'notes', href: '/notes' };
+  if (target === 'PERSONAL_PATH.md' || decoded.endsWith('PERSONAL_PATH.md')) return { kind: 'path', href: '/path' };
+  if (target === 'PROGRESS.md' || decoded.endsWith('PROGRESS.md')) return { kind: 'progress', href: '/' };
   if (ids.has(target)) return { kind: 'document', href: documentRoute(target, anchor) };
   const codeMatch = target.match(/(?:^|\/)sympleq\/sympleq-rust\/(.+)$/);
   if (codeMatch) return { kind: 'external', href: `https://github.com/ricott1/sympleq-rust/blob/main/${codeMatch[1]}${anchor ? `#${anchor}` : ''}` };

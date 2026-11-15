@@ -1,5 +1,6 @@
 {
-  "name": "quaos-study-notebook",
+  "name": "ainotes",
+  "description": "Cross-device foundational learning notebook and fluid stylus annotation PWA with LaTeX and Neon PostgreSQL sync",
   "private": true,
   "version": "1.0.0",
   "type": "module",

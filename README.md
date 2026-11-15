@@ -1,33 +1,141 @@
-# Sympleq study notebook
+# AINotes
 
-A personal, editable learning path through the mathematics and the code. Start with four Saturdays, each with about two hours of theory and two hours of practical work. Breaks are additional. You already program; Rust and the subject matter are the things to learn.
+An open, cross-device educational Progressive Web Application (PWA) designed for deep foundational mastery in discrete mathematics, symplectic algebra, quantum simulation, and systems engineering.
 
-## Start here
+AINotes combines the fluid, distraction-free annotation feel of a modern stylus-first tablet app with a rigorous academic curriculum, full LaTeX rendering, and zero-configuration cross-device persistence.
 
-1. Open the [plan](PLAN.md) and choose one session.
-2. Follow that session's theory, exercises, and code tour. The essential tasks fit the session budget; deeper reading is optional.
-3. Save a prediction, a calculation or experiment, and an open question in [your notes](notes/README.md).
-4. Choose your next step in [your personal path](PERSONAL_PATH.md). Repeating a topic is an available next step.
+---
 
-| Session | Main question | Open |
-|---|---|---|
-| Saturday 1 | How do binary vectors and Rust data types fit together? | [Foundations](sessions/01-foundations/README.md) |
-| Saturday 2 | How do quantum operators acquire binary labels and phases? | [Qubits and Paulis](sessions/02-quantum-paulis/README.md) |
-| Saturday 3 | Why are Clifford operations and stabilizer states special? | [Cliffords and stabilizers](sessions/03-cliffords-stabilizers/README.md) |
-| Saturday 4 | How does measurement become efficient simulation, and what could be accelerated? | [Measurement and performance](sessions/04-measurement-performance/README.md) |
+## Key Capabilities
 
-## Reference shelf
+- **Fluid Direct Document Inking**: Draw, highlight, and annotate directly on top of non-static, responsive lecture text and LaTeX equations. Powered by a responsive SVG layer tracking `ResizeObserver` geometry with sub-pixel coordinate scaling.
+- **Academic Highlighter & Pressure Stylus**:
+  - Ink pen with fine, mid, and thick stroke widths (`perfect-freehand`).
+  - Highlighter utilizing `mix-blend-mode: multiply` so underlying mathematical formulas and proofs remain completely legible.
+  - Native Palm Rejection mode: active stylus draws ink, while finger touches scroll the page vertically.
+  - Browse Mode: toggle to select text, copy code, or interact with links.
+- **Concurrent Scratchpad & Note Taker**: Side-drawer for typed derivations and scratchpad calculations available on any screen with a single click or keyboard shortcut (`N`).
+- **Zero-Click Auto-Collection**: Notes and drawings created during a lecture are automatically associated with that lecture and organized in the standalone Notebook (`/notes`).
+- **15 Four-Hour Mastery Packs (60 Lectures Total)**:
+  - Structured into 15 self-contained, 4-hour mastery units (each containing 4 one-hour lectures).
+  - Spans 10 topics from basic set theory and finite fields to symplectic Clifford simulation, stabilizer states, and GPU acceleration.
+- **Rigorous Theoretical Citations**: Every mathematical equation and formula explicitly cites its primary literature source (Hostens, Aaronson & Gottesman, Lanczos, Simon, etc.) with specific theorems and equation numbers.
+- **Cross-Device Persistence**:
+  - Primary: Neon PostgreSQL serverless database.
+  - Multi-tier fallback: Vercel Blob, Upstash KV, and local IndexedDB.
+  - Conflict-free timestamp-based note merging.
+- **Offline PWA**: Full offline capability with service worker caching and client-side IndexedDB storage.
 
-- [Sources](SOURCES.md): selected primary materials, what to read, and a stopping point.
-- [Glossary](GLOSSARY.md): mathematical and Rust terms used in the sessions.
-- [Codebase map](CODEBASE_MAP.md): concepts mapped to source files and functions.
-- [Practice setup](SETUP.md): one small Rust project and a circuit harness.
-- [Progress](PROGRESS.md): your own evidence and next questions, with no deadlines.
-- [Personal learning path](PERSONAL_PATH.md): branch into more theory, Rust, simulation, GPU work, or hardware.
-- [Templates](templates/README.md): add sessions, concept notes, and experiments.
+---
 
-## Make this yours
+## Tech Stack
 
-The four sessions provide a starting sequence, not a fixed syllabus. Dates, progress, and answers are yours to fill in. Links among study pages are relative. Code tours point to the sibling sympleq/sympleq-rust checkout. The notebook lives at QuAOS-Lab/study, outside the library repository. The former root-level Sunday plan has been moved into this folder and expanded into these pages.
+- **Framework**: React 19, TypeScript, Vite 8
+- **Styling**: Clean, distraction-free academic typography with KaTeX math rendering
+- **Stylus Engine**: `perfect-freehand` with custom vector SVG paths
+- **Backend & APIs**: Vercel Serverless Functions (`api/sync.ts`, `api/auth/verify.ts`)
+- **Database**: Neon Serverless PostgreSQL (`@neondatabase/serverless`)
+- **Authentication**: Google Identity Services (OAuth 2.0 ID Token verification)
+- **Testing**: Vitest
 
-Begin with [Saturday 1](sessions/01-foundations/README.md). You can also use the material on another day; the session numbers describe an order, not a deadline.
+---
+
+## Quick Start
+
+### 1. Prerequisites
+
+- Node.js 20+ (recommended v22+)
+- npm 10+
+
+### 2. Installation
+
+```bash
+git clone https://github.com/f-martini/AINotes.git
+cd AINotes
+npm install
+```
+
+### 3. Local Development
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser or tablet.
+
+### 4. Running the Test Suite
+
+```bash
+npm run test
+```
+
+### 5. Production Build
+
+```bash
+npm run build
+```
+
+---
+
+## Configuration & Environment Variables
+
+Create a `.env` file in the project root (see `.env.example`):
+
+```bash
+# Neon Postgres Database URL (or POSTGRES_URL from Neon / Vercel integration)
+DATABASE_URL=postgresql://user:password@ep-xyz.neon.tech/neondb?sslmode=require
+
+# Google Authentication
+GOOGLE_AUTH_CLIENT_API_KEY=your-client-id.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_AUTH_API_KEY=your-api-key-optional
+```
+
+### Google OAuth Setup in Google Cloud Console
+
+Under **APIs & Services > Credentials > OAuth 2.0 Client IDs**:
+- **Application Type**: *Web application*
+- **Authorized JavaScript origins**:
+  - `http://localhost:5173`
+  - `http://localhost:3000`
+  - `https://<your-deployment>.vercel.app`
+- **Authorized redirect URIs**: (Not required for the client-side Google Identity Services token flow).
+
+---
+
+## Project Structure
+
+```
+AINotes/
+├── api/                     # Vercel Serverless Functions
+│   ├── auth/verify.ts       # Google token verification endpoint
+│   ├── lib/db.ts            # Neon PostgreSQL database client & schema migrations
+│   ├── lib/storage.ts       # Multi-tier storage fallback (Neon -> Blob -> KV -> Memory)
+│   └── sync.ts              # Cross-device workspace synchronization
+├── public/                  # Static assets & PWA icons
+├── scripts/                 # Markdown content and icon generation scripts
+├── src/
+│   ├── components/          # React components
+│   │   ├── DocumentInkOverlay.tsx # Fluid SVG annotation layer with palm rejection
+│   │   ├── InkCanvas.tsx    # Standalone stylus canvas
+│   │   ├── LectureReader.tsx# Full lecture reader with integrated ink layer & side notes
+│   │   ├── MarkdownView.tsx # KaTeX & GFM markdown renderer
+│   │   ├── NotebookView.tsx # Notebook with auto-collected lecture notes
+│   │   ├── StudyPathView.tsx# 15 Four-Hour Mastery Packs syllabus
+│   │   └── TopicBrowser.tsx # 10 foundational topics directory
+│   ├── lib/
+│   │   ├── auth.tsx         # Google auth context & GIS integration
+│   │   ├── curriculum.ts    # 10 Topics, 60 lectures, citations, formulas
+│   │   ├── ink.ts           # Vector ink smoothing engine
+│   │   ├── model.ts         # Note, Workspace, and Lecture data models
+│   │   └── workspace.tsx    # IndexedDB + Neon sync provider
+│   └── styles.css           # Minimalist academic UI stylesheet
+├── tests/                   # Vitest unit & integration test suites
+└── vercel.json              # Vercel deployment configuration
+```
+
+---
+
+## License
+
+MIT License. Open for educational and research use.

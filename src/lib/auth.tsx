@@ -12,10 +12,49 @@ interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   clientId: string | null;
+  authWarning: string | null;
   isLoading: boolean;
   loginWithGoogle: () => void;
   logout: () => void;
   renderGoogleButton: (element: HTMLElement) => void;
+}
+
+export function cleanClientId(id: string | null | undefined): string | null {
+  if (!id) return null;
+  const trimmed = id.trim().replace(/^["']|["']$/g, '');
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function inspectClientId(id: string | null | undefined): { isValid: boolean; warning?: string } {
+  const cleaned = cleanClientId(id);
+  if (!cleaned) {
+    return {
+      isValid: false,
+      warning: 'Google Client ID is not configured in environment variables (GOOGLE_AUTH_CLIENT_API_KEY, GOOGLE_CLIENT_ID, or VITE_GOOGLE_CLIENT_ID).'
+    };
+  }
+  if (cleaned.includes('your_google_oauth_client_id') || cleaned.includes('placeholder')) {
+    return {
+      isValid: false,
+      warning:
+        'Default placeholder Client ID detected. Update GOOGLE_AUTH_CLIENT_API_KEY or VITE_GOOGLE_CLIENT_ID with a valid OAuth 2.0 Web Client ID from Google Cloud Console.'
+    };
+  }
+  if (cleaned.startsWith('AIza')) {
+    return {
+      isValid: false,
+      warning:
+        'A Google Cloud API Key (starts with AIza...) was provided instead of an OAuth 2.0 Web Client ID (ends with .apps.googleusercontent.com).'
+    };
+  }
+  if (!cleaned.includes('.apps.googleusercontent.com')) {
+    return {
+      isValid: false,
+      warning:
+        'Invalid Client ID format. A Google OAuth 2.0 Web Client ID must end in ".apps.googleusercontent.com".'
+    };
+  }
+  return { isValid: true };
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -41,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(
-    (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || null
+    cleanClientId(import.meta.env.VITE_GOOGLE_CLIENT_ID as string)
   );
   const [isLoading, setIsLoading] = useState(true);
 
@@ -51,18 +90,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetch('/api/auth/config')
         .then(res => res.json())
         .then(data => {
-          if (data?.clientId) setClientId(data.clientId);
+          if (data?.clientId) {
+            const cleaned = cleanClientId(data.clientId);
+            if (cleaned) setClientId(cleaned);
+          }
         })
         .catch(() => {});
     }
   }, [clientId]);
+
+  const clientInspection = inspectClientId(clientId);
+  const authWarning = clientInspection.isValid ? null : (clientInspection.warning || 'Google Client ID is missing or invalid.');
 
   // Handle Google token
   const handleCredentialResponse = useCallback((response: any) => {
     if (!response?.credential) return;
     const jwt = response.credential;
     setToken(jwt);
-    localStorage.setItem('quaos-google-token', jwt);
+    localStorage.setItem('ainotes-google-token', jwt);
 
     const payload = parseJwt(jwt);
     if (payload) {
@@ -78,12 +123,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Restore stored session on mount
   useEffect(() => {
-    const savedToken = localStorage.getItem('quaos-google-token');
+    const savedToken =
+      localStorage.getItem('ainotes-google-token') || localStorage.getItem('quaos-google-token');
     if (savedToken) {
       const payload = parseJwt(savedToken);
       // Check expiration
       if (payload && (!payload.exp || payload.exp * 1000 > Date.now())) {
         setToken(savedToken);
+        localStorage.setItem('ainotes-google-token', savedToken);
         setUser({
           uid: payload.sub,
           email: payload.email || '',
@@ -91,7 +138,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           picture: payload.picture || ''
         });
       } else {
-        localStorage.removeItem('quaos-google-token');
+        localStorage.removeItem('ainotes-google-token');
+        localStorage.removeItem('ainotes-google-token');
+    localStorage.removeItem('quaos-google-token');
       }
     }
     setIsLoading(false);
@@ -99,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize Google Identity Services
   useEffect(() => {
-    if (!clientId || typeof window === 'undefined') return;
+    if (!clientId || !clientInspection.isValid || typeof window === 'undefined') return;
 
     const checkGsi = () => {
       const google = (window as any).google;
@@ -124,21 +173,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }, 300);
       return () => clearInterval(timer);
     }
-  }, [clientId, handleCredentialResponse]);
+  }, [clientId, clientInspection.isValid, handleCredentialResponse]);
 
   const loginWithGoogle = useCallback(() => {
+    const inspection = inspectClientId(clientId);
+    if (!inspection.isValid) {
+      alert(`Google Sign-In configuration required:\n${inspection.warning}\n\nPlease check Google Cloud Console credentials.`);
+      return;
+    }
     const google = (window as any).google;
     if (google?.accounts?.id) {
       google.accounts.id.prompt();
     } else {
-      alert('Google Sign-In is initializing or client ID is not configured.');
+      alert('Google Sign-In library is loading or blocked by an ad-blocker. Please try again.');
     }
-  }, []);
+  }, [clientId]);
 
   const renderGoogleButton = useCallback(
     (element: HTMLElement) => {
       const google = (window as any).google;
-      if (google?.accounts?.id && element) {
+      const inspection = inspectClientId(clientId);
+      if (google?.accounts?.id && element && inspection.isValid && clientId) {
         element.innerHTML = '';
         google.accounts.id.renderButton(element, {
           theme: 'outline',
@@ -148,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-    []
+    [clientId]
   );
 
   const logout = useCallback(() => {
@@ -156,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (google?.accounts?.id && user?.email) {
       google.accounts.id.revoke(user.email, () => {});
     }
+    localStorage.removeItem('ainotes-google-token');
     localStorage.removeItem('quaos-google-token');
     setToken(null);
     setUser(null);
@@ -167,6 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         token,
         clientId,
+        authWarning,
         isLoading,
         loginWithGoogle,
         logout,

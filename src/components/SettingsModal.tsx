@@ -38,7 +38,7 @@ export function SettingsModal({
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
   const { data, update, syncState, triggerSync } = useWorkspace();
-  const { user, loginWithGoogle, logout, clientId, renderGoogleButton } = useAuth();
+  const { user, loginWithGoogle, logout, clientId, authWarning, renderGoogleButton } = useAuth();
 
   useEffect(() => {
     if (open && !dialogRef.current?.open) {
@@ -202,12 +202,22 @@ export function SettingsModal({
               >
                 Sign In with Google
               </button>
-              {!clientId && (
-                <p style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '8px' }}>
-                  Note: Deploy with <code>GOOGLE_AUTH_CLIENT_API_KEY</code> set in your Vercel
-                  environment to activate Google sign-in.
-                </p>
-              )}
+              {authWarning ? (
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--muted)',
+                    background: 'var(--soft)',
+                    border: '1px solid var(--line)',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    marginTop: '10px',
+                    lineHeight: '1.4'
+                  }}
+                >
+                  <strong>Setup note:</strong> {authWarning}
+                </div>
+              ) : null}
             </div>
           )}
         </section>

@@ -9,8 +9,13 @@ export async function verifyGoogleToken(token: string): Promise<GoogleUser | nul
   if (!token) return null;
   
   try {
-    const apiKey = process.env.GOOGLE_AUTH_API_KEY || '';
-    const clientId = process.env.GOOGLE_AUTH_CLIENT_API_KEY || '';
+    const apiKey = (process.env.GOOGLE_AUTH_API_KEY || '').trim();
+    const rawClientId =
+      process.env.GOOGLE_AUTH_CLIENT_API_KEY ||
+      process.env.GOOGLE_CLIENT_ID ||
+      process.env.VITE_GOOGLE_CLIENT_ID ||
+      '';
+    const clientId = rawClientId.trim().replace(/^["']|["']$/g, '');
     
     const url = new URL('https://oauth2.googleapis.com/tokeninfo');
     url.searchParams.set('id_token', token);
