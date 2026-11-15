@@ -3,6 +3,8 @@ import {
   buildKnowledgeDAG,
   getKnowledgeDAG,
   computeNodeReadiness,
+  getTopicRamification,
+  getLectureRamification,
   LECTURE_DEPENDENCIES,
   type GraphNode
 } from '../src/lib/knowledgeGraph';
@@ -186,5 +188,43 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     expect(l03Partial.completedPrereqs).toEqual(['L01-sets-maps-proofs']);
     expect(l03Partial.missingPrereqs).toEqual(['L02-groups-modular-arithmetic']);
     expect(l03Partial.percentReady).toBe(50);
+  });
+
+  it('computes browsable topic-level ramifications (prerequisites, progression, and next topics)', () => {
+    // Topic 1: Mathematical Foundations
+    const topic1Ramification = getTopicRamification('math-foundations', dag);
+    expect(topic1Ramification).not.toBeNull();
+    expect(topic1Ramification!.prerequisiteTopics.length).toBe(0); // Bedrock root topic
+    expect(topic1Ramification!.nextTopics.length).toBeGreaterThan(0); // Unlocks downstream topics
+    expect(topic1Ramification!.entryLectures.length).toBeGreaterThanOrEqual(1);
+
+    // Topic 4: Clifford Operations
+    const topic4Ramification = getTopicRamification('clifford-operations', dag);
+    expect(topic4Ramification).not.toBeNull();
+    // Prerequisite topics should include pauli-group or math-foundations
+    const prereqTopicIds = topic4Ramification!.prerequisiteTopics.map(p => p.topic.id);
+    expect(prereqTopicIds).toContain('pauli-group');
+    // Next topics should include stabilizer-formalism or simulation-architecture
+    const nextTopicIds = topic4Ramification!.nextTopics.map(n => n.topic.id);
+    expect(nextTopicIds).toContain('stabilizer-formalism');
+  });
+
+  it('computes browsable lecture-level ramifications (upstream distance layers, downstream unlocks, and actionable next steps)', () => {
+    // Check L23: Symplectic-Clifford Isomorphism
+    const l23Ramification = getLectureRamification('L23-symplectic-clifford-isomorphism', new Set(), dag);
+    expect(l23Ramification).not.toBeNull();
+    expect(l23Ramification!.directPrerequisites.length).toBe(3); // L07, L18, L21
+    expect(l23Ramification!.ancestorTiers.length).toBeGreaterThanOrEqual(2);
+    expect(l23Ramification!.directUnlocked.length).toBeGreaterThanOrEqual(2); // L24, L26, etc.
+    expect(l23Ramification!.softLinks.length).toBeGreaterThanOrEqual(1);
+
+    // With completed set covering L23's prerequisites, L23 is ready
+    const completedPrereqs = new Set([
+      'L07-symplectic-group-sp2n',
+      'L18-symplectic-product-commutation',
+      'L21-clifford-group-definition'
+    ]);
+    const l23Ready = getLectureRamification('L23-symplectic-clifford-isomorphism', completedPrereqs, dag);
+    expect(l23Ready).not.toBeNull();
   });
 });

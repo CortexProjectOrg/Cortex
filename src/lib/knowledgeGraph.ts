@@ -932,3 +932,285 @@ export function computeNodeReadiness(
     percentReady
   };
 }
+
+export interface TopicRamification {
+  topic: Topic;
+  lectures: GraphNode[];
+  prerequisiteTopics: Array<{
+    topic: Topic;
+    crossEdgesCount: number;
+    samplePrereqs: GraphNode[];
+  }>;
+  nextTopics: Array<{
+    topic: Topic;
+    crossEdgesCount: number;
+    sampleUnlocked: GraphNode[];
+  }>;
+  entryLectures: GraphNode[];
+  exitLectures: GraphNode[];
+  internalProgression: Array<{ from: GraphNode; to: GraphNode }>;
+  softLinkedTopics: Array<{
+    topic: Topic;
+    fromLecture: GraphNode;
+    toLecture: GraphNode;
+    relationship: string;
+  }>;
+}
+
+export interface LectureRamification {
+  node: GraphNode;
+  directPrerequisites: GraphNode[];
+  ancestorTiers: Array<{ distance: number; title: string; nodes: GraphNode[] }>;
+  directUnlocked: GraphNode[];
+  descendantTiers: Array<{ distance: number; title: string; nodes: GraphNode[] }>;
+  softLinks: Array<{ targetNode: GraphNode; relationship: string }>;
+  readyToTackleNext: GraphNode[];
+}
+
+/**
+ * Calculates topic-level ramifications: which topics are needed first,
+ * how lectures progress internally, and which next topics are unlocked.
+ */
+export function getTopicRamification(
+  topicId: string,
+  dag: KnowledgeDAG = getKnowledgeDAG()
+): TopicRamification | null {
+  const topic = TOPICS.find(t => t.id === topicId);
+  if (!topic) return null;
+
+  const topicLectures = dag.nodeList.filter(n => n.topicId === topicId);
+  const prereqTopicMap = new Map<string, { count: number; nodes: Set<string> }>();
+  const nextTopicMap = new Map<string, { count: number; nodes: Set<string> }>();
+  const internalProgression: Array<{ from: GraphNode; to: GraphNode }> = [];
+  const entryLectures: GraphNode[] = [];
+  const exitLectures: GraphNode[] = [];
+
+  for (const node of topicLectures) {
+    let hasInternalPrereq = false;
+    let hasExternalPrereq = false;
+
+    for (const pId of node.prerequisites) {
+      const pNode = dag.nodes.get(pId);
+      if (!pNode) continue;
+
+      if (pNode.topicId === topicId) {
+        hasInternalPrereq = true;
+        internalProgression.push({ from: pNode, to: node });
+      } else {
+        hasExternalPrereq = true;
+        if (!prereqTopicMap.has(pNode.topicId)) {
+          prereqTopicMap.set(pNode.topicId, { count: 0, nodes: new Set() });
+        }
+        const entry = prereqTopicMap.get(pNode.topicId)!;
+        entry.count++;
+        entry.nodes.add(pId);
+      }
+    }
+
+    if (!hasInternalPrereq || hasExternalPrereq || node.prerequisites.length === 0) {
+      entryLectures.push(node);
+    }
+
+    let unlocksExternal = false;
+    for (const uId of node.unlockedLectures) {
+      const uNode = dag.nodes.get(uId);
+      if (!uNode) continue;
+
+      if (uNode.topicId !== topicId) {
+        unlocksExternal = true;
+        if (!nextTopicMap.has(uNode.topicId)) {
+          nextTopicMap.set(uNode.topicId, { count: 0, nodes: new Set() });
+        }
+        const entry = nextTopicMap.get(uNode.topicId)!;
+        entry.count++;
+        entry.nodes.add(uId);
+      }
+    }
+
+    if (unlocksExternal) {
+      exitLectures.push(node);
+    }
+  }
+
+  const prerequisiteTopics = Array.from(prereqTopicMap.entries())
+    .map(([tId, info]) => {
+      const t = TOPICS.find(top => top.id === tId)!;
+      return {
+        topic: t,
+        crossEdgesCount: info.count,
+        samplePrereqs: Array.from(info.nodes)
+          .map(id => dag.nodes.get(id)!)
+          .filter(Boolean)
+      };
+    })
+    .sort((a, b) => a.topic.number - b.topic.number);
+
+  const nextTopics = Array.from(nextTopicMap.entries())
+    .map(([tId, info]) => {
+      const t = TOPICS.find(top => top.id === tId)!;
+      return {
+        topic: t,
+        crossEdgesCount: info.count,
+        sampleUnlocked: Array.from(info.nodes)
+          .map(id => dag.nodes.get(id)!)
+          .filter(Boolean)
+      };
+    })
+    .sort((a, b) => a.topic.number - b.topic.number);
+
+  const softLinkedTopics: TopicRamification['softLinkedTopics'] = [];
+  for (const node of topicLectures) {
+    for (const link of node.softLinks) {
+      const targetNode = dag.nodes.get(link.targetId);
+      if (targetNode && targetNode.topicId !== topicId) {
+        const targetTopic = TOPICS.find(t => t.id === targetNode.topicId);
+        if (targetTopic) {
+          softLinkedTopics.push({
+            topic: targetTopic,
+            fromLecture: node,
+            toLecture: targetNode,
+            relationship: link.relationship
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    topic,
+    lectures: topicLectures,
+    prerequisiteTopics,
+    nextTopics,
+    entryLectures,
+    exitLectures,
+    internalProgression,
+    softLinkedTopics
+  };
+}
+
+/**
+ * Calculates lecture-level ramifications: upstream ancestry branches,
+ * downstream unlocked branches, and next actionable lectures.
+ */
+export function getLectureRamification(
+  nodeId: string,
+  completedSet: Set<string> = new Set(),
+  dag: KnowledgeDAG = getKnowledgeDAG()
+): LectureRamification | null {
+  const node = dag.nodes.get(nodeId);
+  if (!node) return null;
+
+  const directPrerequisites = node.prerequisites
+    .map(p => dag.nodes.get(p)!)
+    .filter(Boolean);
+
+  const directUnlocked = node.unlockedLectures
+    .map(u => dag.nodes.get(u)!)
+    .filter(Boolean);
+
+  // Compute upstream layers by distance
+  const ancestorTiers: Array<{ distance: number; title: string; nodes: GraphNode[] }> = [];
+  let currentAncestorIds = new Set(node.prerequisites);
+  const visitedAncestors = new Set<string>([node.id, ...node.prerequisites]);
+  let distanceBack = 1;
+
+  while (currentAncestorIds.size > 0 && distanceBack <= 6) {
+    const layerNodes = Array.from(currentAncestorIds)
+      .map(id => dag.nodes.get(id)!)
+      .filter(Boolean)
+      .sort((a, b) => a.lectureNumber - b.lectureNumber);
+
+    const title =
+      distanceBack === 1
+        ? 'Direct Prerequisites'
+        : distanceBack === 2
+        ? 'Secondary Foundations (Grandparents)'
+        : `Ancestral Tier -${distanceBack}`;
+
+    ancestorTiers.push({
+      distance: distanceBack,
+      title,
+      nodes: layerNodes
+    });
+
+    const nextAncestorIds = new Set<string>();
+    for (const aId of currentAncestorIds) {
+      const aNode = dag.nodes.get(aId);
+      if (aNode) {
+        for (const p of aNode.prerequisites) {
+          if (!visitedAncestors.has(p)) {
+            visitedAncestors.add(p);
+            nextAncestorIds.add(p);
+          }
+        }
+      }
+    }
+
+    currentAncestorIds = nextAncestorIds;
+    distanceBack++;
+  }
+
+  // Compute downstream layers by distance
+  const descendantTiers: Array<{ distance: number; title: string; nodes: GraphNode[] }> = [];
+  let currentDescendantIds = new Set(node.unlockedLectures);
+  const visitedDescendants = new Set<string>([node.id, ...node.unlockedLectures]);
+  let distanceFwd = 1;
+
+  while (currentDescendantIds.size > 0 && distanceFwd <= 6) {
+    const layerNodes = Array.from(currentDescendantIds)
+      .map(id => dag.nodes.get(id)!)
+      .filter(Boolean)
+      .sort((a, b) => a.lectureNumber - b.lectureNumber);
+
+    const title =
+      distanceFwd === 1
+        ? 'Directly Unlocks (Next Topics)'
+        : distanceFwd === 2
+        ? 'Secondary Horizon (Grandchildren)'
+        : `Unlocked Tier +${distanceFwd}`;
+
+    descendantTiers.push({
+      distance: distanceFwd,
+      title,
+      nodes: layerNodes
+    });
+
+    const nextDescendantIds = new Set<string>();
+    for (const dId of currentDescendantIds) {
+      const dNode = dag.nodes.get(dId);
+      if (dNode) {
+        for (const u of dNode.unlockedLectures) {
+          if (!visitedDescendants.has(u)) {
+            visitedDescendants.add(u);
+            nextDescendantIds.add(u);
+          }
+        }
+      }
+    }
+
+    currentDescendantIds = nextDescendantIds;
+    distanceFwd++;
+  }
+
+  const softLinks = node.softLinks
+    .map(link => {
+      const targetNode = dag.nodes.get(link.targetId);
+      return targetNode ? { targetNode, relationship: link.relationship } : null;
+    })
+    .filter(Boolean) as Array<{ targetNode: GraphNode; relationship: string }>;
+
+  // Children whose other prerequisites are satisfied (ready to tackle)
+  const readyToTackleNext = directUnlocked.filter(child => {
+    return child.prerequisites.every(p => p === node.id || completedSet.has(p));
+  });
+
+  return {
+    node,
+    directPrerequisites,
+    ancestorTiers,
+    directUnlocked,
+    descendantTiers,
+    softLinks,
+    readyToTackleNext
+  };
+}

@@ -31,8 +31,10 @@ import {
 } from '../lib/knowledgeGraph';
 import { TOPICS, ALL_LECTURES } from '../lib/curriculum';
 import { useWorkspace } from '../lib/workspace';
+import { InteractiveDagCanvas } from './InteractiveDagCanvas';
+import { DagRamificationExplorer } from './DagRamificationExplorer';
 
-type ViewMode = 'stratified' | 'topics' | 'matrix';
+type ViewMode = 'canvas' | 'ramifications' | 'stratified' | 'topics';
 type StatusFilter = 'all' | 'ready' | 'completed' | 'locked';
 
 export function KnowledgeGraphView() {
@@ -48,7 +50,7 @@ export function KnowledgeGraphView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [topicFilter, setTopicFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('stratified');
+  const [viewMode, setViewMode] = useState<ViewMode>('canvas');
 
   // Sync focus param
   useEffect(() => {
@@ -436,6 +438,22 @@ export function KnowledgeGraphView() {
         <div className="segmented">
           <button
             type="button"
+            className={viewMode === 'canvas' ? 'selected' : ''}
+            onClick={() => setViewMode('canvas')}
+            title="Real Interactive DAG Graph Canvas"
+          >
+            <Network size={14} /> Interactive Graph
+          </button>
+          <button
+            type="button"
+            className={viewMode === 'ramifications' ? 'selected' : ''}
+            onClick={() => setViewMode('ramifications')}
+            title="Topic & Lecture Ramification Explorer"
+          >
+            <Workflow size={14} /> Ramifications
+          </button>
+          <button
+            type="button"
             className={viewMode === 'stratified' ? 'selected' : ''}
             onClick={() => setViewMode('stratified')}
             title="Stratified Layered DAG Tree"
@@ -450,14 +468,6 @@ export function KnowledgeGraphView() {
           >
             <Layers size={14} /> Topic Clusters
           </button>
-          <button
-            type="button"
-            className={viewMode === 'matrix' ? 'selected' : ''}
-            onClick={() => setViewMode('matrix')}
-            title="Compact Monothematic Matrix"
-          >
-            <BookOpen size={14} /> Monothematic Matrix
-          </button>
         </div>
       </div>
 
@@ -465,13 +475,37 @@ export function KnowledgeGraphView() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: selectedNode ? 'minmax(0, 1fr) 390px' : 'minmax(0, 1fr)',
+          gridTemplateColumns:
+            selectedNode && viewMode !== 'ramifications' ? 'minmax(0, 1fr) 390px' : 'minmax(0, 1fr)',
           gap: '24px',
           alignItems: 'start'
         }}
       >
         {/* Graph Display Area */}
         <div style={{ minWidth: 0 }}>
+          {viewMode === 'canvas' && (
+            <InteractiveDagCanvas
+              dag={dag}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={id => setSelectedNodeId(id)}
+              completedSet={completedSet}
+              focusedTopicId={topicFilter !== 'all' ? topicFilter : undefined}
+              onSelectTopic={tId => setTopicFilter(tId)}
+            />
+          )}
+
+          {viewMode === 'ramifications' && (
+            <DagRamificationExplorer
+              dag={dag}
+              selectedNodeId={selectedNodeId || 'L01-sets-maps-proofs'}
+              onSelectNode={id => setSelectedNodeId(id)}
+              selectedTopicId={topicFilter !== 'all' ? topicFilter : selectedNode?.topicId || 'math-foundations'}
+              onSelectTopic={tId => setTopicFilter(tId)}
+              completedSet={completedSet}
+              onToggleMastery={toggleLectureMastery}
+            />
+          )}
+
           {viewMode === 'stratified' && (
             <StratifiedTreeView
               dag={dag}
@@ -484,16 +518,6 @@ export function KnowledgeGraphView() {
 
           {viewMode === 'topics' && (
             <TopicClustersView
-              dag={dag}
-              filteredNodeIds={filteredNodeIds}
-              nodeReadinessMap={nodeReadinessMap}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={id => setSelectedNodeId(id)}
-            />
-          )}
-
-          {viewMode === 'matrix' && (
-            <MatrixGridView
               dag={dag}
               filteredNodeIds={filteredNodeIds}
               nodeReadinessMap={nodeReadinessMap}
