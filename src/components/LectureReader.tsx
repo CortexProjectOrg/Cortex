@@ -38,7 +38,55 @@ export function LectureReader() {
   const lecture = (lectureId && LECTURE_MAP.get(lectureId)) || ALL_LECTURES[0];
   const topic = TOPICS.find(t => t.id === lecture.topicId) || TOPICS[0];
 
-  const [notesOpen, setNotesOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth > 900);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notesWidth, setNotesWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ainotes_side_notes_width');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 320 && parsed <= 850) {
+          return parsed;
+        }
+      }
+    }
+    return 440;
+  });
+  const [isResizingNotes, setIsResizingNotes] = useState(false);
+  const resizeStartXRef = useRef<number>(0);
+  const resizeStartWidthRef = useRef<number>(440);
+
+  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsResizingNotes(true);
+    resizeStartXRef.current = e.clientX;
+    resizeStartWidthRef.current = notesWidth;
+  };
+
+  useEffect(() => {
+    if (!isResizingNotes) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      // Panel is anchored on right side of viewport: moving left increases width
+      const deltaX = resizeStartXRef.current - e.clientX;
+      const maxWidth = Math.min(850, window.innerWidth - 60);
+      const newWidth = Math.max(320, Math.min(maxWidth, resizeStartWidthRef.current + deltaX));
+      setNotesWidth(newWidth);
+    };
+
+    const handlePointerUp = () => {
+      setIsResizingNotes(false);
+      localStorage.setItem('ainotes_side_notes_width', String(notesWidth));
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [isResizingNotes, notesWidth]);
+
   const [previewNotes, setPreviewNotes] = useState(false);
   const articleRef = useRef<HTMLElement>(null);
 
@@ -196,6 +244,7 @@ export function LectureReader() {
             containerRef={articleRef}
             onToggleSideNotes={() => setNotesOpen(!notesOpen)}
             sideNotesOpen={notesOpen}
+            sideNotesWidth={notesWidth}
           />
 
           <header className="article-heading">
@@ -522,8 +571,18 @@ export function LectureReader() {
             onClick={() => setNotesOpen(false)}
             aria-hidden="true"
           />
-          <aside className="reading-notes" style={{ width: '450px', maxWidth: '92vw' }}>
-          <div className="notes-panel-heading">
+          <aside
+            className={`reading-notes ${isResizingNotes ? 'is-resizing' : ''}`}
+            style={{ width: `${notesWidth}px`, maxWidth: '92vw', position: 'relative' }}
+          >
+            {/* Draggable resize handle along left edge */}
+            <div
+              className={`notes-resize-handle ${isResizingNotes ? 'is-resizing' : ''}`}
+              onPointerDown={handleResizeStart}
+              title="Drag left/right to resize notes panel"
+              aria-label="Resize notes panel"
+            />
+            <div className="notes-panel-heading">
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span className="eyebrow">STYLUS & PEN SCRATCHPAD</span>

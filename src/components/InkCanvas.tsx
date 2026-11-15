@@ -60,9 +60,10 @@ export function InkCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: minHeight });
 
-  // Update dimensions based on container
+  // Update dimensions based on container and observe dynamic resizes
   useEffect(() => {
-    if (!containerRef.current) return;
+    const el = containerRef.current;
+    if (!el) return;
     const updateSize = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
@@ -73,8 +74,15 @@ export function InkCanvas({
       }
     };
     updateSize();
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(el);
     window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
   }, [minHeight, isExpanded]);
 
   // Sync external changes

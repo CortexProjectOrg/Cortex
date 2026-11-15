@@ -11,7 +11,10 @@ import {
   MousePointer,
   PanelRightOpen,
   PanelRightClose,
-  ShieldCheck
+  ShieldCheck,
+  ArrowUp,
+  ArrowDown,
+  Lock
 } from 'lucide-react';
 import {
   type InkStroke,
@@ -26,6 +29,7 @@ interface DocumentInkOverlayProps {
   containerRef: React.RefObject<HTMLElement | null>;
   onToggleSideNotes?: () => void;
   sideNotesOpen?: boolean;
+  sideNotesWidth?: number;
 }
 
 type ToolMode = 'browse' | 'pen' | 'highlighter' | 'eraser';
@@ -48,13 +52,13 @@ export function DocumentInkOverlay({
   onChange,
   containerRef,
   onToggleSideNotes,
-  sideNotesOpen = false
+  sideNotesOpen = false,
+  sideNotesWidth = 450
 }: DocumentInkOverlayProps) {
   const [strokes, setStrokes] = useState<InkStroke[]>(() => deserializeInk(initialData));
   const [redoStack, setRedoStack] = useState<InkStroke[][]>([]);
-  const [tool, setTool] = useState<ToolMode>(() =>
-    typeof window !== 'undefined' && window.innerWidth <= 768 ? 'browse' : 'pen'
-  );
+  // DEFAULT TOOL IS ALWAYS BROWSE / POINTER
+  const [tool, setTool] = useState<ToolMode>('browse');
   const [penColor, setPenColor] = useState('#1e2822');
   const [highlighterColor, setHighlighterColor] = useState('#e0b200');
   const [penSize, setPenSize] = useState(3);
@@ -110,13 +114,47 @@ export function DocumentInkOverlay({
     [onChange, dimensions]
   );
 
+  // FREEZE PAGE SCROLLING IN DRAWING MODE:
+  // When in Pen / Highlighter / Eraser mode, prevent touchpad two-finger scroll and touchmove gestures
+  // so the page stays completely stable and precise while drawing.
+  useEffect(() => {
+    if (tool === 'browse') return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [tool]);
+
+  // Dedicated button navigation while in frozen drawing mode
+  const handleScrollStep = (direction: 'up' | 'down') => {
+    const step = Math.round(window.innerHeight * 0.65);
+    window.scrollBy({
+      top: direction === 'up' ? -step : step,
+      behavior: 'smooth'
+    });
+  };
+
   // Stylus, Pen & Touch pointer handlers
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (tool === 'browse' || !visible) return;
 
-    // Palm rejection: if palm rejection is on and user touches with a finger while on a touch/stylus screen,
-    // let touch scroll the page natively!
-    if (palmRejection && e.pointerType === 'touch') {
+    if (palmRejection && e.pointerType === 'touch' && (e.nativeEvent as any).pointerType === 'touch') {
+      // If user specifically enabled stylus-only mode, ignore touch inputs
+      // but still prevent page scroll
       return;
     }
 
@@ -264,7 +302,7 @@ export function DocumentInkOverlay({
           <button
             type="button"
             className={`icon-button small ${tool === 'browse' ? 'is-active' : ''}`}
-            title="Browse / Select Text Mode"
+            title="Pointer / Browse Mode (Default: scroll & select text normally)"
             onClick={() => setTool('browse')}
             style={{
               borderRadius: '20px',
@@ -278,7 +316,7 @@ export function DocumentInkOverlay({
           <button
             type="button"
             className={`icon-button small ${tool === 'pen' ? 'is-active' : ''}`}
-            title="Pen (Write & Draw directly over lecture text & formulas)"
+            title="Pen (Write & Draw directly over lecture text; freezes scroll for precision)"
             onClick={() => setTool('pen')}
             style={{
               borderRadius: '20px',
@@ -292,7 +330,7 @@ export function DocumentInkOverlay({
           <button
             type="button"
             className={`icon-button small ${tool === 'highlighter' ? 'is-active' : ''}`}
-            title="Highlighter (Highlight text & equations underneath)"
+            title="Highlighter (Highlight text & equations; freezes scroll)"
             onClick={() => setTool('highlighter')}
             style={{
               borderRadius: '20px',
@@ -316,6 +354,26 @@ export function DocumentInkOverlay({
           >
             <Eraser size={15} />
           </button>
+
+          {tool !== 'browse' && (
+            <span
+              style={{
+                fontSize: '9px',
+                color: 'var(--accent)',
+                background: 'var(--soft)',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 650,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                marginLeft: '4px'
+              }}
+              title="Page scrolling is frozen so you can draw precisely. Use the arrows in the lower right to scroll."
+            >
+              <Lock size={10} /> Scroll Frozen
+            </span>
+          )}
 
           <span
             style={{
@@ -497,7 +555,7 @@ export function DocumentInkOverlay({
             height: '100%',
             zIndex: 10,
             pointerEvents: tool === 'browse' ? 'none' : 'auto',
-            touchAction: palmRejection ? 'pan-y' : (tool === 'browse' ? 'auto' : 'none'),
+            touchAction: tool === 'browse' ? 'auto' : 'none',
             cursor:
               tool === 'browse'
                 ? 'default'
@@ -538,6 +596,77 @@ export function DocumentInkOverlay({
             />
           )}
         </svg>
+      )}
+
+      {/* Floating navigation buttons in lower right corner when drawing mode freezes page scrolling */}
+      {tool !== 'browse' && (
+        <div
+          className="canvas-scroll-controls"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right:
+              sideNotesOpen && typeof window !== 'undefined' && window.innerWidth > 900
+                ? `${sideNotesWidth + 24}px`
+                : '24px',
+            zIndex: 160,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(255, 254, 250, 0.96)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--line, #e2e4da)',
+            borderRadius: '28px',
+            padding: '6px',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.16)',
+            transition: 'right 0.22s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+        >
+          <button
+            type="button"
+            className="icon-button"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '50%',
+              background: 'var(--soft)',
+              color: 'var(--accent)'
+            }}
+            onClick={() => handleScrollStep('up')}
+            title="Scroll Document Up (Drawing Mode frozen)"
+            aria-label="Scroll document up"
+          >
+            <ArrowUp size={20} />
+          </button>
+          <span
+            style={{
+              fontSize: '8px',
+              fontWeight: 800,
+              letterSpacing: '0.8px',
+              color: 'var(--muted)',
+              userSelect: 'none'
+            }}
+          >
+            SCROLL
+          </span>
+          <button
+            type="button"
+            className="icon-button"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '50%',
+              background: 'var(--soft)',
+              color: 'var(--accent)'
+            }}
+            onClick={() => handleScrollStep('down')}
+            title="Scroll Document Down (Drawing Mode frozen)"
+            aria-label="Scroll document down"
+          >
+            <ArrowDown size={20} />
+          </button>
+        </div>
       )}
     </>
   );

@@ -28,6 +28,8 @@ import {
   LoaderCircle,
   Menu,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   PenTool,
@@ -518,7 +520,7 @@ function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) 
               <div>
                 <strong>{l.title}</strong>
                 <span>
-                  Sunday {l.sundaySession}, Slot {l.sundaySlot} · 60 min
+                  4H Pack {l.packNumber || l.sundaySession}, Slot {l.packSlot || l.sundaySlot} · 60 min
                 </span>
               </div>
               <ArrowUpRight size={17} />
@@ -565,6 +567,12 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ainotes_sidebar_collapsed') === 'true';
+    }
+    return false;
+  });
   const [online, setOnline] = useState(navigator.onLine);
   const [offlineReady, setOfflineReady] = useState(false);
   const [needRefresh, setNeedRefresh] = useState(false);
@@ -630,7 +638,7 @@ export default function App() {
   const navItems = [
     { to: '/', label: 'Dashboard', icon: <LayoutDashboard size={19} /> },
     { to: '/topics', label: '10 Topics', icon: <Layers size={19} /> },
-    { to: '/path', label: 'Sunday Plan', icon: <Calendar size={19} /> },
+    { to: '/path', label: 'Study Path', icon: <Calendar size={19} /> },
     { to: '/notes', label: 'Notebook & Ink', icon: <PenTool size={19} /> },
     { to: '/library', label: 'Reference Shelf', icon: <BookOpen size={19} /> }
   ];
@@ -640,7 +648,7 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <div className="app-shell">
+      <div className={join('app-shell', sidebarCollapsed && 'sidebar-collapsed')}>
         {menuOpen && (
           <button
             type="button"
@@ -734,6 +742,21 @@ export default function App() {
                 onClick={() => setMenuOpen(!menuOpen)}
               >
                 <Menu size={20} />
+              </button>
+              <button
+                type="button"
+                className="icon-button desktop-sidebar-toggle"
+                onClick={() => {
+                  setSidebarCollapsed(c => {
+                    const next = !c;
+                    localStorage.setItem('ainotes_sidebar_collapsed', String(next));
+                    return next;
+                  });
+                }}
+                title={sidebarCollapsed ? 'Expand sidebar navigation' : 'Collapse sidebar navigation'}
+                aria-label={sidebarCollapsed ? 'Expand sidebar navigation' : 'Collapse sidebar navigation'}
+              >
+                {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
               </button>
               <span className="topbar-label">AINotes · Symplectic & Quantum Systems Guide</span>
               <Link className="mobile-brand" to="/">
