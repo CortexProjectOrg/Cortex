@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vercel/
+src/generated/
+public/apple-touch-icon.png
+public/pwa-192.png
+public/pwa-512.png
+*.local
