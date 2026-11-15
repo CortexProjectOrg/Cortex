@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -25,6 +25,7 @@ import { makeNote, lectureRoute } from '../lib/model';
 import type { Note } from '../lib/model';
 import { MarkdownView } from './MarkdownView';
 import { InkCanvas } from './InkCanvas';
+import { DocumentInkOverlay } from './DocumentInkOverlay';
 
 export function LectureReader() {
   const { topicId, lectureId } = useParams();
@@ -35,6 +36,7 @@ export function LectureReader() {
   const topic = TOPICS.find(t => t.id === lecture.topicId) || TOPICS[0];
 
   const [notesOpen, setNotesOpen] = useState(true); // Open by default for easy note-taking
+  const articleRef = useRef<HTMLElement>(null);
 
   // Find next and previous lectures in syllabus sequence
   const currentIndex = ALL_LECTURES.findIndex(l => l.id === lecture.id);
@@ -65,6 +67,7 @@ export function LectureReader() {
     title: `Notes: ${lecture.title}`,
     body: '',
     lectureId: lecture.id,
+    lectureInk: '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -180,8 +183,17 @@ export function LectureReader() {
           </div>
         </div>
 
-        {/* Lecture Article Content */}
-        <article className="article">
+        {/* Lecture Article Content with Direct Fluid Ink Overlay */}
+        <article className="article" ref={articleRef} style={{ position: 'relative' }}>
+          <DocumentInkOverlay
+            key={lecture.id}
+            initialData={activeNote.lectureInk}
+            onChange={lectureInk => updateActiveNote({ lectureInk })}
+            containerRef={articleRef}
+            onToggleSideNotes={() => setNotesOpen(!notesOpen)}
+            sideNotesOpen={notesOpen}
+          />
+
           <header className="article-heading">
             <div className="article-meta">
               <span className="eyebrow">

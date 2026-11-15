@@ -59,9 +59,14 @@ async function ensureTables() {
             title TEXT,
             body TEXT,
             ink_data TEXT,
+            lecture_ink TEXT,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             updated_at TIMESTAMPTZ DEFAULT NOW()
           );
+        `;
+
+        await sql`
+          ALTER TABLE user_notes ADD COLUMN IF NOT EXISTS lecture_ink TEXT;
         `;
 
         await sql`
@@ -111,6 +116,7 @@ export async function getFullWorkspaceFromNeon(userId: string): Promise<any | nu
 
   const notesRows = await sql`
     SELECT note_id as id, title, body, ink_data as "inkData", 
+           lecture_ink as "lectureInk",
            lecture_id as "lectureId", document_id as "documentId",
            created_at as "createdAt", updated_at as "updatedAt"
     FROM user_notes
@@ -127,6 +133,7 @@ export async function getFullWorkspaceFromNeon(userId: string): Promise<any | nu
     title: n.title || '',
     body: n.body || '',
     inkData: n.inkData || undefined,
+    lectureInk: n.lectureInk || undefined,
     lectureId: n.lectureId || undefined,
     documentId: n.documentId || undefined,
     createdAt: n.createdAt ? new Date(n.createdAt).toISOString() : new Date().toISOString(),
@@ -205,7 +212,7 @@ export async function saveFullWorkspaceToNeon(userId: string, ws: any) {
     if (!n || !n.id) continue;
     await sql`
       INSERT INTO user_notes (
-        note_id, user_id, lecture_id, document_id, title, body, ink_data, created_at, updated_at
+        note_id, user_id, lecture_id, document_id, title, body, ink_data, lecture_ink, created_at, updated_at
       )
       VALUES (
         ${n.id},
@@ -215,6 +222,7 @@ export async function saveFullWorkspaceToNeon(userId: string, ws: any) {
         ${n.title || ''},
         ${n.body || ''},
         ${n.inkData || null},
+        ${n.lectureInk || null},
         ${n.createdAt ? new Date(n.createdAt) : new Date()},
         ${n.updatedAt ? new Date(n.updatedAt) : new Date()}
       )
@@ -224,6 +232,7 @@ export async function saveFullWorkspaceToNeon(userId: string, ws: any) {
         title = EXCLUDED.title,
         body = EXCLUDED.body,
         ink_data = EXCLUDED.ink_data,
+        lecture_ink = EXCLUDED.lecture_ink,
         updated_at = EXCLUDED.updated_at
       WHERE EXCLUDED.updated_at >= user_notes.updated_at;
     `;

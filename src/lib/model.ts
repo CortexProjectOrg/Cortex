@@ -2,7 +2,8 @@ export type Note = {
   id: string;
   title: string;
   body: string;
-  inkData?: string; // Serialized SVG or stroke vector points for pen drawings
+  inkData?: string; // Serialized SVG or stroke vector points for scratchpad pen drawings
+  lectureInk?: string; // Serialized strokes drawn directly on top of the lecture article text
   documentId?: string;
   lectureId?: string;
   createdAt: string;
@@ -97,6 +98,7 @@ export function validateWorkspace(value: unknown): Workspace {
       createdAt: n.createdAt,
       updatedAt: n.updatedAt,
       ...(typeof n.inkData === 'string' ? { inkData: n.inkData } : {}),
+      ...(typeof n.lectureInk === 'string' ? { lectureInk: n.lectureInk } : {}),
       ...(typeof n.documentId === 'string' ? { documentId: n.documentId } : {}),
       ...(typeof n.lectureId === 'string' ? { lectureId: n.lectureId } : {})
     };

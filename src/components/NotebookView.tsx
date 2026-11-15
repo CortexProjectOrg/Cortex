@@ -168,6 +168,21 @@ export function NotebookView() {
                       }).format(new Date(note.updatedAt))}
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {note.lectureInk && (
+                        <span
+                          title="Contains direct fluid annotations on lecture text"
+                          style={{
+                            fontSize: '9px',
+                            background: 'var(--soft)',
+                            color: 'var(--accent)',
+                            padding: '1px 4px',
+                            borderRadius: '3px',
+                            fontWeight: 600
+                          }}
+                        >
+                          Doc Ink
+                        </span>
+                      )}
                       {note.inkData && <PenTool size={11} style={{ color: 'var(--accent)' }} />}
                       {note.body && <FileText size={11} style={{ color: 'var(--muted)' }} />}
                     </div>
@@ -351,6 +366,35 @@ export function NotebookView() {
                     style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}
                   >
                     Go to Lecture <ArrowUpRight size={12} />
+                  </Link>
+                </div>
+              )}
+
+              {/* Direct Lecture Inking Callout */}
+              {selectedNote.lectureInk && selectedLecture && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: '#f4f6ef',
+                    border: '1px solid #d5dfc9'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                    <PenTool size={14} style={{ color: 'var(--accent)' }} />
+                    <span>
+                      Fluid pen and highlighter annotations are active on this lecture.
+                    </span>
+                  </div>
+                  <Link
+                    to={lectureRoute(selectedLecture.topicId, selectedLecture.id)}
+                    className="button small primary"
+                    style={{ fontSize: '11px', padding: '4px 10px', minHeight: '28px', textDecoration: 'none' }}
+                  >
+                    View Annotated Lecture <ArrowRight size={12} />
                   </Link>
                 </div>
               )}
