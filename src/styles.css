@@ -16,7 +16,7 @@
     margin-left: 0 !important;
     width: 100% !important;
     max-width: 100vw !important;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   .sidebar {
@@ -118,8 +118,10 @@
 
   /* Floating Document Annotation Toolbar on Mobile */
   .document-annotation-toolbar {
+    position: sticky !important;
     top: 8px !important;
-    padding: 4px 8px !important;
+    z-index: 100 !important;
+    padding: 6px 10px !important;
     max-width: 96vw !important;
     gap: 4px !important;
     overflow-x: auto;
@@ -250,5 +252,23 @@
     transform: translateY(0);
   }
 }
+
+/* ==========================================================================
+   STICKY DRAWING MENUS ON CANVAS SCROLL
+   ========================================================================== */
+
+.document-annotation-toolbar {
+  position: sticky !important;
+  top: 14px !important;
+  z-index: 100 !important;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.12) !important;
+}
+
+.ink-tools {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30 !important;
+}
+
 
 

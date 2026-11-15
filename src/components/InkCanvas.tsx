@@ -253,6 +253,9 @@ export function InkCanvas({
         <div
           className="ink-tools"
           style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 30,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

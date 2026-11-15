@@ -280,19 +280,19 @@ export function DocumentInkOverlay({
         className="document-annotation-toolbar"
         style={{
           position: 'sticky',
-          top: '16px',
-          zIndex: 40,
+          top: '14px',
+          zIndex: 90,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(255, 254, 250, 0.95)',
-          backdropFilter: 'blur(10px)',
+          background: 'rgba(255, 254, 250, 0.96)',
+          backdropFilter: 'blur(12px)',
           border: '1px solid var(--line, #e2e4da)',
           borderRadius: '30px',
           padding: '6px 14px',
           margin: '0 auto 20px',
           maxWidth: '720px',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 6px 28px rgba(0, 0, 0, 0.12)',
           gap: '8px',
           flexWrap: 'wrap'
         }}
