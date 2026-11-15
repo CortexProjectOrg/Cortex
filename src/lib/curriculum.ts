@@ -365,7 +365,7 @@ export const LECTURES_DATA: Record<string, Partial<Lecture>> = {
     theoreticalCitations: [
       {
         formulaName: 'Pauli Operator Decomposition',
-        expression: 'P(x, z, \\tau) = i^\\tau X^{x_1} Z^{z_1} \\otimes \\cdots \\otimes X^{x_n} Z^{z_n}, \\quad x, z \\in \\mathbb{F}_2^n, \\, \\tau \\in \\mathbb{Z}_4',
+        expression: 'P(x, z, \\tau) = i^{\\tau} X^{x_1} Z^{z_1} \\otimes \\cdots \\otimes X^{x_n} Z^{z_n}, \\quad x, z \\in \\mathbb{F}_2^n, \\, \\tau \\in \\mathbb{Z}_4',
         source: 'Aaronson & Gottesman (2004)',
         theoremOrEquation: 'Section 3: The Tableau Formalism, Lemma 1',
         doiOrUrl: 'https://doi.org/10.1103/PhysRevA.70.052328'
@@ -439,7 +439,7 @@ export const LECTURES_DATA: Record<string, Partial<Lecture>> = {
     theoreticalCitations: [
       {
         formulaName: 'Clifford Group Definition',
-        expression: '\\mathcal{C}_n = \\{ U \\in \\mathcal{U}(2^n) \\mid U \\mathcal{P}_n U^\\dagger = \\mathcal{P}_n \\}',
+        expression: '\\mathcal{C}_n = \\{ U \\in \\mathcal{U}(2^n) \\mid U \\mathcal{P}_n U^{\\dagger} = \\mathcal{P}_n \\}',
         source: 'D. Gottesman, Ph.D. Thesis, Caltech (1997)',
         theoremOrEquation: 'Chapter 3: Stabilizer Codes and the Clifford Group',
         doiOrUrl: 'https://arxiv.org/abs/quant-ph/9705052'
@@ -513,14 +513,14 @@ export const LECTURES_DATA: Record<string, Partial<Lecture>> = {
     theoreticalCitations: [
       {
         formulaName: 'Lanczos Three-Term Recurrence Relation',
-        expression: '\\beta_j v_{j+1} = H v_j - \\alpha_j v_j - \\beta_{j-1} v_{j-1}, \\quad \\alpha_j = v_j^\\dagger H v_j, \\, \\beta_j = \\|H v_j - \\alpha_j v_j - \\beta_{j-1} v_{j-1}\\|',
+        expression: '\\beta_j v_{j+1} = H v_j - \\alpha_j v_j - \\beta_{j-1} v_{j-1}, \\quad \\alpha_j = v_j^{\\dagger} H v_j, \\, \\beta_j = \\|H v_j - \\alpha_j v_j - \\beta_{j-1} v_{j-1}\\|',
         source: 'C. Lanczos, J. Res. Natl. Bur. Stand. 45, 255 (1950)',
         theoremOrEquation: 'Section 3: An iteration method for the solution of the eigenvalue problem',
         doiOrUrl: 'https://doi.org/10.6028/jres.045.026'
       },
       {
         formulaName: 'Rayleigh-Ritz Projection Theorem',
-        expression: 'T_m = V_m^\\dagger H V_m = \\begin{pmatrix} \\alpha_1 & \\beta_1 & & \\\\ \\beta_1 & \\alpha_2 & \\ddots & \\\\ & \\ddots & \\ddots & \\beta_{m-1} \\\\ & & \\beta_{m-1} & \\alpha_m \\end{pmatrix}',
+        expression: 'T_m = V_m^{\\dagger} H V_m = \\begin{pmatrix} \\alpha_1 & \\beta_1 & & \\\\ \\beta_1 & \\alpha_2 & \\ddots & \\\\ & \\ddots & \\ddots & \\beta_{m-1} \\\\ & & \\beta_{m-1} & \\alpha_m \\end{pmatrix}',
         source: 'Golub & Van Loan, Matrix Computations (4th ed., 2013)',
         theoremOrEquation: 'Algorithm 9.1.1: The Lanczos Algorithm'
       }
@@ -728,7 +728,7 @@ In this lecture, we examine **${title}** from first principles.
 > **Theoretical Reference (Hostens et al., Phys. Rev. A 71, 042315 (2005), Eq. 2 & Eq. 4):**
 > Let $\\mathcal{H}$ be a finite-dimensional Hilbert space. When representing quantum operators $P \\in \\mathcal{P}_n$, the phase factor and the algebraic symplectic action decouple:
 >
-> $$P = i^\\tau X^x Z^z, \\quad x, z \\in \\mathbb{F}_2^n, \\, \\tau \\in \\mathbb{Z}_4$$
+> $$P = i^{\\tau} X^x Z^z, \\quad x, z \\in \\mathbb{F}_2^n, \\, \\tau \\in \\mathbb{Z}_4$$
 
 ### 2. Symplectic Invariance & Commutation
 

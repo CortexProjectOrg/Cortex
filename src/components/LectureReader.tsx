@@ -17,7 +17,9 @@ import {
   Download,
   Bookmark,
   Sparkles,
-  Link2
+  Link2,
+  Eye,
+  Edit3
 } from 'lucide-react';
 import { LECTURE_MAP, ALL_LECTURES, TOPICS } from '../lib/curriculum';
 import { useWorkspace } from '../lib/workspace';
@@ -26,6 +28,7 @@ import type { Note } from '../lib/model';
 import { MarkdownView } from './MarkdownView';
 import { InkCanvas } from './InkCanvas';
 import { DocumentInkOverlay } from './DocumentInkOverlay';
+import { MathFormula } from './MathFormula';
 
 export function LectureReader() {
   const { topicId, lectureId } = useParams();
@@ -36,6 +39,7 @@ export function LectureReader() {
   const topic = TOPICS.find(t => t.id === lecture.topicId) || TOPICS[0];
 
   const [notesOpen, setNotesOpen] = useState(true); // Open by default for easy note-taking
+  const [previewNotes, setPreviewNotes] = useState(false);
   const articleRef = useRef<HTMLElement>(null);
 
   // Find next and previous lectures in syllabus sequence
@@ -277,18 +281,21 @@ export function LectureReader() {
               >
                 <BookOpen size={14} /> THEORETICAL FORMULAS & PRIMARY CITATIONS
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {lecture.theoreticalCitations.map((cite, i) => (
                   <div
                     key={i}
                     style={{
                       borderLeft: '3px solid #8caa7c',
-                      paddingLeft: '12px',
+                      paddingLeft: '14px',
                       fontSize: '13px'
                     }}
                   >
-                    <strong>{cite.formulaName}:</strong> <code>${cite.expression}$</code>
-                    <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+                    <div style={{ fontWeight: 650, color: 'var(--ink)', marginBottom: '4px' }}>
+                      {cite.formulaName}:
+                    </div>
+                    <MathFormula math={cite.expression} display={true} />
+                    <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>
                       Source: <em>{cite.source}</em> · {cite.theoremOrEquation}
                     </div>
                   </div>
@@ -586,27 +593,70 @@ export function LectureReader() {
                   fontWeight: 650,
                   letterSpacing: '0.8px',
                   color: 'var(--muted)',
-                  marginBottom: '6px'
+                  marginBottom: '6px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
                 }}
               >
-                TYPED DERIVATIONS & REFLECTIONS:
+                <span>TYPED DERIVATIONS & REFLECTIONS:</span>
+                <button
+                  type="button"
+                  onClick={() => setPreviewNotes(!previewNotes)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--accent)',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '2px 6px',
+                    borderRadius: '4px'
+                  }}
+                  title="Toggle Math & Markdown Preview"
+                >
+                  {previewNotes ? <Edit3 size={11} /> : <Eye size={11} />}
+                  <span>{previewNotes ? 'Edit' : 'Preview Math'}</span>
+                </button>
               </div>
-              <textarea
-                className="note-body"
-                value={activeNote.body}
-                onChange={e => updateActiveNote({ body: e.target.value })}
-                placeholder="Test your derivations, write notes ($...$), or record questions..."
-                rows={5}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--line)',
-                  fontFamily: 'inherit',
-                  fontSize: '13px',
-                  lineHeight: '1.6'
-                }}
-              />
+
+              {previewNotes ? (
+                <div
+                  style={{
+                    width: '100%',
+                    minHeight: '115px',
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--line)',
+                    background: 'var(--surface)',
+                    fontSize: '13px',
+                    lineHeight: '1.6',
+                    overflowX: 'auto'
+                  }}
+                >
+                  <MarkdownView source={activeNote.body || '_No typed notes yet. Type LaTeX math using $...$._'} />
+                </div>
+              ) : (
+                <textarea
+                  className="note-body"
+                  value={activeNote.body}
+                  onChange={e => updateActiveNote({ body: e.target.value })}
+                  placeholder="Test your derivations, write notes ($...$), or record questions..."
+                  rows={5}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--line)',
+                    fontFamily: 'inherit',
+                    fontSize: '13px',
+                    lineHeight: '1.6'
+                  }}
+                />
+              )}
             </div>
 
             <div
