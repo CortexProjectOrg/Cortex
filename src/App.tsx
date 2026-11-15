@@ -28,6 +28,7 @@ import {
   LoaderCircle,
   Menu,
   Moon,
+  Network,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
@@ -63,6 +64,7 @@ import { Dashboard } from './components/Dashboard';
 import { TopicBrowser } from './components/TopicBrowser';
 import { StudyPathView } from './components/StudyPathView';
 import { LectureReader } from './components/LectureReader';
+import { KnowledgeGraphView } from './components/KnowledgeGraphView';
 import { NotebookView } from './components/NotebookView';
 import { SettingsModal } from './components/SettingsModal';
 import { MarkdownView } from './components/MarkdownView';
@@ -641,6 +643,7 @@ export default function App() {
   const navItems = [
     { to: '/', label: 'Dashboard', icon: <LayoutDashboard size={19} /> },
     { to: '/topics', label: '10 Topics', icon: <Layers size={19} /> },
+    { to: '/tree', label: 'Knowledge DAG', icon: <Network size={19} /> },
     { to: '/path', label: 'Study Path', icon: <Calendar size={19} /> },
     { to: '/notes', label: 'Notebook & Ink', icon: <PenTool size={19} /> },
     { to: '/library', label: 'Reference Shelf', icon: <BookOpen size={19} /> }
@@ -833,6 +836,8 @@ export default function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/topics" element={<TopicBrowser />} />
                 <Route path="/topics/:topicId/:lectureId" element={<LectureReader />} />
+                <Route path="/tree" element={<KnowledgeGraphView />} />
+                <Route path="/graph" element={<KnowledgeGraphView />} />
                 <Route path="/path" element={<StudyPathView />} />
                 <Route path="/notes" element={<NotebookView />} />
                 <Route path="/notes/:id" element={<NotebookView />} />

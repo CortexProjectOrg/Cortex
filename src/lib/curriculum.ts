@@ -22,6 +22,11 @@ export interface CodeReference {
   purpose: string;
 }
 
+export interface SoftLink {
+  targetId: string;
+  relationship: string;
+}
+
 export interface Lecture {
   id: string;
   topicId: string;
@@ -47,6 +52,7 @@ export interface Lecture {
     reflectionPrompts: string[];
   };
   prerequisites: string[];
+  softLinks?: SoftLink[];
 }
 
 export interface Topic {

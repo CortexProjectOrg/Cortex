@@ -65,7 +65,13 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
         "What code bugs arise when register sets are treated as ordered lists with duplicates?"
       ]
     },
-    "prerequisites": []
+    "prerequisites": [],
+    "softLinks": [
+        {
+          "targetId": "L02-groups-modular-arithmetic",
+          "relationship": "Algebraic Lift: Set-theoretic mappings structure group composition laws."
+        }
+      ]
   },
   "L02-groups-modular-arithmetic": {
     "id": "L02-groups-modular-arithmetic",
@@ -130,8 +136,14 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L01"
-    ]
+        "L01-sets-maps-proofs"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L19-acquired-phases-hostens-moduli",
+          "relationship": "Phase Accumulation: Z4 cyclic group arithmetic tracks Pauli global phase factors."
+        }
+      ]
   },
   "L03-finite-fields-gf2-gfp": {
     "id": "L03-finite-fields-gf2-gfp",
@@ -196,8 +208,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L02"
-    ]
+        "L01-sets-maps-proofs",
+        "L02-groups-modular-arithmetic"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L60-qudit-algebra-mixed-dimension-registers",
+          "relationship": "Field Generalization: Galois fields GF(p) govern prime-dimensional qudit Pauli operators."
+        }
+      ]
   },
   "L04-vector-spaces-finite-fields": {
     "id": "L04-vector-spaces-finite-fields",
@@ -263,8 +282,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L03"
-    ]
+        "L01-sets-maps-proofs",
+        "L03-finite-fields-gf2-gfp"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L42-term-fixers-exact-kernel",
+          "relationship": "Kernel Subspaces: Discrete nullspaces over GF(2) determine invariant Hamiltonian term fixers."
+        }
+      ]
   },
   "L05-linear-maps-matrices": {
     "id": "L05-linear-maps-matrices",
@@ -330,8 +356,14 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L04"
-    ]
+        "L04-vector-spaces-finite-fields"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L45-krylov-subspaces-power-iteration",
+          "relationship": "Matrix Action: Linear transformations across finite fields mirror complex operator power iterations."
+        }
+      ]
   },
   "L06-bilinear-symplectic-forms": {
     "id": "L06-bilinear-symplectic-forms",
@@ -396,8 +428,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L05"
-    ]
+        "L04-vector-spaces-finite-fields",
+        "L05-linear-maps-matrices"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L56-gaussian-states-matchgate-simulation",
+          "relationship": "Algebraic Duality: Alternating bilinear forms over GF(2) parallel orthogonal quadratic forms over Majorana fermions."
+        }
+      ]
   },
   "L07-symplectic-group-sp2n": {
     "id": "L07-symplectic-group-sp2n",
@@ -462,8 +501,18 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L06"
-    ]
+        "L06-bilinear-symplectic-forms"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L23-symplectic-clifford-isomorphism",
+          "relationship": "Group Homomorphism: Sp(2n, F2) is isomorphic to the Clifford quotient group C_n / P_n."
+        },
+        {
+          "targetId": "L60-qudit-algebra-mixed-dimension-registers",
+          "relationship": "Qudit Symplectic Extension: Sp(2n, F_p) generates qudit Clifford gates over discrete qudits."
+        }
+      ]
   },
   "L08-eigenvalues-without-diagonalization": {
     "id": "L08-eigenvalues-without-diagonalization",
@@ -528,8 +577,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L07"
-    ]
+        "L05-linear-maps-matrices",
+        "L07-symplectic-group-sp2n"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L43-commuting-paulis-sector-resolution",
+          "relationship": "Spectral Partitioning: Invariant subspace splitting without full matrix factorization."
+        }
+      ]
   },
   "L09-complex-inner-products-hilbert": {
     "id": "L09-complex-inner-products-hilbert",
@@ -594,8 +650,16 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L08"
-    ]
+        "L01-sets-maps-proofs",
+        "L04-vector-spaces-finite-fields",
+        "L05-linear-maps-matrices"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L45-krylov-subspaces-power-iteration",
+          "relationship": "Hilbert Metric: Sesquilinear inner products govern Lanczos Rayleigh quotient convergence."
+        }
+      ]
   },
   "L10-one-qubit-states-measurement": {
     "id": "L10-one-qubit-states-measurement",
@@ -660,8 +724,14 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L09"
-    ]
+        "L09-complex-inner-products-hilbert"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L49-quantum-observable-estimation-budget",
+          "relationship": "Born Statistical Variance: Single-qubit projective projection sets sample variance bounds."
+        }
+      ]
   },
   "L11-unitary-operators-quantum-gates": {
     "id": "L11-unitary-operators-quantum-gates",
@@ -726,8 +796,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L10"
-    ]
+        "L09-complex-inner-products-hilbert",
+        "L10-one-qubit-states-measurement"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L22-standard-generators-conjugation",
+          "relationship": "Unitary Generators: One-qubit gates H and S form the discrete generators of Clifford groups."
+        }
+      ]
   },
   "L12-multi-qubit-systems-entanglement": {
     "id": "L12-multi-qubit-systems-entanglement",
@@ -792,8 +869,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L11"
-    ]
+        "L10-one-qubit-states-measurement",
+        "L11-unitary-operators-quantum-gates"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L27-stabilizer-states-generators",
+          "relationship": "Entanglement Structure: Maximal Bell entanglement is canonically represented by two stabilizer generators."
+        }
+      ]
   },
   "L13-density-matrices-mixed-states": {
     "id": "L13-density-matrices-mixed-states",
@@ -858,8 +942,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L12"
-    ]
+        "L09-complex-inner-products-hilbert",
+        "L12-multi-qubit-systems-entanglement"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L54-hardware-noise-systematic-shifts",
+          "relationship": "Open System Dynamics: Mixed states and Kraus operators model hardware decoherence for Zero-Noise Extrapolation."
+        }
+      ]
   },
   "L14-circuit-model-universal-sets": {
     "id": "L14-circuit-model-universal-sets",
@@ -925,8 +1016,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L13"
-    ]
+        "L11-unitary-operators-quantum-gates",
+        "L12-multi-qubit-systems-entanglement"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L32-magic-states-pauli-based-computation",
+          "relationship": "Universality Threshold: Adding non-Clifford T-gates to Clifford circuits achieves BQP-completeness."
+        }
+      ]
   },
   "L15-pauli-matrices-algebra": {
     "id": "L15-pauli-matrices-algebra",
@@ -992,8 +1090,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L14"
-    ]
+        "L10-one-qubit-states-measurement",
+        "L11-unitary-operators-quantum-gates"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L55-majorana-fermions-encodings",
+          "relationship": "Clifford Algebra Bridge: Pauli matrices form 3D Euclidean Clifford algebras isomorphic to paired Majorana modes."
+        }
+      ]
   },
   "L16-n-qubit-pauli-strings": {
     "id": "L16-n-qubit-pauli-strings",
@@ -1058,8 +1163,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L15"
-    ]
+        "L12-multi-qubit-systems-entanglement",
+        "L15-pauli-matrices-algebra"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L55-majorana-fermions-encodings",
+          "relationship": "Non-Local Jordan-Wigner Strings: Tensor products of Pauli Z operators represent fermionic exchange parity."
+        }
+      ]
   },
   "L17-binary-symplectic-encoding": {
     "id": "L17-binary-symplectic-encoding",
@@ -1119,8 +1231,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L16"
-    ]
+        "L06-bilinear-symplectic-forms",
+        "L16-n-qubit-pauli-strings"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L28-aaronson-gottesman-tableaux",
+          "relationship": "Tableau Bitboards: Symplectic binary vectors (x|z) become contiguous rows in stabilizer tableaux."
+        }
+      ]
   },
   "L18-symplectic-product-commutation": {
     "id": "L18-symplectic-product-commutation",
@@ -1179,8 +1298,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L17"
-    ]
+        "L06-bilinear-symplectic-forms",
+        "L17-binary-symplectic-encoding"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L50-commutation-graphs-clique-covers",
+          "relationship": "Graph Adjacency: The symplectic inner product defines edges in Hamiltonian commutation graphs."
+        }
+      ]
   },
   "L19-acquired-phases-hostens-moduli": {
     "id": "L19-acquired-phases-hostens-moduli",
@@ -1238,8 +1364,16 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L18"
-    ]
+        "L02-groups-modular-arithmetic",
+        "L17-binary-symplectic-encoding",
+        "L18-symplectic-product-commutation"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L60-qudit-algebra-mixed-dimension-registers",
+          "relationship": "Discrete Phase Moduli: Hostens phase tracking extends from mod 4 integers to roots of unity omega_d."
+        }
+      ]
   },
   "L20-pauli-sums-observables-hamiltonians": {
     "id": "L20-pauli-sums-observables-hamiltonians",
@@ -1304,8 +1438,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L19"
-    ]
+        "L13-density-matrices-mixed-states",
+        "L16-n-qubit-pauli-strings"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L37-many-body-hamiltonians-models",
+          "relationship": "Physical Systems: Molecular electronic Hamiltonians expand into linear sums of Pauli strings."
+        }
+      ]
   },
   "L21-clifford-group-definition": {
     "id": "L21-clifford-group-definition",
@@ -1370,8 +1511,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L20"
-    ]
+        "L16-n-qubit-pauli-strings",
+        "L19-acquired-phases-hostens-moduli"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L23-symplectic-clifford-isomorphism",
+          "relationship": "Normalizer Structure: The Clifford group normalizes the Pauli group within U(2^n)."
+        }
+      ]
   },
   "L22-standard-generators-conjugation": {
     "id": "L22-standard-generators-conjugation",
@@ -1436,8 +1584,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L21"
-    ]
+        "L14-circuit-model-universal-sets",
+        "L21-clifford-group-definition"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L29-tableau-gate-updates",
+          "relationship": "Action on Tableaux: Gate conjugation rules directly translate to deterministic bitboard updates."
+        }
+      ]
   },
   "L23-symplectic-clifford-isomorphism": {
     "id": "L23-symplectic-clifford-isomorphism",
@@ -1497,8 +1652,16 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L22"
-    ]
+        "L07-symplectic-group-sp2n",
+        "L18-symplectic-product-commutation",
+        "L21-clifford-group-definition"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L57-qec-stabilizer-codes-automorphisms",
+          "relationship": "Code Symmetries: Fault-tolerant transversal gates correspond to symplectic automorphisms preserving the code."
+        }
+      ]
   },
   "L24-symplectic-transvections": {
     "id": "L24-symplectic-transvections",
@@ -1563,8 +1726,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L23"
-    ]
+        "L07-symplectic-group-sp2n",
+        "L23-symplectic-clifford-isomorphism"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L25-clifford-circuit-synthesis",
+          "relationship": "Algorithmic Factoring: Decomposing symplectic matrices into shear transvections produces gate sequences."
+        }
+      ]
   },
   "L25-clifford-circuit-synthesis": {
     "id": "L25-clifford-circuit-synthesis",
@@ -1629,8 +1799,19 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L24"
-    ]
+        "L22-standard-generators-conjugation",
+        "L24-symplectic-transvections"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L35-circuit-peephole-rewrites",
+          "relationship": "Canonical Forms: Synthesized circuits provide canonical representations to measure peephole rewrite reductions."
+        },
+        {
+          "targetId": "L51-rotated-cliques-diagonalization-circuits",
+          "relationship": "Diagonalization Synthesis: Synthesizing unitary Clifford rotations to simultaneously measure commuting cliques."
+        }
+      ]
   },
   "L26-clifford-uniform-sampling": {
     "id": "L26-clifford-uniform-sampling",
@@ -1694,8 +1875,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L25"
-    ]
+        "L23-symplectic-clifford-isomorphism",
+        "L25-clifford-circuit-synthesis"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L53-mcmc-covariance-integration",
+          "relationship": "Randomized Benchmarking & Shadows: Haar-uniform Clifford samples underpin classical shadow tomography."
+        }
+      ]
   },
   "L27-stabilizer-states-generators": {
     "id": "L27-stabilizer-states-generators",
@@ -1760,8 +1948,16 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L26"
-    ]
+        "L12-multi-qubit-systems-entanglement",
+        "L18-symplectic-product-commutation",
+        "L21-clifford-group-definition"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L57-qec-stabilizer-codes-automorphisms",
+          "relationship": "Quantum Error Correction: Stabilizer codes are joint +1 eigenspaces of commuting Pauli generator subgroups."
+        }
+      ]
   },
   "L28-aaronson-gottesman-tableaux": {
     "id": "L28-aaronson-gottesman-tableaux",
@@ -1822,8 +2018,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L27"
-    ]
+        "L17-binary-symplectic-encoding",
+        "L27-stabilizer-states-generators"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L34-pauli-frame-batched-sampling",
+          "relationship": "Memory-Throughput Tradeoff: Full (2n+1)x(2n+1) tableaux vs O(1) Pauli frame updates in quantum control."
+        }
+      ]
   },
   "L29-tableau-gate-updates": {
     "id": "L29-tableau-gate-updates",
@@ -1882,8 +2085,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L28"
-    ]
+        "L22-standard-generators-conjugation",
+        "L28-aaronson-gottesman-tableaux"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L35-circuit-peephole-rewrites",
+          "relationship": "Symbolic Simulation: Applying tableau updates to verify equivalence of circuit simplification rules."
+        }
+      ]
   },
   "L30-stabilizer-measurement-algorithm": {
     "id": "L30-stabilizer-measurement-algorithm",
@@ -1942,8 +2152,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L29"
-    ]
+        "L18-symplectic-product-commutation",
+        "L29-tableau-gate-updates"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L34-pauli-frame-batched-sampling",
+          "relationship": "Syndrome Acquisition: Non-deterministic measurement branches update active Pauli frames in quantum error tracking."
+        }
+      ]
   },
   "L31-gottesman-knill-theorem": {
     "id": "L31-gottesman-knill-theorem",
@@ -2002,8 +2219,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L30"
-    ]
+        "L29-tableau-gate-updates",
+        "L30-stabilizer-measurement-algorithm"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L56-gaussian-states-matchgate-simulation",
+          "relationship": "Complexity Boundary: Gottesman-Knill and fermionic matchgates define the two solvable islands in quantum mechanics."
+        }
+      ]
   },
   "L32-magic-states-pauli-based-computation": {
     "id": "L32-magic-states-pauli-based-computation",
@@ -2068,8 +2292,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L31"
-    ]
+        "L14-circuit-model-universal-sets",
+        "L31-gottesman-knill-theorem"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L57-qec-stabilizer-codes-automorphisms",
+          "relationship": "Circumventing Eastin-Knill: Fault-tolerant magic state distillation compensates for transversal gate limitations."
+        }
+      ]
   },
   "L33-program-ir-routes": {
     "id": "L33-program-ir-routes",
@@ -2128,8 +2359,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L32"
-    ]
+        "L14-circuit-model-universal-sets",
+        "L31-gottesman-knill-theorem"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L44-block-diagonalization-pipeline",
+          "relationship": "Compiler Partitioning: IR splits circuits into pure Clifford stabilizer routes and Hamiltonian symmetry sectors."
+        }
+      ]
   },
   "L34-pauli-frame-batched-sampling": {
     "id": "L34-pauli-frame-batched-sampling",
@@ -2188,8 +2426,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L33"
-    ]
+        "L30-stabilizer-measurement-algorithm",
+        "L33-program-ir-routes"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L54-hardware-noise-systematic-shifts",
+          "relationship": "Frame Virtualization: Tracking bit-flips in software eliminates physical calibration latency and noise."
+        }
+      ]
   },
   "L35-circuit-peephole-rewrites": {
     "id": "L35-circuit-peephole-rewrites",
@@ -2248,8 +2493,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L34"
-    ]
+        "L25-clifford-circuit-synthesis",
+        "L34-pauli-frame-batched-sampling"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L51-rotated-cliques-diagonalization-circuits",
+          "relationship": "Optimization for Hardware: Peephole rewrites eliminate redundant CNOT depth in measurement rotation subcircuits."
+        }
+      ]
   },
   "L36-ket-networks-path-sums": {
     "id": "L36-ket-networks-path-sums",
@@ -2308,8 +2560,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L35"
-    ]
+        "L14-circuit-model-universal-sets",
+        "L27-stabilizer-states-generators"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L37-many-body-hamiltonians-models",
+          "relationship": "Tensor Networks: Ket network slicing provides matrix product states for strongly correlated condensed matter."
+        }
+      ]
   },
   "L37-many-body-hamiltonians-models": {
     "id": "L37-many-body-hamiltonians-models",
@@ -2374,8 +2633,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L36"
-    ]
+        "L20-pauli-sums-observables-hamiltonians",
+        "L36-ket-networks-path-sums"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L55-majorana-fermions-encodings",
+          "relationship": "Electronic Structure: Ab initio quantum chemistry molecular integrals map into fermionic operators."
+        }
+      ]
   },
   "L38-symmetry-as-operator-commutation": {
     "id": "L38-symmetry-as-operator-commutation",
@@ -2440,8 +2706,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L37"
-    ]
+        "L20-pauli-sums-observables-hamiltonians",
+        "L37-many-body-hamiltonians-models"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L40-colored-graphs-interaction-graphs",
+          "relationship": "Topological Symmetry: Permutational and spatial symmetries manifest as automorphism orbits of interaction graphs."
+        }
+      ]
   },
   "L39-clifford-symmetries-paper-tour": {
     "id": "L39-clifford-symmetries-paper-tour",
@@ -2499,8 +2772,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L38"
-    ]
+        "L23-symplectic-clifford-isomorphism",
+        "L38-symmetry-as-operator-commutation"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L44-block-diagonalization-pipeline",
+          "relationship": "Empirical Symmetry Hunting: Practical symmetry identification compresses Hamiltonian state space exponentially."
+        }
+      ]
   },
   "L40-colored-graphs-interaction-graphs": {
     "id": "L40-colored-graphs-interaction-graphs",
@@ -2559,8 +2839,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L39"
-    ]
+        "L18-symplectic-product-commutation",
+        "L38-symmetry-as-operator-commutation"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L50-commutation-graphs-clique-covers",
+          "relationship": "Graph-Theoretic Duality: Interaction graphs connect interacting particles; commutation graphs connect measurable observables."
+        }
+      ]
   },
   "L41-partition-refinement-backtracking": {
     "id": "L41-partition-refinement-backtracking",
@@ -2619,8 +2906,14 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L40"
-    ]
+        "L40-colored-graphs-interaction-graphs"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L42-term-fixers-exact-kernel",
+          "relationship": "Discrete Algorithms: McKay partition refinement discovers subgroup orbits without combinatorial explosion."
+        }
+      ]
   },
   "L42-term-fixers-exact-kernel": {
     "id": "L42-term-fixers-exact-kernel",
@@ -2678,8 +2971,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L41"
-    ]
+        "L04-vector-spaces-finite-fields",
+        "L41-partition-refinement-backtracking"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L43-commuting-paulis-sector-resolution",
+          "relationship": "Symplectic Kernel Nullspace: Exact term fixers generate the maximal commuting point group symmetry algebra."
+        }
+      ]
   },
   "L43-commuting-paulis-sector-resolution": {
     "id": "L43-commuting-paulis-sector-resolution",
@@ -2737,8 +3037,16 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L42"
-    ]
+        "L08-eigenvalues-without-diagonalization",
+        "L27-stabilizer-states-generators",
+        "L42-term-fixers-exact-kernel"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L51-rotated-cliques-diagonalization-circuits",
+          "relationship": "Simultaneous Diagonalization: Resolving symmetry sectors is mathematically identical to diagonalizing measurement cliques."
+        }
+      ]
   },
   "L44-block-diagonalization-pipeline": {
     "id": "L44-block-diagonalization-pipeline",
@@ -2796,8 +3104,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L43"
-    ]
+        "L42-term-fixers-exact-kernel",
+        "L43-commuting-paulis-sector-resolution"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L47-matrix-free-hamiltonian-products",
+          "relationship": "Solvers Integration: Block diagonal sectors feed decoupled sparse vectors directly into iterative Lanczos solvers."
+        }
+      ]
   },
   "L45-krylov-subspaces-power-iteration": {
     "id": "L45-krylov-subspaces-power-iteration",
@@ -2861,8 +3176,16 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L44"
-    ]
+        "L05-linear-maps-matrices",
+        "L09-complex-inner-products-hilbert",
+        "L20-pauli-sums-observables-hamiltonians"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L46-lanczos-three-term-recurrence",
+          "relationship": "Subspace Expansion: Power iteration Krylov bases {v, Av, A^2v...} form the foundation for three-term tridiagonalization."
+        }
+      ]
   },
   "L46-lanczos-three-term-recurrence": {
     "id": "L46-lanczos-three-term-recurrence",
@@ -2927,8 +3250,14 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L45"
-    ]
+        "L45-krylov-subspaces-power-iteration"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L48-convergence-precision-architecture",
+          "relationship": "Orthogonality Breakdown: Finite IEEE 754 precision causes ghost spurious Ritz values during Lanczos recursion."
+        }
+      ]
   },
   "L47-matrix-free-hamiltonian-products": {
     "id": "L47-matrix-free-hamiltonian-products",
@@ -2986,8 +3315,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L46"
-    ]
+        "L16-n-qubit-pauli-strings",
+        "L46-lanczos-three-term-recurrence"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L58-cuda-lanczos-gpu-kernels",
+          "relationship": "Hardware Acceleration: Matrix-free Pauli-vector bitboard evaluation translates to massive CUDA thread parallelism."
+        }
+      ]
   },
   "L48-convergence-precision-architecture": {
     "id": "L48-convergence-precision-architecture",
@@ -3051,8 +3387,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L47"
-    ]
+        "L46-lanczos-three-term-recurrence",
+        "L47-matrix-free-hamiltonian-products"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L59-batched-cuda-covariance-offload",
+          "relationship": "Heterogeneous Compute: Selective reorthogonalization on CPU host interleaved with GPU matrix-vector compute."
+        }
+      ]
   },
   "L49-quantum-observable-estimation-budget": {
     "id": "L49-quantum-observable-estimation-budget",
@@ -3110,8 +3453,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L48"
-    ]
+        "L10-one-qubit-states-measurement",
+        "L20-pauli-sums-observables-hamiltonians"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L52-bayesian-adaptive-allocation",
+          "relationship": "Sample Optimization: Allocating finite shot budgets to minimize aggregate variance Tr(Cov)."
+        }
+      ]
   },
   "L50-commutation-graphs-clique-covers": {
     "id": "L50-commutation-graphs-clique-covers",
@@ -3175,8 +3525,16 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L49"
-    ]
+        "L18-symplectic-product-commutation",
+        "L40-colored-graphs-interaction-graphs",
+        "L49-quantum-observable-estimation-budget"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L51-rotated-cliques-diagonalization-circuits",
+          "relationship": "Clique Partitioning: Grouping non-commuting observables into minimal sets of simultaneously measurable commuting cliques."
+        }
+      ]
   },
   "L51-rotated-cliques-diagonalization-circuits": {
     "id": "L51-rotated-cliques-diagonalization-circuits",
@@ -3234,8 +3592,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L50"
-    ]
+        "L25-clifford-circuit-synthesis",
+        "L50-commutation-graphs-clique-covers"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L52-bayesian-adaptive-allocation",
+          "relationship": "Circuit Execution: Measuring rotated cliques feeds live empirical shot statistics into Bayesian allocators."
+        }
+      ]
   },
   "L52-bayesian-adaptive-allocation": {
     "id": "L52-bayesian-adaptive-allocation",
@@ -3299,8 +3664,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L51"
-    ]
+        "L49-quantum-observable-estimation-budget",
+        "L51-rotated-cliques-diagonalization-circuits"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L53-mcmc-covariance-integration",
+          "relationship": "Posterior Sampling: When shot count grows, posterior covariance integrals are evaluated via Markov Chain Monte Carlo."
+        }
+      ]
   },
   "L53-mcmc-covariance-integration": {
     "id": "L53-mcmc-covariance-integration",
@@ -3358,8 +3730,16 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L52"
-    ]
+        "L26-clifford-uniform-sampling",
+        "L49-quantum-observable-estimation-budget",
+        "L52-bayesian-adaptive-allocation"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L59-batched-cuda-covariance-offload",
+          "relationship": "Massive Sampling Offload: High-dimensional covariance matrix inversion offloaded to GPU tensor cores."
+        }
+      ]
   },
   "L54-hardware-noise-systematic-shifts": {
     "id": "L54-hardware-noise-systematic-shifts",
@@ -3424,8 +3804,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L53"
-    ]
+        "L13-density-matrices-mixed-states",
+        "L49-quantum-observable-estimation-budget"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L57-qec-stabilizer-codes-automorphisms",
+          "relationship": "Noise Strategy: Error mitigation (ZNE) bridges the noisy intermediate-scale era until fault-tolerant QEC emerges."
+        }
+      ]
   },
   "L55-majorana-fermions-encodings": {
     "id": "L55-majorana-fermions-encodings",
@@ -3490,8 +3877,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L54"
-    ]
+        "L16-n-qubit-pauli-strings",
+        "L37-many-body-hamiltonians-models"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L56-gaussian-states-matchgate-simulation",
+          "relationship": "Majorana Kinematics: Quadratic Majorana Hamiltonians generate free-fermion matchgate circuits."
+        }
+      ]
   },
   "L56-gaussian-states-matchgate-simulation": {
     "id": "L56-gaussian-states-matchgate-simulation",
@@ -3556,8 +3950,19 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L55"
-    ]
+        "L23-symplectic-clifford-isomorphism",
+        "L55-majorana-fermions-encodings"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L06-bilinear-symplectic-forms",
+          "relationship": "Mathematical Duality: Symplectic forms over GF(2) mirror SO(2n) orthogonal Lie algebras over Majorana operators."
+        },
+        {
+          "targetId": "L31-gottesman-knill-theorem",
+          "relationship": "Solvable Subtheories: Matchgate polynomial simulation forms the fermionic twin to the Clifford Gottesman-Knill theorem."
+        }
+      ]
   },
   "L57-qec-stabilizer-codes-automorphisms": {
     "id": "L57-qec-stabilizer-codes-automorphisms",
@@ -3622,8 +4027,20 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L56"
-    ]
+        "L27-stabilizer-states-generators",
+        "L31-gottesman-knill-theorem",
+        "L50-commutation-graphs-clique-covers"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L23-symplectic-clifford-isomorphism",
+          "relationship": "Logical Gate Automorphisms: Transversal Clifford operations on CSS/surface codes map to symplectic invariants."
+        },
+        {
+          "targetId": "L32-magic-states-pauli-based-computation",
+          "relationship": "Universal Fault-Tolerance: Magic state distillation circumvents the Eastin-Knill no-go barrier in stabilizer codes."
+        }
+      ]
   },
   "L58-cuda-lanczos-gpu-kernels": {
     "id": "L58-cuda-lanczos-gpu-kernels",
@@ -3681,8 +4098,14 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L57"
-    ]
+        "L47-matrix-free-hamiltonian-products"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L59-batched-cuda-covariance-offload",
+          "relationship": "Kernel Fusion: Shared memory caching and warp shuffle operations scale sparse Pauli evaluations across GPU clusters."
+        }
+      ]
   },
   "L59-batched-cuda-covariance-offload": {
     "id": "L59-batched-cuda-covariance-offload",
@@ -3740,8 +4163,15 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L58"
-    ]
+        "L48-convergence-precision-architecture",
+        "L58-cuda-lanczos-gpu-kernels"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L53-mcmc-covariance-integration",
+          "relationship": "High-Throughput Analytics: Streaming GPU pipelines evaluate millions of MCMC shadow samples in parallel."
+        }
+      ]
   },
   "L60-qudit-algebra-mixed-dimension-registers": {
     "id": "L60-qudit-algebra-mixed-dimension-registers",
@@ -3812,7 +4242,16 @@ export const FULL_LECTURES_RECORD: Record<string, Lecture> = {
       ]
     },
     "prerequisites": [
-      "L59"
-    ]
+        "L03-finite-fields-gf2-gfp",
+        "L07-symplectic-group-sp2n",
+        "L19-acquired-phases-hostens-moduli",
+        "L31-gottesman-knill-theorem"
+      ],
+    "softLinks": [
+        {
+          "targetId": "L24-symplectic-transvections",
+          "relationship": "Generalized Symplectic Geometry: Discrete Wigner functions and Heisenberg-Weyl qudit operators over GF(p)."
+        }
+      ]
   }
 };
