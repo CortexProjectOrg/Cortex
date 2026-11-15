@@ -12,14 +12,11 @@ import {
   Share2,
   Workflow,
   Search,
-  Filter,
   Maximize2,
   Minimize2,
   Compass,
   Check,
-  ExternalLink,
-  Layers,
-  Network
+  Layers
 } from 'lucide-react';
 import {
   type GraphNode,
@@ -29,12 +26,11 @@ import {
 import {
   buildTopicMacroGraph,
   findLearningPath,
-  queryLectures,
   type TopicMacroNode,
   type TopicMacroEdge,
   type LearningPathResult
 } from '../lib/knowledgeGraphQuery';
-import { TOPICS, ALL_LECTURES } from '../lib/curriculum';
+import { TOPICS } from '../lib/curriculum';
 
 interface HierarchicalTopicGraphProps {
   dag: KnowledgeDAG;

@@ -6,18 +6,14 @@ import {
   Route,
   Routes,
   useLocation,
-  useNavigate,
-  useParams
+  useNavigate
 } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import {
   BookOpen,
   Bookmark,
-  Check,
-  CheckCheck,
   ChevronRight,
   Clock3,
-  Code2,
   Compass,
   Download,
   FolderOpen,
@@ -31,11 +27,6 @@ import {
   Network,
   PanelLeftClose,
   PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-  PenTool,
-  PencilLine,
-  Plus,
   Route as RouteIcon,
   Search,
   Settings,
@@ -47,15 +38,14 @@ import {
   WifiOff,
   Cloud,
   FileText,
-  X,
-  ArrowLeft,
   ArrowRight,
-  ArrowUpRight
+  PenTool,
+  Check,
+  X
 } from 'lucide-react';
 
-import { documents, documentMap, sessionDocs, sessionStart, kinds } from './lib/content';
-import type { StudyDocument } from './lib/content';
-import { docRoute, makeNote, noteMarkdown, notePrompt, slug } from './lib/model';
+import { documents } from './lib/content';
+import { docRoute } from './lib/model';
 import { useWorkspace } from './lib/workspace';
 import { useAuth } from './lib/auth';
 import { ALL_LECTURES, TOPICS } from './lib/curriculum';
@@ -67,8 +57,9 @@ import { LectureReader } from './components/LectureReader';
 import { KnowledgeGraphView } from './components/KnowledgeGraphView';
 import { NotebookView } from './components/NotebookView';
 import { SettingsModal } from './components/SettingsModal';
-import { MarkdownView } from './components/MarkdownView';
-import { InkCanvas } from './components/InkCanvas';
+import { SearchModal } from './components/SearchModal';
+import { ReferenceReader } from './components/reference/ReferenceReader';
+import { ReferenceLibrary as Library } from './components/reference/ReferenceLibrary';
 import { usePdfViewer } from './lib/pdfViewerContext';
 import { PdfEmbedViewer } from './components/PdfEmbedViewer';
 
@@ -102,463 +93,6 @@ function Empty({
       <p>{children}</p>
       {action}
     </div>
-  );
-}
-
-// Reference Document Reader (for CODEBASE_MAP.md, GLOSSARY.md, SOURCES.md, etc.)
-function ReferenceReader() {
-  const params = useParams();
-  const id = params['*'] ?? '';
-  const doc = documentMap.get(id);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { data, update } = useWorkspace();
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [activeNote, setActiveNote] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!doc) return;
-    update(cur => ({ ...cur, lastRead: { id: doc.id, at: new Date().toISOString() } }));
-    setActiveNote(null);
-    const timeout = window.setTimeout(() => {
-      if (location.hash) {
-        document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({
-          block: 'start'
-        });
-      } else {
-        window.scrollTo(0, Number(localStorage.getItem(`ainotes-position:${id}`) ?? 0));
-      }
-    }, 80);
-    return () => clearTimeout(timeout);
-  }, [id, location.hash, update]);
-
-  useEffect(() => {
-    const save = () => {
-      try {
-        localStorage.setItem(`ainotes-position:${id}`, String(Math.round(window.scrollY)));
-      } catch {}
-    };
-    window.addEventListener('scroll', save, { passive: true });
-    return () => window.removeEventListener('scroll', save);
-  }, [id]);
-
-  if (!doc) {
-    return (
-      <div className="page">
-        <Empty
-          icon={<BookOpen />}
-          title="Document not found"
-          action={
-            <Link className="button primary" to="/library">
-              Browse reference library
-            </Link>
-          }
-        >
-          This reference page is not in the library.
-        </Empty>
-      </div>
-    );
-  }
-
-  const attached = data.notes
-    .filter(n => n.documentId === id)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const note = attached.find(n => n.id === activeNote) ?? attached[0];
-  const read = data.read.includes(id);
-  const bookmarked = data.bookmarks.includes(id);
-
-  const toggleRead = () =>
-    update(current => ({
-      ...current,
-      read: current.read.includes(id)
-        ? current.read.filter(item => item !== id)
-        : [...current.read, id]
-    }));
-
-  const addNote = () => {
-    const fresh = makeNote(`Notes on ${doc.title}`, id);
-    update(current => ({ ...current, notes: [fresh, ...current.notes] }));
-    setActiveNote(fresh.id);
-    setNotesOpen(true);
-  };
-
-  const updateActiveNote = (patch: Partial<typeof note>) => {
-    if (!note) return;
-    update(cur => ({
-      ...cur,
-      notes: cur.notes.map(n =>
-        n.id === note.id ? { ...n, ...patch, updatedAt: new Date().toISOString() } : n
-      )
-    }));
-  };
-
-  return (
-    <div className={join('reading-layout', notesOpen && 'with-notes')}>
-      <div className="reading-main">
-        <div className="reader-toolbar">
-          <Link className="breadcrumb" to="/library">
-            <ArrowLeft size={14} /> Reference Library
-          </Link>
-          <div className="toolbar-actions">
-            <button
-              type="button"
-              className={join('icon-button', bookmarked && 'is-active')}
-              aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark page'}
-              title="Bookmark page"
-              onClick={() =>
-                update(current => ({
-                  ...current,
-                  bookmarks: bookmarked
-                    ? current.bookmarks.filter(item => item !== id)
-                    : [...current.bookmarks, id]
-                }))
-              }
-            >
-              <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              type="button"
-              className={join('button small', notesOpen ? 'soft' : 'secondary')}
-              onClick={() => setNotesOpen(!notesOpen)}
-            >
-              {notesOpen ? <PanelRightClose size={16} /> : <PenTool size={16} />}
-              <span>Stylus Notes</span>
-              {attached.length > 0 && <span className="count-pill">{attached.length}</span>}
-            </button>
-          </div>
-        </div>
-
-        <article className="article">
-          <header className="article-heading">
-            <div className="article-meta">
-              <span className="eyebrow">REFERENCE SHELF</span>
-              <span>
-                <Clock3 size={13} /> {doc.minutes} min read
-              </span>
-            </div>
-            <h1>{doc.title}</h1>
-            <div className="article-rule" />
-          </header>
-
-          <MarkdownView doc={doc} source={doc.body.replace(/^#\s+[^\n]+\n/, '')} />
-
-          <div className="reader-pagination" style={{ marginTop: '40px' }}>
-            <button
-              type="button"
-              className={join('button', read ? 'soft' : 'secondary')}
-              onClick={toggleRead}
-            >
-              {read ? <CheckCheck size={17} /> : <Check size={17} />}
-              {read ? 'Marked as read' : 'Mark as read'}
-            </button>
-            <Link className="button primary" to="/library">
-              Back to Reference Library <ArrowRight size={16} />
-            </Link>
-          </div>
-        </article>
-      </div>
-
-      {/* Side Notes Drawer with Ink Canvas */}
-      {notesOpen && (
-        <aside className="reading-notes" style={{ width: '400px' }}>
-          <div className="notes-panel-heading">
-            <div>
-              <span className="eyebrow">MARGIN NOTES</span>
-              <h3>Lecture Notes</h3>
-            </div>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Close notes"
-              onClick={() => setNotesOpen(false)}
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          {attached.length > 0 && (
-            <div className="attached-note-select">
-              <select
-                aria-label="Choose a note"
-                value={note?.id}
-                onChange={e => setActiveNote(e.target.value)}
-              >
-                {attached.map(n => (
-                  <option key={n.id} value={n.id}>
-                    {n.title || 'Untitled Note'}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="icon-button"
-                title="Add another note"
-                onClick={addNote}
-              >
-                <Plus size={17} />
-              </button>
-            </div>
-          )}
-
-          {note ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-              <input
-                className="note-title"
-                value={note.title}
-                onChange={e => updateActiveNote({ title: e.target.value })}
-                placeholder="Note title"
-                style={{ padding: '8px', border: '1px solid var(--line)', borderRadius: '6px' }}
-              />
-
-              <div style={{ fontSize: '11px', fontWeight: 650, color: 'var(--muted)' }}>
-                STYLUS CANVAS:
-              </div>
-              <InkCanvas
-                initialData={note.inkData}
-                onChange={inkData => updateActiveNote({ inkData })}
-                minHeight={240}
-              />
-
-              <div style={{ fontSize: '11px', fontWeight: 650, color: 'var(--muted)' }}>
-                TYPED NOTES:
-              </div>
-              <textarea
-                className="note-body"
-                value={note.body}
-                onChange={e => updateActiveNote({ body: e.target.value })}
-                placeholder="Type formulas or thoughts..."
-                rows={4}
-                style={{
-                  padding: '8px',
-                  border: '1px solid var(--line)',
-                  borderRadius: '6px',
-                  fontFamily: 'inherit'
-                }}
-              />
-            </div>
-          ) : (
-            <Empty
-              icon={<PencilLine size={26} />}
-              title="A space beside the text"
-              action={
-                <button type="button" className="button primary" onClick={addNote}>
-                  <Plus size={16} /> Start a note
-                </button>
-              }
-            >
-              Draw equations, derive formulas, or write questions.
-            </Empty>
-          )}
-        </aside>
-      )}
-    </div>
-  );
-}
-
-// Reference Library View
-function Library() {
-  const { data } = useWorkspace();
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('all');
-
-  const filtered = documents.filter(
-    doc =>
-      (filter === 'all' || filter === 'bookmarks'
-        ? filter !== 'bookmarks' || data.bookmarks.includes(doc.id)
-        : doc.kind === filter) &&
-      (!query || `${doc.title} ${doc.text}`.toLowerCase().includes(query.toLowerCase()))
-  );
-
-  return (
-    <div className="page library">
-      <span className="eyebrow">THE REFERENCE SHELF</span>
-      <div className="page-title-row">
-        <div>
-          <h1>Reference Shelf</h1>
-          <p>Codebase architecture maps, glossaries, and practice guides.</p>
-        </div>
-        <span className="library-count">
-          {documents.length}
-          <span>study pages</span>
-        </span>
-      </div>
-
-      <div className="library-controls">
-        <label className="search-field">
-          <Search size={17} />
-          <input
-            aria-label="Search library"
-            placeholder="Find a topic, an equation, a question…"
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-          />
-        </label>
-        <div className="filter-tabs">
-          {[
-            ['all', 'All pages'],
-            ['guide', 'Guides'],
-            ['theory', 'Theory'],
-            ['code', 'Code tours'],
-            ['bookmarks', 'Saved']
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={filter === id ? 'active' : ''}
-              onClick={() => setFilter(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="library-grid">
-        {filtered.map(doc => (
-          <Link className="library-card" key={doc.id} to={docRoute(doc.id)}>
-            <div className="library-card-top">
-              <span className={join('kind-label', doc.kind)}>
-                {doc.kind === 'code' ? (
-                  <Code2 size={13} />
-                ) : (
-                  <BookOpen size={13} />
-                )}
-                {kinds[doc.kind] || 'Reference'}
-              </span>
-              {data.bookmarks.includes(doc.id) ? (
-                <Bookmark size={15} fill="currentColor" />
-              ) : (
-                <ArrowUpRight size={16} />
-              )}
-            </div>
-            <h3>{doc.title}</h3>
-            <p>
-              Reference & orientation · {doc.minutes} min read
-            </p>
-            {data.read.includes(doc.id) && (
-              <span className="read-label">
-                <Check size={12} /> Read
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
-      {filtered.length === 0 && (
-        <Empty icon={<Search />} title="No pages found">
-          Try a different word or choose another category.
-        </Empty>
-      )}
-    </div>
-  );
-}
-
-// Global Search Modal (Cmd+K)
-function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [query, setQuery] = useState('');
-  const { data } = useWorkspace();
-
-  const lectureMatches = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return ALL_LECTURES.filter(
-      l =>
-        l.title.toLowerCase().includes(q) ||
-        l.question.toLowerCase().includes(q) ||
-        l.content.theory.toLowerCase().includes(q)
-    ).slice(0, 6);
-  }, [query]);
-
-  const docMatches = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return documents
-      .filter(doc => `${doc.title} ${doc.text}`.toLowerCase().includes(q))
-      .slice(0, 4);
-  }, [query]);
-
-  const noteMatches = data.notes
-    .filter(
-      note => query && `${note.title} ${note.body}`.toLowerCase().includes(query.toLowerCase())
-    )
-    .slice(0, 4);
-
-  if (!open) return null;
-
-  return (
-    <dialog open className="modal search-modal" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-inner">
-        <label className="search-field">
-          <Search size={19} />
-          <input
-            autoFocus
-            aria-label="Search all study material"
-            placeholder="Try “symplectic”, “Lanczos”, “Clifford”, or “AQUIRE”…"
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-          />
-          <button type="button" className="icon-button" onClick={onClose}>
-            ✕
-          </button>
-        </label>
-        <div className="search-results">
-          {!query && (
-            <p className="search-hint">Search 60 lectures, reference shelf, and your own notes.</p>
-          )}
-          {query &&
-            lectureMatches.length === 0 &&
-            docMatches.length === 0 &&
-            noteMatches.length === 0 && (
-              <p className="search-hint">No matches found for “{query}”.</p>
-            )}
-
-          {lectureMatches.map(l => (
-            <Link
-              key={l.id}
-              to={`/topics/${l.topicId}/${l.id}`}
-              onClick={onClose}
-              style={{ textDecoration: 'none' }}
-            >
-              <span className="search-result-icon">
-                <BookOpen size={18} />
-              </span>
-              <div>
-                <strong>{l.title}</strong>
-                <span>
-                  4H Pack {l.packNumber || l.sundaySession}, Slot {l.packSlot || l.sundaySlot} · 60 min
-                </span>
-              </div>
-              <ArrowUpRight size={17} />
-            </Link>
-          ))}
-
-          {docMatches.map(doc => (
-            <Link key={doc.id} to={docRoute(doc.id)} onClick={onClose} style={{ textDecoration: 'none' }}>
-              <span className="search-result-icon">
-                <FileText size={18} />
-              </span>
-              <div>
-                <strong>{doc.title}</strong>
-                <span>Reference Shelf</span>
-              </div>
-              <ArrowUpRight size={17} />
-            </Link>
-          ))}
-
-          {noteMatches.map(note => (
-            <Link key={note.id} to={`/notes/${note.id}`} onClick={onClose} style={{ textDecoration: 'none' }}>
-              <span className="search-result-icon">
-                <PencilLine size={18} />
-              </span>
-              <div>
-                <strong>{note.title}</strong>
-                <span>From your notebook</span>
-              </div>
-              <ArrowUpRight size={17} />
-            </Link>
-          ))}
-        </div>
-      </div>
-    </dialog>
   );
 }
 

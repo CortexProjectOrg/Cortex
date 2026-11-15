@@ -10,7 +10,6 @@ import {
   Share2,
   ChevronRight,
   Workflow,
-  Network,
   Layers,
   Check
 } from 'lucide-react';

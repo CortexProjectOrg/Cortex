@@ -203,7 +203,7 @@ export function TopicBrowser() {
                           color: 'var(--muted)'
                         }}
                       >
-                        Sunday {lec.sundaySession} · Slot {lec.sundaySlot}
+                        Pack {lec.packNumber ?? lec.sundaySession} · Slot {lec.packSlot ?? lec.sundaySlot}
                       </span>
                     </div>
                     <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '4px 0 0' }}>

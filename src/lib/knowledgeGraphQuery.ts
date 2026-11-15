@@ -11,7 +11,6 @@
 import {
   type GraphNode,
   type KnowledgeDAG,
-  type SoftLink,
   getKnowledgeDAG,
   computeNodeReadiness
 } from './knowledgeGraph';

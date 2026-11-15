@@ -14,16 +14,14 @@ import {
   Cloud,
   FileText,
   ArrowRight,
-  Layers,
-  ArrowUpRight,
-  Sparkles
+  ArrowUpRight
 } from 'lucide-react';
 import { useWorkspace } from '../lib/workspace';
 import { makeNote, noteMarkdown, notePrompt, lectureRoute } from '../lib/model';
 import type { Note } from '../lib/model';
 import { InkCanvas } from './InkCanvas';
 import { MarkdownView } from './MarkdownView';
-import { LECTURE_MAP, TOPICS } from '../lib/curriculum';
+import { LECTURE_MAP } from '../lib/curriculum';
 
 export function NotebookView() {
   const { id } = useParams();

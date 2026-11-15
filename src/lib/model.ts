@@ -30,7 +30,7 @@ export type LectureProgress = {
 
 export type StudyPlan = {
   activePathId: string;
-  schedule: 'sunday-4h';
+  schedule: 'mastery-pack' | 'sunday-4h';
   startDate?: string;
   currentWeek: number;
 };
@@ -60,7 +60,7 @@ export const emptyWorkspace = (): Workspace => ({
   lectureProgress: {},
   studyPlan: {
     activePathId: 'canonical-foundations-to-mastery',
-    schedule: 'sunday-4h',
+    schedule: 'mastery-pack',
     currentWeek: 1
   },
   path: [],
@@ -147,7 +147,10 @@ export function validateWorkspace(value: unknown): Workspace {
           typeof (value.studyPlan as any).activePathId === 'string'
             ? (value.studyPlan as any).activePathId
             : 'canonical-foundations-to-mastery',
-        schedule: 'sunday-4h',
+        schedule:
+          (value.studyPlan as any).schedule === 'sunday-4h'
+            ? 'sunday-4h'
+            : 'mastery-pack',
         startDate: (value.studyPlan as any).startDate,
         currentWeek: Number.isInteger((value.studyPlan as any).currentWeek)
           ? Number((value.studyPlan as any).currentWeek)
@@ -155,7 +158,7 @@ export function validateWorkspace(value: unknown): Workspace {
       }
     : {
         activePathId: 'canonical-foundations-to-mastery',
-        schedule: 'sunday-4h',
+        schedule: 'mastery-pack',
         currentWeek: 1
       };
 

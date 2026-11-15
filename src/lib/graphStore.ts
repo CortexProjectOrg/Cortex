@@ -46,7 +46,7 @@ export function prepareGraphDatabasePayload(dag: KnowledgeDAG = getKnowledgeDAG(
   const dependencies: Array<{
     fromId: string;
     toId: string;
-    edgeType: 'hard_prerequisite' | 'soft_link';
+    edgeType: 'hard_prerequisite' | 'derived_prerequisite' | 'soft_link';
     relationship?: string;
   }> = [];
 
@@ -56,6 +56,14 @@ export function prepareGraphDatabasePayload(dag: KnowledgeDAG = getKnowledgeDAG(
         fromId: pId,
         toId: node.id,
         edgeType: 'hard_prerequisite'
+      });
+    }
+
+    for (const dpId of node.derivedPrerequisites || []) {
+      dependencies.push({
+        fromId: dpId,
+        toId: node.id,
+        edgeType: 'derived_prerequisite'
       });
     }
 
