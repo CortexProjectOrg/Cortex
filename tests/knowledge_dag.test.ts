@@ -17,6 +17,17 @@ import {
   prepareGraphDatabasePayload,
   CLIENT_GRAPH_VERSION
 } from '../src/lib/graphStore';
+import {
+  computeTopDownDagLayout,
+  expandNodePrerequisites,
+  collapseNodePrerequisites,
+  expandNodeUnlocks,
+  collapseNodeUnlocks,
+  expandAllAncestors,
+  expandAllDescendants,
+  getOneHopNeighborhood,
+  getBedrockRootNodeIds
+} from '../src/lib/dagLayoutEngine';
 import { ALL_LECTURES } from '../src/lib/curriculum';
 
 describe('Knowledge DAG & Dependency Tree Invariants', () => {
@@ -294,5 +305,145 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     const softDeps = payload.dependencies.filter(d => d.edgeType === 'soft_link');
     expect(hardDeps.length).toBe(dag.totalPrerequisiteEdges);
     expect(softDeps.length).toBe(dag.totalSoftLinks);
+  });
+
+  describe('Top-to-Bottom Sugiyama-Style DAG Layout Engine', () => {
+    it('positions visible nodes strictly top-to-bottom with parents above children', () => {
+      const focalNode = dag.nodeList.find(n => n.prerequisites.length > 0 && n.unlockedLectures.length > 0)!;
+      expect(focalNode).toBeDefined();
+
+      const visibleNodes = [
+        ...focalNode.prerequisites.map(id => dag.nodes.get(id)!),
+        focalNode,
+        ...focalNode.unlockedLectures.map(id => dag.nodes.get(id)!)
+      ];
+
+      const { layoutMap, bounds } = computeTopDownDagLayout(visibleNodes, dag);
+      expect(layoutMap.size).toBe(visibleNodes.length);
+      expect(bounds.width).toBeGreaterThan(0);
+      expect(bounds.height).toBeGreaterThan(0);
+
+      const focalLayout = layoutMap.get(focalNode.id)!;
+      expect(focalLayout).toBeDefined();
+
+      // Prerequisite parents must be placed strictly ABOVE focal node (smaller Y)
+      focalNode.prerequisites.forEach(pId => {
+        const pLayout = layoutMap.get(pId);
+        if (pLayout) {
+          expect(pLayout.y).toBeLessThan(focalLayout.y);
+          expect(pLayout.outY).toBeLessThanOrEqual(focalLayout.inY);
+        }
+      });
+
+      // Unlocked children must be placed strictly BELOW focal node (larger Y)
+      focalNode.unlockedLectures.forEach(uId => {
+        const uLayout = layoutMap.get(uId);
+        if (uLayout) {
+          expect(uLayout.y).toBeGreaterThan(focalLayout.y);
+          expect(uLayout.inY).toBeGreaterThanOrEqual(focalLayout.outY);
+        }
+      });
+    });
+
+    it('enforces collision resolution with zero overlaps between nodes on the same level', () => {
+      const topic1Nodes = dag.nodeList.filter(n => n.topicId === 'foundations-symplectic-clifford');
+      const { layoutMap } = computeTopDownDagLayout(topic1Nodes, dag);
+
+      // Group by level
+      const levelMap = new Map<number, typeof layoutMap extends Map<any, infer V> ? V[] : never>();
+      layoutMap.forEach(l => {
+        if (!levelMap.has(l.level)) levelMap.set(l.level, []);
+        levelMap.get(l.level)!.push(l);
+      });
+
+      levelMap.forEach(nodes => {
+        nodes.sort((a, b) => a.x - b.x);
+        for (let i = 0; i < nodes.length - 1; i++) {
+          const current = nodes[i];
+          const next = nodes[i + 1];
+          // Zero overlap: next.x >= current.x + width
+          expect(next.x).toBeGreaterThanOrEqual(current.x + current.width);
+        }
+      });
+    });
+
+    it('handles empty input gracefully', () => {
+      const { layoutMap, bounds } = computeTopDownDagLayout([], dag);
+      expect(layoutMap.size).toBe(0);
+      expect(bounds.width).toBe(0);
+    });
+
+    it('expands and collapses prerequisites with dependent preservation', () => {
+      const intermediate = dag.nodeList.find(n => n.prerequisites.length >= 2 && n.unlockedLectures.length > 0)!;
+      expect(intermediate).toBeDefined();
+
+      const initial = new Set<string>([intermediate.id]);
+      const expanded = expandNodePrerequisites(initial, intermediate.id, dag);
+      intermediate.prerequisites.forEach(pId => {
+        expect(expanded.has(pId)).toBe(true);
+      });
+
+      // Collapse prerequisites without protected nodes: should remove them
+      const collapsed = collapseNodePrerequisites(expanded, intermediate.id, dag);
+      intermediate.prerequisites.forEach(pId => {
+        expect(collapsed.has(pId)).toBe(false);
+      });
+      expect(collapsed.has(intermediate.id)).toBe(true);
+
+      // Collapse with one protected prerequisite: protected one must remain
+      const protectedId = intermediate.prerequisites[0];
+      const collapsedWithProtection = collapseNodePrerequisites(
+        expanded,
+        intermediate.id,
+        dag,
+        new Set([protectedId])
+      );
+      expect(collapsedWithProtection.has(protectedId)).toBe(true);
+    });
+
+    it('expands and collapses downstream unlocks correctly', () => {
+      const parent = dag.nodeList.find(n => n.unlockedLectures.length >= 2)!;
+      expect(parent).toBeDefined();
+
+      const initial = new Set<string>([parent.id]);
+      const expanded = expandNodeUnlocks(initial, parent.id, dag);
+      parent.unlockedLectures.forEach(uId => {
+        expect(expanded.has(uId)).toBe(true);
+      });
+
+      const collapsed = collapseNodeUnlocks(expanded, parent.id, dag);
+      parent.unlockedLectures.forEach(uId => {
+        expect(collapsed.has(uId)).toBe(false);
+      });
+      expect(collapsed.has(parent.id)).toBe(true);
+    });
+
+    it('computes 1-hop neighborhood and bedrock roots accurately', () => {
+      const roots = getBedrockRootNodeIds(dag);
+      expect(roots.size).toBeGreaterThan(0);
+      roots.forEach(rootId => {
+        const node = dag.nodes.get(rootId)!;
+        expect(node.prerequisites.length).toBe(0);
+      });
+
+      const sample = dag.nodeList.find(n => n.prerequisites.length > 0 && n.unlockedLectures.length > 0)!;
+      const oneHop = getOneHopNeighborhood(sample.id, dag);
+      expect(oneHop.has(sample.id)).toBe(true);
+      sample.prerequisites.forEach(p => expect(oneHop.has(p)).toBe(true));
+      sample.unlockedLectures.forEach(u => expect(oneHop.has(u)).toBe(true));
+    });
+
+    it('recursively traces all ancestors back to axioms', () => {
+      const deepNode = dag.nodeList.find(n => n.topologicalRank >= 4)!;
+      expect(deepNode).toBeDefined();
+
+      const allAncestors = expandAllAncestors(new Set([deepNode.id]), deepNode.id, dag);
+      expect(allAncestors.size).toBeGreaterThan(deepNode.prerequisites.length);
+
+      // At least one bedrock root must be reachable
+      const roots = getBedrockRootNodeIds(dag);
+      const reachesRoot = Array.from(roots).some(rId => allAncestors.has(rId));
+      expect(reachesRoot).toBe(true);
+    });
   });
 });
