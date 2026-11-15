@@ -75,6 +75,9 @@ async function ensureTables() {
         await sql`
           CREATE INDEX IF NOT EXISTS idx_user_notes_lecture_id ON user_notes(lecture_id);
         `;
+        await sql`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_user_notes_user_note_id ON user_notes(user_id, note_id);
+        `;
       } catch (err) {
         console.error('Error creating Neon database tables:', err);
         initPromise = null; // retry next time
@@ -234,7 +237,7 @@ export async function saveFullWorkspaceToNeon(userId: string, ws: any) {
         ink_data = EXCLUDED.ink_data,
         lecture_ink = EXCLUDED.lecture_ink,
         updated_at = EXCLUDED.updated_at
-      WHERE EXCLUDED.updated_at >= user_notes.updated_at;
+      WHERE user_notes.user_id = EXCLUDED.user_id AND EXCLUDED.updated_at >= user_notes.updated_at;
     `;
   }
 

@@ -55,14 +55,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
   const [savedAt, setSavedAt] = useState('');
 
+  const currentUserId = user?.uid || null;
+  const prevUserIdRef = useRef<string | null>(null);
+  const initialMountRef = useRef(true);
+
   const writeQueue = useRef(Promise.resolve());
   const syncTimer = useRef<number | null>(null);
 
-  // 1. Initial Load from local IndexedDB
+  // 1. Initial Load from local IndexedDB (user-scoped)
   useEffect(() => {
     let active = true;
     dbPromise
-      .then(db => db.get('workspace', 'main'))
+      .then(async db => {
+        if (currentUserId) {
+          const userVal = await db.get('workspace', `user:${currentUserId}`);
+          if (userVal) return userVal;
+        }
+        return await db.get('workspace', 'main');
+      })
       .then(value => {
         if (active && value) {
           try {
@@ -84,7 +94,42 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // 2. Persist to local IndexedDB whenever state updates
+  // 2. Strict Tenant Isolation on User Switch / Logout (Prevents Cross-User Bleed on Shared Devices)
+  useEffect(() => {
+    if (initialMountRef.current) {
+      initialMountRef.current = false;
+      prevUserIdRef.current = currentUserId;
+      return;
+    }
+
+    if (prevUserIdRef.current !== currentUserId) {
+      const wasAnonymous = prevUserIdRef.current === null;
+      prevUserIdRef.current = currentUserId;
+
+      // User logged out: clear screen and reset to empty state so previous user data isn't exposed
+      if (!currentUserId) {
+        setData(emptyWorkspace());
+        setSyncState('local');
+        return;
+      }
+
+      // User logged in: load user's private workspace
+      const userKey = `user:${currentUserId}`;
+      dbPromise
+        .then(db => db.get('workspace', userKey))
+        .then(cached => {
+          if (cached) {
+            setData(validateWorkspace(cached));
+          } else if (!wasAnonymous) {
+            // New user login after another user: clear state to prevent mixing
+            setData(emptyWorkspace());
+          }
+        })
+        .catch(() => {});
+    }
+  }, [currentUserId]);
+
+  // 3. Persist to local IndexedDB whenever state updates (scoped to user)
   useEffect(() => {
     if (!loaded) return;
     let active = true;
@@ -94,7 +139,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       .catch(() => {})
       .then(async () => {
         const db = await dbPromise;
-        await db.put('workspace', data, 'main');
+        const key = currentUserId ? `user:${currentUserId}` : 'main';
+        await db.put('workspace', data, key);
       });
 
     writeQueue.current
@@ -115,7 +161,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [data, loaded]);
+  }, [data, loaded, currentUserId]);
 
   // 3. Theme & Font Scale application
   useEffect(() => {

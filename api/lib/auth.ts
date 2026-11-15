@@ -6,22 +6,18 @@ export interface GoogleUser {
 }
 
 export async function verifyGoogleToken(token: string): Promise<GoogleUser | null> {
-  if (!token) return null;
-  
+  if (!token || typeof token !== 'string') return null;
+
   try {
-    const apiKey = (process.env.GOOGLE_AUTH_API_KEY || '').trim();
     const rawClientId =
       process.env.GOOGLE_AUTH_CLIENT_API_KEY ||
       process.env.GOOGLE_CLIENT_ID ||
       process.env.VITE_GOOGLE_CLIENT_ID ||
       '';
     const clientId = rawClientId.trim().replace(/^["']|["']$/g, '');
-    
+
     const url = new URL('https://oauth2.googleapis.com/tokeninfo');
     url.searchParams.set('id_token', token);
-    if (apiKey) {
-      url.searchParams.set('key', apiKey);
-    }
 
     const response = await fetch(url.toString());
     if (!response.ok) {
@@ -29,14 +25,43 @@ export async function verifyGoogleToken(token: string): Promise<GoogleUser | nul
     }
 
     const data = await response.json();
-    
-    // If client ID is configured, verify audience
-    if (clientId && data.aud !== clientId) {
-      console.warn('Google token audience mismatch');
-      // allow if developer is testing or mismatch in dev, but in prod enforce
-      if (process.env.NODE_ENV === 'production') {
+
+    // 1. Strict issuer verification: token MUST originate from Google
+    if (data.iss !== 'accounts.google.com' && data.iss !== 'https://accounts.google.com') {
+      console.warn('Security Warning: Rejected token with invalid issuer:', data.iss);
+      return null;
+    }
+
+    // 2. Strict audience verification: token MUST be issued specifically to our Client ID
+    if (clientId) {
+      const isMatch = data.aud === clientId || data.azp === clientId;
+      if (!isMatch) {
+        console.warn(
+          'Security Warning: Rejected token with audience mismatch. Token aud:',
+          data.aud,
+          'Expected:',
+          clientId
+        );
         return null;
       }
+    }
+
+    // 3. Subject identifier (Google user ID) MUST be valid
+    if (!data.sub || typeof data.sub !== 'string' || data.sub.trim().length === 0) {
+      console.warn('Security Warning: Rejected token missing valid sub claim');
+      return null;
+    }
+
+    // 4. Token expiration verification
+    if (data.exp && Number(data.exp) * 1000 < Date.now()) {
+      console.warn('Security Warning: Rejected expired token');
+      return null;
+    }
+
+    // 5. Email verification: require verified email if present
+    if (data.email && (data.email_verified === 'false' || data.email_verified === false)) {
+      console.warn('Security Warning: Rejected unverified email account');
+      return null;
     }
 
     return {
@@ -53,7 +78,7 @@ export async function verifyGoogleToken(token: string): Promise<GoogleUser | nul
 
 export function extractBearerToken(authHeader?: string | string[]): string | null {
   const header = Array.isArray(authHeader) ? authHeader[0] : authHeader;
-  if (!header) return null;
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  return match ? match[1] : null;
+  if (!header || typeof header !== 'string') return null;
+  const match = header.trim().match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : null;
 }
