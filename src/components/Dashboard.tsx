@@ -80,40 +80,39 @@ export function Dashboard() {
       {/* Hero Section */}
       <section className="hero">
         <div className="hero-copy">
-          <span className="eyebrow">OPEN STUDY PLATFORM & SYMPLECTIC QUANTUM GUIDE</span>
+          <span className="eyebrow">SYMPLECTIC QUANTUM COMPUTING</span>
           <h1>
-            A little theory.
+            Discrete Mathematics
             <br />
-            <em>A clearer picture.</em>
+            <em>to Quantum Simulation</em>
           </h1>
           <p>
-            A foundational, concept-first learning platform for discrete mathematics, symplectic
-            geometry, Clifford operators, and quantum simulation. 15 four-hour mastery packs of
-            focused 1-hour lectures.
+            15 four-hour study packs covering finite fields, symplectic geometry, Clifford groups,
+            stabilizers, Lanczos eigensolvers, and Bayesian observable estimation.
           </p>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
             <Link
               className="button primary"
               to={lectureRoute(nextLecture.topicId, nextLecture.id)}
             >
-              Continue Pack {currentPackNum}: {nextLecture.title}
+              Resume Pack {currentPackNum}: {nextLecture.title}
               <ArrowRight size={17} />
             </Link>
             <Link className="button secondary" to="/path">
               <Calendar size={15} />
-              View 15-Pack Study Plan
+              15-Pack Syllabus
             </Link>
           </div>
           <div className="hero-meta">
             <span>
-              <Clock3 size={14} /> 4 focused hours / pack
+              <Clock3 size={14} /> 4h per pack
             </span>
             <span>
-              <Layers size={14} /> 60 atomic 1-hour lectures
+              <Layers size={14} /> 60 lectures
             </span>
             <span>
               <BookOpen size={14} />
-              {completedCount} of {totalLectures} mastered
+              {completedCount} / {totalLectures} completed
             </span>
           </div>
         </div>
@@ -343,12 +342,8 @@ export function Dashboard() {
               <FolderOpen size={17} />
               <span>Reference Library</span>
             </div>
-            <h3>
-              Keep the good
-              <br />
-              explanations close.
-            </h3>
-            <p>Direct references to primary literature, mathematical glossary, and codebase architecture.</p>
+            <h3>Reference Material</h3>
+            <p>Mathematical definitions, primary papers, and implementation notes.</p>
             <div className="shelf-links">
               <Link to={docRoute('CODEBASE_MAP.md')}>
                 <span>Systems Architecture Map</span>
@@ -372,13 +367,12 @@ export function Dashboard() {
           {/* Notebook reflection card */}
           <section className="aside-card thought">
             <PencilLine size={22} />
-            <h3>Stylus & Paper Notes</h3>
+            <h3>Notebook & Sketches</h3>
             <p>
-              Draw quantum circuits, derive symplectic formulas with your tablet pen, and review
-              clean SVG diagrams on your PC. Notes taken during lectures auto-collect here.
+              Review your stylus drawings, mathematical derivations, and notes from lectures.
             </p>
             <Link to="/notes" className="text-link">
-              Open your notebook <ArrowRight size={15} />
+              Open notebook <ArrowRight size={15} />
             </Link>
           </section>
         </aside>

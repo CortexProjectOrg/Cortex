@@ -73,9 +73,7 @@ function Logo({ small = false }: { small?: boolean }) {
   return (
     <span className={join('brand', small && 'small')}>
       <img src="/icon.svg" alt="" width="38" height="38" />
-      <span>
-        AINotes<span className="brand-sub">THE STUDY ROOM</span>
-      </span>
+      <span>AINotes</span>
     </span>
   );
 }
@@ -259,8 +257,8 @@ function ReferenceReader() {
         <aside className="reading-notes" style={{ width: '400px' }}>
           <div className="notes-panel-heading">
             <div>
-              <span className="eyebrow">MARGIN NOTES & INK</span>
-              <h3>Make the idea yours.</h3>
+              <span className="eyebrow">MARGIN NOTES</span>
+              <h3>Lecture Notes</h3>
             </div>
             <button
               type="button"
@@ -370,8 +368,8 @@ function Library() {
       <span className="eyebrow">THE REFERENCE SHELF</span>
       <div className="page-title-row">
         <div>
-          <h1>Good ideas, within reach.</h1>
-          <p>Browse codebase maps, paper glossaries, and practice setups.</p>
+          <h1>Reference Shelf</h1>
+          <p>Codebase architecture maps, glossaries, and practice guides.</p>
         </div>
         <span className="library-count">
           {documents.length}

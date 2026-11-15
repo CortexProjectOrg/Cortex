@@ -37,15 +37,14 @@ export function StudyPathView() {
   return (
     <div className="page study-path-page">
       <div className="page-eyebrow">
-        <span className="tiny-line" /> MODULAR 4-HOUR MASTERY SCHEDULE
+        <span className="tiny-line" /> STUDY SCHEDULE
       </div>
 
       <div className="page-title-row" style={{ marginBottom: '20px' }}>
         <div>
           <h1>15 Four-Hour Mastery Packs</h1>
           <p>
-            Structured 4-hour study sessions. 60 atomic 1-hour lectures from foundational
-            mathematics to production quantum simulation.
+            60 one-hour lectures organized into 15 four-hour study blocks.
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>

@@ -226,7 +226,7 @@ export function LectureReader() {
                 marginBottom: '4px'
               }}
             >
-              THE CORE THEORETICAL QUESTION
+              CORE QUESTION
             </span>
             <p
               style={{

@@ -93,11 +93,10 @@ export function NotebookView() {
     <div className="page notebook">
       <div className="page-title-row">
         <div>
-          <span className="eyebrow">AUTOMATICALLY COLLECTED WORKSPACE</span>
-          <h1>Notebook & Stylus Archive</h1>
+          <span className="eyebrow">NOTES & DERIVATIONS</span>
+          <h1>Notebook</h1>
           <p>
-            All your notes, derivations, and stylus sketches from lectures are automatically
-            organized here.
+            Stylus sketches, equations, and reflections from lectures and scratchpad.
           </p>
         </div>
         <button type="button" className="button primary" onClick={createNewNote}>

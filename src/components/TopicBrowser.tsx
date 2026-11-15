@@ -24,15 +24,14 @@ export function TopicBrowser() {
   return (
     <div className="page topics-page">
       <div className="page-eyebrow">
-        <span className="tiny-line" /> THE FULL 10-TOPIC KNOWLEDGE GRAPH
+        <span className="tiny-line" /> TOPIC DIRECTORY
       </div>
 
       <div className="page-title-row" style={{ marginBottom: '24px' }}>
         <div>
-          <h1>Topics & Domains</h1>
+          <h1>Topics</h1>
           <p>
-            The complete 60-lecture syllabus divided by theoretical domain. Each lecture is 1 hour
-            of true effort.
+            60 lectures categorized across 10 subject areas.
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
