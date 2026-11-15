@@ -33,8 +33,10 @@ import { TOPICS, ALL_LECTURES } from '../lib/curriculum';
 import { useWorkspace } from '../lib/workspace';
 import { InteractiveDagCanvas } from './InteractiveDagCanvas';
 import { DagRamificationExplorer } from './DagRamificationExplorer';
+import { HierarchicalTopicGraph } from './HierarchicalTopicGraph';
+import { syncGraphWithDatabase } from '../lib/graphStore';
 
-type ViewMode = 'canvas' | 'ramifications' | 'stratified' | 'topics';
+type ViewMode = 'hierarchical' | 'canvas' | 'ramifications' | 'stratified';
 type StatusFilter = 'all' | 'ready' | 'completed' | 'locked';
 
 export function KnowledgeGraphView() {
@@ -50,7 +52,12 @@ export function KnowledgeGraphView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [topicFilter, setTopicFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('canvas');
+  const [viewMode, setViewMode] = useState<ViewMode>('hierarchical');
+
+  // Ensure static DAG is persisted and kept updated in Neon DB
+  useEffect(() => {
+    void syncGraphWithDatabase();
+  }, []);
 
   // Sync focus param
   useEffect(() => {
@@ -438,11 +445,19 @@ export function KnowledgeGraphView() {
         <div className="segmented">
           <button
             type="button"
+            className={viewMode === 'hierarchical' ? 'selected' : ''}
+            onClick={() => setViewMode('hierarchical')}
+            title="Scalable Topic DAG with Entering & Outgoing Connections and Expandable Nodes"
+          >
+            <Layers size={14} /> Topic DAG (Expandable)
+          </button>
+          <button
+            type="button"
             className={viewMode === 'canvas' ? 'selected' : ''}
             onClick={() => setViewMode('canvas')}
-            title="Real Interactive DAG Graph Canvas"
+            title="Real Interactive 2D DAG Graph Canvas"
           >
-            <Network size={14} /> Interactive Graph
+            <Network size={14} /> 2D Graph Canvas
           </button>
           <button
             type="button"
@@ -460,14 +475,6 @@ export function KnowledgeGraphView() {
           >
             <GitFork size={14} /> Stratified Tiers
           </button>
-          <button
-            type="button"
-            className={viewMode === 'topics' ? 'selected' : ''}
-            onClick={() => setViewMode('topics')}
-            title="Curriculum Topic Clusters"
-          >
-            <Layers size={14} /> Topic Clusters
-          </button>
         </div>
       </div>
 
@@ -476,13 +483,25 @@ export function KnowledgeGraphView() {
         style={{
           display: 'grid',
           gridTemplateColumns:
-            selectedNode && viewMode !== 'ramifications' ? 'minmax(0, 1fr) 390px' : 'minmax(0, 1fr)',
+            selectedNode && viewMode !== 'ramifications' && viewMode !== 'hierarchical'
+              ? 'minmax(0, 1fr) 390px'
+              : 'minmax(0, 1fr)',
           gap: '24px',
           alignItems: 'start'
         }}
       >
         {/* Graph Display Area */}
         <div style={{ minWidth: 0 }}>
+          {viewMode === 'hierarchical' && (
+            <HierarchicalTopicGraph
+              dag={dag}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={id => setSelectedNodeId(id)}
+              completedSet={completedSet}
+              onToggleMastery={toggleLectureMastery}
+            />
+          )}
+
           {viewMode === 'canvas' && (
             <InteractiveDagCanvas
               dag={dag}
@@ -508,16 +527,6 @@ export function KnowledgeGraphView() {
 
           {viewMode === 'stratified' && (
             <StratifiedTreeView
-              dag={dag}
-              filteredNodeIds={filteredNodeIds}
-              nodeReadinessMap={nodeReadinessMap}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={id => setSelectedNodeId(id)}
-            />
-          )}
-
-          {viewMode === 'topics' && (
-            <TopicClustersView
               dag={dag}
               filteredNodeIds={filteredNodeIds}
               nodeReadinessMap={nodeReadinessMap}

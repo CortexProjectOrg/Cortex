@@ -78,6 +78,52 @@ async function ensureTables() {
         await sql`
           CREATE UNIQUE INDEX IF NOT EXISTS idx_user_notes_user_note_id ON user_notes(user_id, note_id);
         `;
+
+        // Curriculum Static DAG Tables
+        await sql`
+          CREATE TABLE IF NOT EXISTS curriculum_topics (
+            topic_id VARCHAR(64) PRIMARY KEY,
+            topic_number INT NOT NULL,
+            title TEXT NOT NULL,
+            subtitle TEXT,
+            description TEXT,
+            color VARCHAR(32),
+            symbol VARCHAR(32)
+          );
+        `;
+
+        await sql`
+          CREATE TABLE IF NOT EXISTS curriculum_lectures (
+            lecture_id VARCHAR(128) PRIMARY KEY,
+            topic_id VARCHAR(64) REFERENCES curriculum_topics(topic_id),
+            lecture_number INT NOT NULL,
+            title TEXT NOT NULL,
+            subtitle TEXT,
+            question TEXT,
+            pack_number INT,
+            pack_slot INT,
+            topological_rank INT NOT NULL
+          );
+        `;
+
+        await sql`
+          CREATE TABLE IF NOT EXISTS curriculum_dependencies (
+            dependency_id VARCHAR(160) PRIMARY KEY,
+            from_lecture_id VARCHAR(128) REFERENCES curriculum_lectures(lecture_id),
+            to_lecture_id VARCHAR(128) REFERENCES curriculum_lectures(lecture_id),
+            edge_type VARCHAR(32) NOT NULL, -- 'hard_prerequisite' or 'soft_link'
+            relationship TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `;
+
+        await sql`
+          CREATE TABLE IF NOT EXISTS curriculum_graph_meta (
+            meta_key VARCHAR(64) PRIMARY KEY,
+            meta_value JSONB,
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `;
       } catch (err) {
         console.error('Error creating Neon database tables:', err);
         initPromise = null; // retry next time
@@ -242,4 +288,149 @@ export async function saveFullWorkspaceToNeon(userId: string, ws: any) {
   }
 
   return true;
+}
+
+export const CURRENT_GRAPH_VERSION = '2.1.0';
+
+/**
+ * Persists and idempotently syncs the static curriculum DAG to Neon PostgreSQL.
+ * Keeps the database updated with version tracking.
+ */
+export async function syncCurriculumGraphToNeon(
+  topics: Array<{
+    id: string;
+    number: number;
+    title: string;
+    subtitle: string;
+    description: string;
+    color: string;
+    symbol: string;
+  }>,
+  lectures: Array<{
+    id: string;
+    topicId: string;
+    lectureNumber: number;
+    title: string;
+    subtitle: string;
+    question: string;
+    packNumber: number;
+    packSlot: number;
+    topologicalRank: number;
+  }>,
+  dependencies: Array<{
+    fromId: string;
+    toId: string;
+    edgeType: 'hard_prerequisite' | 'soft_link';
+    relationship?: string;
+  }>
+) {
+  const dbUrl = getDatabaseUrl();
+  if (!dbUrl) return false;
+
+  await ensureTables();
+  const sql = neon(dbUrl);
+
+  // Check version in curriculum_graph_meta
+  const [metaRow] = await sql`
+    SELECT meta_value FROM curriculum_graph_meta WHERE meta_key = 'graph_version';
+  `;
+
+  if (metaRow?.meta_value?.version === CURRENT_GRAPH_VERSION) {
+    // Already up to date
+    return true;
+  }
+
+  // 1. Upsert Topics
+  for (const t of topics) {
+    await sql`
+      INSERT INTO curriculum_topics (topic_id, topic_number, title, subtitle, description, color, symbol)
+      VALUES (${t.id}, ${t.number}, ${t.title}, ${t.subtitle}, ${t.description}, ${t.color}, ${t.symbol})
+      ON CONFLICT (topic_id) DO UPDATE SET
+        topic_number = EXCLUDED.topic_number,
+        title = EXCLUDED.title,
+        subtitle = EXCLUDED.subtitle,
+        description = EXCLUDED.description,
+        color = EXCLUDED.color,
+        symbol = EXCLUDED.symbol;
+    `;
+  }
+
+  // 2. Upsert Lectures
+  for (const l of lectures) {
+    await sql`
+      INSERT INTO curriculum_lectures (
+        lecture_id, topic_id, lecture_number, title, subtitle, question, pack_number, pack_slot, topological_rank
+      )
+      VALUES (
+        ${l.id}, ${l.topicId}, ${l.lectureNumber}, ${l.title}, ${l.subtitle}, ${l.question},
+        ${l.packNumber}, ${l.packSlot}, ${l.topologicalRank}
+      )
+      ON CONFLICT (lecture_id) DO UPDATE SET
+        topic_id = EXCLUDED.topic_id,
+        lecture_number = EXCLUDED.lecture_number,
+        title = EXCLUDED.title,
+        subtitle = EXCLUDED.subtitle,
+        question = EXCLUDED.question,
+        pack_number = EXCLUDED.pack_number,
+        pack_slot = EXCLUDED.pack_slot,
+        topological_rank = EXCLUDED.topological_rank;
+    `;
+  }
+
+  // 3. Upsert Dependencies
+  for (const dep of dependencies) {
+    const depId = `${dep.fromId}->${dep.toId}:${dep.edgeType}`;
+    await sql`
+      INSERT INTO curriculum_dependencies (dependency_id, from_lecture_id, to_lecture_id, edge_type, relationship)
+      VALUES (${depId}, ${dep.fromId}, ${dep.toId}, ${dep.edgeType}, ${dep.relationship || null})
+      ON CONFLICT (dependency_id) DO UPDATE SET
+        edge_type = EXCLUDED.edge_type,
+        relationship = EXCLUDED.relationship;
+    `;
+  }
+
+  // 4. Update Meta Version
+  const metaPayload = JSON.stringify({
+    version: CURRENT_GRAPH_VERSION,
+    topicsCount: topics.length,
+    lecturesCount: lectures.length,
+    dependenciesCount: dependencies.length,
+    updatedAt: new Date().toISOString()
+  });
+
+  await sql`
+    INSERT INTO curriculum_graph_meta (meta_key, meta_value, updated_at)
+    VALUES ('graph_version', ${metaPayload}::jsonb, NOW())
+    ON CONFLICT (meta_key) DO UPDATE SET
+      meta_value = EXCLUDED.meta_value,
+      updated_at = NOW();
+  `;
+
+  return true;
+}
+
+/**
+ * Retrieves the static curriculum DAG from Neon PostgreSQL.
+ */
+export async function getCurriculumGraphFromNeon(): Promise<any | null> {
+  const dbUrl = getDatabaseUrl();
+  if (!dbUrl) return null;
+
+  await ensureTables();
+  const sql = neon(dbUrl);
+
+  const topics = await sql`SELECT * FROM curriculum_topics ORDER BY topic_number ASC;`;
+  const lectures = await sql`SELECT * FROM curriculum_lectures ORDER BY lecture_number ASC;`;
+  const dependencies = await sql`SELECT * FROM curriculum_dependencies;`;
+  const [meta] = await sql`SELECT meta_value FROM curriculum_graph_meta WHERE meta_key = 'graph_version';`;
+
+  if (!topics || topics.length === 0) return null;
+
+  return {
+    version: meta?.meta_value?.version || CURRENT_GRAPH_VERSION,
+    topics,
+    lectures,
+    dependencies,
+    meta: meta?.meta_value || null
+  };
 }

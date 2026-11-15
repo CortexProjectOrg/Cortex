@@ -8,6 +8,15 @@ import {
   LECTURE_DEPENDENCIES,
   type GraphNode
 } from '../src/lib/knowledgeGraph';
+import {
+  buildTopicMacroGraph,
+  findLearningPath,
+  queryLectures
+} from '../src/lib/knowledgeGraphQuery';
+import {
+  prepareGraphDatabasePayload,
+  CLIENT_GRAPH_VERSION
+} from '../src/lib/graphStore';
 import { ALL_LECTURES } from '../src/lib/curriculum';
 
 describe('Knowledge DAG & Dependency Tree Invariants', () => {
@@ -226,5 +235,64 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     ]);
     const l23Ready = getLectureRamification('L23-symplectic-clifford-isomorphism', completedPrereqs, dag);
     expect(l23Ready).not.toBeNull();
+  });
+
+  it('builds queryable topic macro graph with scalable entering and outgoing connections', () => {
+    const { topicNodes, topicEdges, topicMap } = buildTopicMacroGraph(dag, new Set());
+    expect(topicNodes.length).toBe(10);
+    expect(topicEdges.length).toBeGreaterThanOrEqual(10);
+
+    // Topic 1 has 0 incoming topics (axiomatic bedrock)
+    const topic1 = topicMap.get('math-foundations')!;
+    expect(topic1.incomingTopicIds.length).toBe(0);
+    expect(topic1.incomingEdgesCount).toBe(0);
+    expect(topic1.outgoingTopicIds.length).toBeGreaterThan(0);
+
+    // Topic 4 (Cliffords) has incoming from Topic 1 or Topic 3 and outgoing to Topic 5
+    const topic4 = topicMap.get('clifford-operations')!;
+    expect(topic4.incomingTopicIds.length).toBeGreaterThanOrEqual(1);
+    expect(topic4.outgoingTopicIds.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('queries topological learning path and prerequisite corridors between concepts', () => {
+    // Path from L01 (Sets & Proofs) to L57 (Quantum Error Correcting Stabilizer Codes)
+    const path = findLearningPath(
+      'L01-sets-maps-proofs',
+      'L57-qec-stabilizer-codes-automorphisms',
+      new Set(),
+      dag
+    );
+
+    expect(path).not.toBeNull();
+    expect(path!.isReachable).toBe(true);
+    expect(path!.shortestPath.length).toBeGreaterThanOrEqual(3);
+    expect(path!.shortestPath[0].id).toBe('L01-sets-maps-proofs');
+    expect(path!.shortestPath[path!.shortestPath.length - 1].id).toBe(
+      'L57-qec-stabilizer-codes-automorphisms'
+    );
+
+    // Unreachable backward query (L57 to L01 is false because L01 does not depend on L57)
+    const backwardPath = findLearningPath(
+      'L57-qec-stabilizer-codes-automorphisms',
+      'L01-sets-maps-proofs',
+      new Set(),
+      dag
+    );
+    expect(backwardPath).not.toBeNull();
+    expect(backwardPath!.isReachable).toBe(false);
+  });
+
+  it('prepares static graph database persistence payload for Neon PostgreSQL', () => {
+    const payload = prepareGraphDatabasePayload(dag);
+    expect(payload.version).toBe(CLIENT_GRAPH_VERSION);
+    expect(payload.topics.length).toBe(10);
+    expect(payload.lectures.length).toBe(60);
+    expect(payload.dependencies.length).toBeGreaterThanOrEqual(70);
+
+    // Verify hard prerequisites and soft links exist in database payload
+    const hardDeps = payload.dependencies.filter(d => d.edgeType === 'hard_prerequisite');
+    const softDeps = payload.dependencies.filter(d => d.edgeType === 'soft_link');
+    expect(hardDeps.length).toBe(dag.totalPrerequisiteEdges);
+    expect(softDeps.length).toBe(dag.totalSoftLinks);
   });
 });
