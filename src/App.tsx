@@ -67,6 +67,8 @@ import { NotebookView } from './components/NotebookView';
 import { SettingsModal } from './components/SettingsModal';
 import { MarkdownView } from './components/MarkdownView';
 import { InkCanvas } from './components/InkCanvas';
+import { usePdfViewer } from './lib/pdfViewerContext';
+import { PdfEmbedViewer } from './components/PdfEmbedViewer';
 
 const join = (...classes: (string | false | null | undefined)[]) =>
   classes.filter(Boolean).join(' ');
@@ -562,6 +564,7 @@ function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) 
 export default function App() {
   const { data, loaded, error, syncState } = useWorkspace();
   const { user } = useAuth();
+  const { activePaper, closePaper } = usePdfViewer();
   const location = useLocation();
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -888,6 +891,10 @@ export default function App() {
       </nav>
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {activePaper && (
+        <PdfEmbedViewer paper={activePaper} onClose={closePaper} />
+      )}
 
       <SettingsModal
         open={settingsOpen}

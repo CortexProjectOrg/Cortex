@@ -9,6 +9,7 @@ import {
   Clock3,
   ExternalLink,
   FileCode,
+  FileText,
   PanelRightClose,
   PanelRightOpen,
   PenTool,
@@ -29,11 +30,14 @@ import { MarkdownView } from './MarkdownView';
 import { InkCanvas } from './InkCanvas';
 import { DocumentInkOverlay } from './DocumentInkOverlay';
 import { MathFormula } from './MathFormula';
+import { usePdfViewer } from '../lib/pdfViewerContext';
+import { resolvePaperUrls } from '../lib/paperUtils';
 
 export function LectureReader() {
   const { topicId, lectureId } = useParams();
   const navigate = useNavigate();
   const { data, update } = useWorkspace();
+  const { openPaper } = usePdfViewer();
 
   const lecture = (lectureId && LECTURE_MAP.get(lectureId)) || ALL_LECTURES[0];
   const topic = TOPICS.find(t => t.id === lecture.topicId) || TOPICS[0];
@@ -331,24 +335,63 @@ export function LectureReader() {
                 <BookOpen size={14} /> THEORETICAL FORMULAS & PRIMARY CITATIONS
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {lecture.theoreticalCitations.map((cite, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      borderLeft: '3px solid #8caa7c',
-                      paddingLeft: '14px',
-                      fontSize: '13px'
-                    }}
-                  >
-                    <div style={{ fontWeight: 650, color: 'var(--ink)', marginBottom: '4px' }}>
-                      {cite.formulaName}:
+                {lecture.theoreticalCitations.map((cite, i) => {
+                  const resolvedCite = resolvePaperUrls(cite.doiOrUrl, cite.source, cite.formulaName);
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        borderLeft: '3px solid #8caa7c',
+                        paddingLeft: '14px',
+                        fontSize: '13px'
+                      }}
+                    >
+                      <div style={{ fontWeight: 650, color: 'var(--ink)', marginBottom: '4px' }}>
+                        {cite.formulaName}:
+                      </div>
+                      <MathFormula math={cite.expression} display={true} />
+                      <div
+                        style={{
+                          fontSize: '11px',
+                          color: 'var(--muted)',
+                          marginTop: '5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '6px'
+                        }}
+                      >
+                        <span>
+                          Source: <em>{cite.source}</em> · {cite.theoremOrEquation}
+                        </span>
+                        {resolvedCite && (
+                          <button
+                            type="button"
+                            onClick={() => openPaper(resolvedCite)}
+                            style={{
+                              background: 'var(--soft)',
+                              border: '1px solid var(--line)',
+                              color: 'var(--accent)',
+                              fontSize: '10px',
+                              fontWeight: 650,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '2px 7px',
+                              borderRadius: '4px'
+                            }}
+                            title="Open cited paper in PDF viewer"
+                          >
+                            <FileText size={11} />
+                            <span>View Paper PDF</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <MathFormula math={cite.expression} display={true} />
-                    <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>
-                      Source: <em>{cite.source}</em> · {cite.theoremOrEquation}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -455,50 +498,80 @@ export function LectureReader() {
               5. Primary Literature & Research Papers
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {lecture.paperReferences.map((p, i) => (
-                <div
-                  key={i}
-                  style={{
-                    border: '1px solid var(--line)',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    background: 'var(--surface)'
-                  }}
-                >
+              {lecture.paperReferences.map((p, i) => {
+                const resolved = resolvePaperUrls(p.arxivUrl, p.citation, p.title);
+                return (
                   <div
+                    key={i}
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                      flexWrap: 'wrap'
+                      border: '1px solid var(--line)',
+                      borderRadius: '8px',
+                      padding: '16px 18px',
+                      background: 'var(--surface)'
                     }}
                   >
-                    <div>
-                      <h4 style={{ fontSize: '15px', margin: '0 0 4px', fontWeight: 600 }}>
-                        {p.title}
-                      </h4>
-                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>
-                        {p.authors} · <em>{p.citation}</em>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '12px',
+                        flexWrap: 'wrap'
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: '240px' }}>
+                        <h4 style={{ fontSize: '15px', margin: '0 0 4px', fontWeight: 600 }}>
+                          {p.title}
+                        </h4>
+                        <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>
+                          {p.authors} · <em>{p.citation}</em>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--accent)' }}>
+                          <strong>Sections to read:</strong> {p.relevantSections}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--accent)' }}>
-                        <strong>Sections to read:</strong> {p.relevantSections}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        {resolved ? (
+                          <>
+                            <button
+                              type="button"
+                              className="button small primary"
+                              onClick={() => openPaper(resolved)}
+                              style={{ padding: '6px 12px', minHeight: '32px', fontSize: '11px', gap: '5px' }}
+                              title="Open paper in embedded PDF viewer"
+                            >
+                              <FileText size={13} />
+                              <span>View Paper PDF</span>
+                            </button>
+                            <a
+                              href={resolved.abstractUrl || resolved.pdfUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="icon-button small"
+                              style={{ width: '32px', height: '32px' }}
+                              title="Open on arXiv (new tab)"
+                              aria-label="Open on arXiv"
+                            >
+                              <ExternalLink size={13} />
+                            </a>
+                          </>
+                        ) : p.arxivUrl ? (
+                          <a
+                            href={p.arxivUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="button small secondary"
+                            style={{ flexShrink: 0, textDecoration: 'none' }}
+                          >
+                            Read Paper <ExternalLink size={12} />
+                          </a>
+                        ) : null}
                       </div>
                     </div>
-                    {p.arxivUrl && (
-                      <a
-                        href={p.arxivUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="button small secondary"
-                        style={{ flexShrink: 0, textDecoration: 'none' }}
-                      >
-                        Read Paper <ExternalLink size={12} />
-                      </a>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 

@@ -4,9 +4,11 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeSlug from 'rehype-slug';
 import rehypeKatex from 'rehype-katex';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { StudyDocument } from '../lib/content';
+import { usePdfViewer } from '../lib/pdfViewerContext';
+import { resolvePaperUrls } from '../lib/paperUtils';
 
 interface MarkdownViewProps {
   source: string;
@@ -15,6 +17,8 @@ interface MarkdownViewProps {
 }
 
 export function MarkdownView({ source, doc, className = '' }: MarkdownViewProps) {
+  const { openPaper } = usePdfViewer();
+
   return (
     <div className={`markdown ${className}`}>
       <ReactMarkdown
@@ -53,6 +57,44 @@ export function MarkdownView({ source, doc, className = '' }: MarkdownViewProps)
             }
             const url = target?.href ?? href;
             if (/^https?:/.test(url)) {
+              const paper = resolvePaperUrls(url, undefined, String(children));
+              if (paper) {
+                return (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <a href={url} target="_blank" rel="noreferrer">
+                      {children}
+                      <ArrowUpRight className="external-mark" size={12} aria-hidden="true" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openPaper(paper);
+                      }}
+                      style={{
+                        background: 'var(--soft)',
+                        border: '1px solid var(--line)',
+                        borderRadius: '4px',
+                        padding: '1px 5px',
+                        fontSize: '10px',
+                        fontWeight: 650,
+                        color: 'var(--accent)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        lineHeight: 1.4
+                      }}
+                      title="Open paper in embedded PDF viewer"
+                    >
+                      <FileText size={10} />
+                      <span>PDF</span>
+                    </button>
+                  </span>
+                );
+              }
+
               return (
                 <a href={url} target="_blank" rel="noreferrer">
                   {children}
