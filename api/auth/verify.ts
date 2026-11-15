@@ -1,4 +1,5 @@
 import { extractBearerToken, verifyGoogleToken } from '../lib/auth';
+import { upsertUser } from '../lib/db';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,6 +19,8 @@ export default async function handler(req: any, res: any) {
   if (!user) {
     return res.status(401).json({ error: 'Invalid or expired Google token' });
   }
+
+  void upsertUser(user).catch(err => console.warn('Failed to upsert user to Neon:', err));
 
   return res.status(200).json({ user });
 }

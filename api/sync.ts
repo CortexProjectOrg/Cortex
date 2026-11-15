@@ -1,5 +1,6 @@
 import { extractBearerToken, verifyGoogleToken } from './lib/auth';
 import { getUserData, saveUserData } from './lib/storage';
+import { upsertUser } from './lib/db';
 
 function mergeWorkspaces(current: any, incoming: any): any {
   if (!current) return incoming;
@@ -68,6 +69,9 @@ export default async function handler(req: any, res: any) {
   if (!user) {
     return res.status(401).json({ error: 'Invalid or expired Google authentication' });
   }
+
+  // Update user profile in Neon
+  void upsertUser(user).catch(err => console.warn('Failed to upsert user to Neon:', err));
 
   const userId = user.uid;
 
