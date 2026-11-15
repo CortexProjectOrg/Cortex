@@ -19,6 +19,8 @@ import {
 } from '../src/lib/graphStore';
 import {
   computeTopDownDagLayout,
+  computeVisibleTransitiveReduction,
+  pruneToActiveBranch,
   expandNodePrerequisites,
   collapseNodePrerequisites,
   expandNodeUnlocks,
@@ -444,6 +446,47 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
       const roots = getBedrockRootNodeIds(dag);
       const reachesRoot = Array.from(roots).some(rId => allAncestors.has(rId));
       expect(reachesRoot).toBe(true);
+    });
+
+    it('performs transitive reduction eliminating redundant bypass edges (A -> B -> C eliminates A -> C)', () => {
+      // In topic 1: L01 -> L02, L02 -> L03, and L01 is also direct prereq of L03
+      const l01 = dag.nodes.get('L01-sets-maps-proofs')!;
+      const l02 = dag.nodes.get('L02-groups-modular-arithmetic')!;
+      const l03 = dag.nodes.get('L03-finite-fields-gf2-gfp')!;
+
+      expect(l02.prerequisites).toContain('L01-sets-maps-proofs');
+      expect(l03.prerequisites).toContain('L01-sets-maps-proofs');
+      expect(l03.prerequisites).toContain('L02-groups-modular-arithmetic');
+
+      const visible = [l01, l02, l03];
+      const tr = computeVisibleTransitiveReduction(visible, dag);
+
+      // L01 -> L03 must be detected as transitively redundant because L01 -> L02 -> L03 exists
+      expect(tr.redundantEdges.has('L01-sets-maps-proofs->L03-finite-fields-gf2-gfp')).toBe(true);
+
+      // Essential prerequisites for L03 should ONLY contain L02, NOT L01
+      const l03Essential = tr.essentialPrerequisites.get('L03-finite-fields-gf2-gfp')!;
+      expect(l03Essential).toContain('L02-groups-modular-arithmetic');
+      expect(l03Essential).not.toContain('L01-sets-maps-proofs');
+
+      // Essential prerequisites for L02 must contain L01
+      const l02Essential = tr.essentialPrerequisites.get('L02-groups-modular-arithmetic')!;
+      expect(l02Essential).toContain('L01-sets-maps-proofs');
+    });
+
+    it('prunes unrelated side branches to favour sparsity and clean linear spine', () => {
+      const l01 = 'L01-sets-maps-proofs';
+      const l02 = 'L02-groups-modular-arithmetic';
+      const l03 = 'L03-finite-fields-gf2-gfp';
+      const unrelated = 'L35-bosonic-modes-phase-space'; // continuous variable topic 6
+
+      const visible = new Set([l01, l02, l03, unrelated]);
+      const pruned = pruneToActiveBranch(visible, l03, dag);
+
+      expect(pruned.has(l01)).toBe(true);
+      expect(pruned.has(l02)).toBe(true);
+      expect(pruned.has(l03)).toBe(true);
+      expect(pruned.has(unrelated)).toBe(false); // successfully pruned for sparsity
     });
   });
 });

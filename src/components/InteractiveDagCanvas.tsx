@@ -6,12 +6,12 @@ import {
   RotateCcw,
   Sparkles,
   Share2,
-  Layers,
   ChevronRight,
   GitBranch,
   Compass,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Filter
 } from 'lucide-react';
 import {
   type GraphNode,
@@ -20,6 +20,7 @@ import {
 } from '../lib/knowledgeGraph';
 import {
   computeTopDownDagLayout,
+  pruneToActiveBranch,
   expandNodePrerequisites,
   collapseNodePrerequisites,
   expandNodeUnlocks,
@@ -45,18 +46,22 @@ interface InteractiveDagCanvasProps {
   onSelectTopic?: (topicId: string) => void;
 }
 
-const TOPIC_COLORS: Record<number, string> = {
-  1: '#5d7356',
-  2: '#3b82f6',
-  3: '#8b5cf6',
-  4: '#10b981',
-  5: '#06b6d4',
-  6: '#f59e0b',
-  7: '#ef4444',
-  8: '#ec4899',
-  9: '#6366f1',
-  10: '#14b8a6'
-};
+export const TOPIC_PALETTE: Array<{ number: number; name: string; shortName: string; color: string }> = [
+  { number: 1, name: 'Mathematical Foundations', shortName: 'Math', color: '#4a6741' },
+  { number: 2, name: 'Quantum Mechanics Essentials', shortName: 'Quantum', color: '#0284c7' },
+  { number: 3, name: 'Pauli Group & Symplectic Rep', shortName: 'Pauli', color: '#4f46e5' },
+  { number: 4, name: 'Clifford Group & Tableaux', shortName: 'Clifford', color: '#7c3aed' },
+  { number: 5, name: 'Stabilizer Formalism', shortName: 'Stabilizer', color: '#059669' },
+  { number: 6, name: 'Stabilizer Codes & CSS', shortName: 'CSS Codes', color: '#0891b2' },
+  { number: 7, name: 'Surface Codes & Decoders', shortName: 'Surface', color: '#d97706' },
+  { number: 8, name: 'Color Codes & Topological QEC', shortName: 'Color/Topo', color: '#dc2626' },
+  { number: 9, name: 'Fault-Tolerant Architectures', shortName: 'Fault-Tol', color: '#db2777' },
+  { number: 10, name: 'Frontiers & Mixed Systems', shortName: 'Frontiers', color: '#0d9488' }
+];
+
+const TOPIC_COLORS: Record<number, string> = Object.fromEntries(
+  TOPIC_PALETTE.map(t => [t.number, t.color])
+);
 
 export function InteractiveDagCanvas({
   dag,
@@ -119,14 +124,15 @@ export function InteractiveDagCanvas({
     return dag.nodeList.filter(n => visibleNodeIds.has(n.id));
   }, [dag, visibleNodeIds]);
 
-  // Compute top-down Sugiyama barycentric layout
-  const { layoutMap, bounds } = useMemo(() => {
+  // Compute top-down Sugiyama barycentric layout with Transitive Reduction
+  const { layoutMap, bounds, transitiveReduction } = useMemo(() => {
     return computeTopDownDagLayout(visibleNodes, dag, {
-      nodeWidth: 230,
-      nodeHeight: 84,
-      levelHeight: 165,
-      minNodeGap: 40,
-      topPadding: 60
+      nodeWidth: 220,
+      nodeHeight: 78,
+      levelHeight: 195,
+      minNodeGap: 65,
+      extraBranchGap: 45,
+      topPadding: 50
     });
   }, [visibleNodes, dag]);
 
@@ -185,7 +191,7 @@ export function InteractiveDagCanvas({
 
   // Pan interaction handlers
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return; // Only primary button
+    if (e.button !== 0) return;
     setIsDragging(true);
     dragStartRef.current = { x: e.clientX, y: e.clientY };
     panStartRef.current = { ...pan };
@@ -267,6 +273,12 @@ export function InteractiveDagCanvas({
     setVisibleNodeIds(getOneHopNeighborhood(focusId, dag));
   };
 
+  const handlePruneBranch = () => {
+    const focusId = selectedNodeId || dag.nodeList[0]?.id;
+    if (!focusId) return;
+    setVisibleNodeIds(prev => pruneToActiveBranch(prev, focusId, dag));
+  };
+
   const handleExpandAncestors = () => {
     const focusId = selectedNodeId || dag.nodeList[0]?.id;
     if (!focusId) return;
@@ -283,7 +295,7 @@ export function InteractiveDagCanvas({
     setVisibleNodeIds(getBedrockRootNodeIds(dag));
   };
 
-  // Pre-calculate visible directed Bezier edges (flowing strictly top-to-bottom)
+  // Pre-calculate visible directed Bezier edges (ONLY essential edges; transitive bypass edges removed)
   const hardEdges = useMemo(() => {
     const list: Array<{
       id: string;
@@ -295,8 +307,11 @@ export function InteractiveDagCanvas({
       isDimmed: boolean;
     }> = [];
 
+    const { essentialPrerequisites } = transitiveReduction;
+
     visibleNodes.forEach(toNode => {
-      toNode.prerequisites.forEach(fromId => {
+      const essentialParents = essentialPrerequisites.get(toNode.id) || [];
+      essentialParents.forEach(fromId => {
         if (!visibleNodeIds.has(fromId)) return;
         const fromLayout = layoutMap.get(fromId);
         const toLayout = layoutMap.get(toNode.id);
@@ -335,9 +350,9 @@ export function InteractiveDagCanvas({
     });
 
     return list;
-  }, [visibleNodes, visibleNodeIds, layoutMap, activeFocusId, ancestorSet, descendantSet]);
+  }, [visibleNodes, visibleNodeIds, layoutMap, transitiveReduction, activeFocusId, ancestorSet, descendantSet]);
 
-  // Pre-calculate visible soft link curves (cross-contamination / cross-disciplinary)
+  // Pre-calculate visible soft link curves (Cross-disciplinary links + Transitive bypass edges)
   const softEdges = useMemo(() => {
     if (!showSoftLinks) return [];
 
@@ -347,10 +362,12 @@ export function InteractiveDagCanvas({
       toId: string;
       d: string;
       relationship: string;
+      isTransitiveBypass: boolean;
       isActive: boolean;
       isDimmed: boolean;
     }> = [];
 
+    // 1. Cross-disciplinary soft links
     visibleNodes.forEach(fromNode => {
       fromNode.softLinks.forEach(link => {
         if (!visibleNodeIds.has(link.targetId)) return;
@@ -358,7 +375,6 @@ export function InteractiveDagCanvas({
         const toLayout = layoutMap.get(link.targetId);
         if (!fromLayout || !toLayout) return;
 
-        // Connect from side borders with a curved arc
         const fromRight = fromLayout.x < toLayout.x;
         const x1 = fromRight ? fromLayout.x + fromLayout.width : fromLayout.x;
         const y1 = fromLayout.y + fromLayout.height / 2;
@@ -367,12 +383,10 @@ export function InteractiveDagCanvas({
 
         const midX = (x1 + x2) / 2 + (fromRight ? 30 : -30);
         const midY = (y1 + y2) / 2;
-
         const d = `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`;
 
         const isActive =
           activeFocusId === fromNode.id || activeFocusId === link.targetId || softLinkSet.has(link.targetId);
-
         const isDimmed = Boolean(activeFocusId) && !isActive;
 
         list.push({
@@ -381,21 +395,49 @@ export function InteractiveDagCanvas({
           toId: link.targetId,
           d,
           relationship: link.relationship,
+          isTransitiveBypass: false,
           isActive,
           isDimmed
         });
       });
     });
 
-    return list;
-  }, [visibleNodes, visibleNodeIds, layoutMap, showSoftLinks, activeFocusId, softLinkSet]);
+    // 2. Transitive bypass edges (redundant hard edges demoted to soft links)
+    const { redundantEdges } = transitiveReduction;
+    redundantEdges.forEach(edgeKey => {
+      const [fromId, toId] = edgeKey.split('->');
+      const fromLayout = layoutMap.get(fromId);
+      const toLayout = layoutMap.get(toId);
+      if (!fromLayout || !toLayout) return;
 
-  // Distinct active levels for level background guidelines
-  const visibleLevels = useMemo(() => {
-    const levels = new Set<number>();
-    layoutMap.forEach(l => levels.add(l.level));
-    return Array.from(levels).sort((a, b) => a - b);
-  }, [layoutMap]);
+      const fromRight = fromLayout.x <= toLayout.x;
+      const x1 = fromRight ? fromLayout.x + fromLayout.width : fromLayout.x;
+      const y1 = fromLayout.y + fromLayout.height / 2;
+      const x2 = fromRight ? toLayout.x : toLayout.x + toLayout.width;
+      const y2 = toLayout.y + toLayout.height / 2;
+
+      const midX = (x1 + x2) / 2 + (fromRight ? 40 : -40);
+      const midY = (y1 + y2) / 2;
+      const d = `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`;
+
+      const isActive =
+        activeFocusId === fromId || activeFocusId === toId || ancestorSet.has(fromId) || descendantSet.has(toId);
+      const isDimmed = Boolean(activeFocusId) && !isActive;
+
+      list.push({
+        id: `transitive:${edgeKey}`,
+        fromId,
+        toId,
+        d,
+        relationship: 'Transitive Prerequisite (subsumed by intermediate lecture)',
+        isTransitiveBypass: true,
+        isActive,
+        isDimmed
+      });
+    });
+
+    return list;
+  }, [visibleNodes, visibleNodeIds, layoutMap, transitiveReduction, showSoftLinks, activeFocusId, softLinkSet, ancestorSet, descendantSet]);
 
   return (
     <div
@@ -422,7 +464,7 @@ export function InteractiveDagCanvas({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '12px',
+          gap: '10px',
           pointerEvents: 'none',
           flexWrap: 'wrap'
         }}
@@ -441,7 +483,7 @@ export function InteractiveDagCanvas({
             gap: '6px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             overflowX: 'auto',
-            maxWidth: '55%'
+            maxWidth: '50%'
           }}
         >
           <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>
@@ -451,22 +493,21 @@ export function InteractiveDagCanvas({
             const node = dag.nodes.get(nodeId);
             if (!node) return null;
             const isLast = idx === historyTrail.length - 1;
+            const topicColor = TOPIC_COLORS[node.topicNumber] || 'var(--accent)';
 
             return (
               <React.Fragment key={nodeId + idx}>
                 <button
                   type="button"
-                  onClick={() => {
-                    onSelectNode(nodeId);
-                  }}
+                  onClick={() => onSelectNode(nodeId)}
                   style={{
                     background: isLast ? 'var(--soft)' : 'none',
                     border: 'none',
                     padding: '3px 8px',
                     borderRadius: '4px',
                     fontSize: '11px',
-                    fontWeight: isLast ? 700 : 500,
-                    color: isLast ? 'var(--accent)' : 'var(--ink)',
+                    fontWeight: isLast ? 750 : 500,
+                    color: isLast ? topicColor : 'var(--ink)',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap'
                   }}
@@ -480,7 +521,7 @@ export function InteractiveDagCanvas({
           })}
         </div>
 
-        {/* Dynamic Subgraph Quick Action Buttons & Canvas Tools */}
+        {/* Dynamic Subgraph Action Buttons & Sparsity Controls */}
         <div
           style={{
             pointerEvents: 'auto',
@@ -491,7 +532,7 @@ export function InteractiveDagCanvas({
             padding: '4px 8px',
             display: 'flex',
             alignItems: 'center',
-            gap: '5px',
+            gap: '4px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
           }}
         >
@@ -509,7 +550,7 @@ export function InteractiveDagCanvas({
             {visibleNodes.length} / {dag.nodeList.length} Nodes
           </span>
 
-          {/* Quick Subgraph Filter Presets */}
+          {/* Quick Sparsity Presets */}
           <button
             type="button"
             className="button small secondary"
@@ -525,8 +566,19 @@ export function InteractiveDagCanvas({
             type="button"
             className="button small secondary"
             style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
+            onClick={handlePruneBranch}
+            title="Prune unrelated branches: keep only active lecture's direct ancestor and descendant pipeline"
+          >
+            <Filter size={12} style={{ marginRight: '3px' }} />
+            Prune Branch
+          </button>
+
+          <button
+            type="button"
+            className="button small secondary"
+            style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
             onClick={handleExpandAncestors}
-            title="Expand entire upstream prerequisite tree up to bedrock axioms"
+            title="Expand entire upstream prerequisite tree up to foundational bedrock"
           >
             <ArrowUp size={13} style={{ marginRight: '3px' }} />
             Ancestors
@@ -548,7 +600,7 @@ export function InteractiveDagCanvas({
             className="button small secondary"
             style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
             onClick={handleResetToAxioms}
-            title="Reset visible canvas to foundational bedrock axioms (in-degree 0)"
+            title="Reset visible canvas to foundational bedrock root lectures (in-degree 0)"
           >
             <GitBranch size={13} style={{ marginRight: '3px' }} />
             Axioms
@@ -604,7 +656,7 @@ export function InteractiveDagCanvas({
             className={`button small ${showSoftLinks ? 'soft' : 'secondary'}`}
             style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
             onClick={() => setShowSoftLinks(v => !v)}
-            title="Toggle cross-disciplinary soft links"
+            title="Toggle cross-disciplinary and transitive bypass soft links"
           >
             <Share2 size={12} style={{ marginRight: '4px' }} />
             Soft
@@ -612,39 +664,100 @@ export function InteractiveDagCanvas({
         </div>
       </div>
 
-      {/* Bottom Floating Legend */}
+      {/* Bottom Floating Topic Color Palette & Legend (No Rank or Tier Concept) */}
       <div
         style={{
           position: 'absolute',
           bottom: '12px',
           left: '14px',
+          right: '14px',
           zIndex: 20,
-          background: 'rgba(255, 255, 255, 0.94)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid var(--line)',
-          borderRadius: '8px',
-          padding: '6px 12px',
-          fontSize: '11px',
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '14px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          gap: '10px',
           pointerEvents: 'none'
         }}
       >
-        <span style={{ fontWeight: 700, color: 'var(--muted)', fontSize: '10px' }}>TOP-DOWN FLOW:</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ width: '10px', height: '3px', background: '#10b981', borderRadius: '2px' }} />
-          Upstream Ancestors (▲ Prereqs)
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ width: '10px', height: '3px', background: '#3b82f6', borderRadius: '2px' }} />
-          Downstream Unlocks (▼ Next)
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ width: '10px', height: '2px', background: '#d97706', borderTop: '1px dashed #d97706' }} />
-          Cross-Disciplinary Soft Link
-        </span>
+        {/* Topic Color Palette Chips */}
+        <div
+          style={{
+            pointerEvents: 'auto',
+            background: 'rgba(255, 255, 255, 0.94)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid var(--line)',
+            borderRadius: '8px',
+            padding: '5px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '9px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            overflowX: 'auto',
+            maxWidth: '72%'
+          }}
+        >
+          <span style={{ fontSize: '9.5px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.6px', whiteSpace: 'nowrap' }}>
+            TOPICS:
+          </span>
+          {TOPIC_PALETTE.map(topic => (
+            <span
+              key={topic.number}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '10.5px',
+                color: 'var(--ink)',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer'
+              }}
+              title={`Topic ${topic.number}: ${topic.name}`}
+              onClick={() => onSelectTopic?.(topic.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}
+            >
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: topic.color,
+                  boxShadow: '0 0 0 1px rgba(0,0,0,0.1)'
+                }}
+              />
+              <span style={{ color: 'var(--muted)', fontSize: '10px' }}>
+                {topic.shortName}
+              </span>
+            </span>
+          ))}
+        </div>
+
+        {/* Link Styles Key */}
+        <div
+          style={{
+            pointerEvents: 'auto',
+            background: 'rgba(255, 255, 255, 0.94)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid var(--line)',
+            borderRadius: '8px',
+            padding: '6px 12px',
+            fontSize: '11px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', color: 'var(--ink)' }}>
+            <span style={{ width: '12px', height: '2.5px', background: '#3b82f6', borderRadius: '2px' }} />
+            Prerequisite
+          </span>
+          {showSoftLinks && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', color: 'var(--muted)' }}>
+              <span style={{ width: '12px', height: '2px', borderTop: '2px dashed #d97706' }} />
+              Soft / Transitive
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Interactive SVG Canvas */}
@@ -708,35 +821,7 @@ export function InteractiveDagCanvas({
 
         {/* Graph Transform Container */}
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-          {/* Top-to-Bottom Level Stratum Guidelines */}
-          {visibleLevels.map(lvl => {
-            const levelY = 60 + lvl * 165;
-            return (
-              <g key={`level-guideline-${lvl}`}>
-                <line
-                  x1={bounds.minX - 160}
-                  y1={levelY - 24}
-                  x2={bounds.maxX + 160}
-                  y2={levelY - 24}
-                  stroke="var(--line)"
-                  strokeDasharray="4,6"
-                  opacity={0.35}
-                />
-                <text
-                  x={bounds.minX - 150}
-                  y={levelY - 10}
-                  fill="var(--muted)"
-                  fontSize={10}
-                  fontWeight={650}
-                  letterSpacing="0.5px"
-                >
-                  {lvl === 0 ? 'BEDROCK / ROOTS' : `TIER ${lvl + 1}`}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Hard Directed Downward Bezier Edges */}
+          {/* Hard Directed Downward Bezier Edges (Transitively Reduced) */}
           <g className="dag-edges">
             {hardEdges.map(edge => {
               const markerUrl = edge.isAncestor
@@ -769,12 +854,14 @@ export function InteractiveDagCanvas({
             })}
           </g>
 
-          {/* Soft Links (Cross-Disciplinary Connections) */}
+          {/* Soft Links & Transitive Bypass Connections */}
           <g className="dag-soft-edges">
             {softEdges.map(edge => {
-              const strokeColor = edge.isActive ? '#d97706' : '#f59e0b';
-              const strokeWidth = edge.isActive ? 2.5 : 1.2;
-              const opacity = edge.isDimmed ? 0.08 : edge.isActive ? 1 : 0.5;
+              const strokeColor = edge.isTransitiveBypass
+                ? edge.isActive ? '#d97706' : '#cbd5e1'
+                : edge.isActive ? '#d97706' : '#f59e0b';
+              const strokeWidth = edge.isActive ? 2.2 : 1.1;
+              const opacity = edge.isDimmed ? 0.06 : edge.isActive ? 0.9 : 0.45;
 
               return (
                 <path
@@ -783,10 +870,12 @@ export function InteractiveDagCanvas({
                   fill="none"
                   stroke={strokeColor}
                   strokeWidth={strokeWidth}
-                  strokeDasharray="5,4"
+                  strokeDasharray="4,4"
                   opacity={opacity}
                   style={{ transition: 'opacity 0.2s, stroke-width 0.2s' }}
-                />
+                >
+                  <title>{edge.relationship}</title>
+                </path>
               );
             })}
           </g>
@@ -813,8 +902,10 @@ export function InteractiveDagCanvas({
                 !isDescendant &&
                 !isSoftLinked;
 
+              const topicColor = TOPIC_COLORS[node.topicNumber] || 'var(--accent)';
+
               const borderColor = isSelected
-                ? 'var(--accent)'
+                ? topicColor
                 : isAncestor
                 ? '#10b981'
                 : isDescendant
@@ -838,8 +929,6 @@ export function InteractiveDagCanvas({
               const visibleUnlocks = node.unlockedLectures.filter(uId => visibleNodeIds.has(uId));
               const hasUnlocks = node.unlockedLectures.length > 0;
               const hasHiddenUnlocks = hiddenUnlocks.length > 0;
-
-              const topicColor = TOPIC_COLORS[node.topicNumber] || 'var(--accent)';
 
               return (
                 <g
@@ -870,32 +959,32 @@ export function InteractiveDagCanvas({
                     filter={isSelected ? 'url(#glow-selected)' : undefined}
                   />
 
-                  {/* Left Topic Indicator Color Bar */}
+                  {/* Left Topic Indicator Color Bar (Color Distinguishes Topic) */}
                   <rect
                     x={0}
                     y={0}
-                    width={6}
+                    width={5}
                     height={height}
-                    rx={3}
+                    rx={2.5}
                     fill={topicColor}
                   />
 
-                  {/* Top Header: Lecture ID & Topic */}
+                  {/* Top Header: Lecture Identifier Badge in Topic Color (No Topic or Rank Printed) */}
                   <text
                     x={14}
-                    y={22}
-                    fontSize={10.5}
-                    fontWeight={700}
-                    fill="var(--muted)"
+                    y={21}
+                    fontSize={11}
+                    fontWeight={750}
+                    fill={topicColor}
                     letterSpacing="0.5px"
                   >
-                    L{String(node.lectureNumber).padStart(2, '0')} · T{node.topicNumber}
+                    L{String(node.lectureNumber).padStart(2, '0')}
                   </text>
 
                   {/* Readiness Status Badge */}
                   <text
                     x={width - 12}
-                    y={22}
+                    y={21}
                     textAnchor="end"
                     fontSize={10}
                     fontWeight={650}
@@ -907,30 +996,30 @@ export function InteractiveDagCanvas({
                   {/* Node Title */}
                   <text
                     x={14}
-                    y={42}
-                    fontSize={12.5}
+                    y={39}
+                    fontSize={12}
                     fontWeight={600}
                     fill="var(--ink)"
                     fontFamily="var(--serif)"
                   >
-                    {node.title.length > 25 ? `${node.title.slice(0, 24)}…` : node.title}
+                    {node.title.length > 24 ? `${node.title.slice(0, 23)}…` : node.title}
                   </text>
 
                   {/* Subtitle: Direct Count Stats */}
                   <text
                     x={14}
-                    y={60}
-                    fontSize={10}
+                    y={56}
+                    fontSize={9.5}
                     fill="var(--muted)"
                   >
                     {node.prerequisites.length} prereq{node.prerequisites.length === 1 ? '' : 's'} ·{' '}
                     {node.unlockedLectures.length} unlocks
                   </text>
 
-                  {/* Soft Links Indicator icon if applicable */}
+                  {/* Soft Links Indicator badge if applicable */}
                   {node.softLinks.length > 0 && (
                     <g transform={`translate(${width - 24}, ${height - 24})`}>
-                      <circle cx={10} cy={10} r={7} fill="#fef3c7" stroke="#f59e0b" strokeWidth={1} />
+                      <circle cx={10} cy={10} r={6.5} fill="#fef3c7" stroke="#f59e0b" strokeWidth={1} />
                       <text x={10} y={13} fontSize={8} fontWeight={700} textAnchor="middle" fill="#b45309">
                         ~
                       </text>
@@ -943,12 +1032,12 @@ export function InteractiveDagCanvas({
                   {hasPrereqs ? (
                     <g
                       className="dag-expand-pill-top"
-                      transform={`translate(${width / 2 - 44}, -10)`}
+                      transform={`translate(${width / 2 - 42}, -9)`}
                       onClick={e => handleTogglePrerequisites(node.id, e)}
                       style={{ cursor: 'pointer' }}
                     >
                       <rect
-                        width={88}
+                        width={84}
                         height={18}
                         rx={9}
                         fill={hasHiddenPrereqs ? '#ecfdf5' : '#f1f5f9'}
@@ -956,7 +1045,7 @@ export function InteractiveDagCanvas({
                         strokeWidth={1.2}
                       />
                       <text
-                        x={44}
+                        x={42}
                         y={12.5}
                         fontSize={9.5}
                         fontWeight={650}
@@ -972,7 +1061,7 @@ export function InteractiveDagCanvas({
                       cx={width / 2}
                       cy={0}
                       r={3}
-                      fill="#5d7356"
+                      fill={topicColor}
                       stroke="#fff"
                       strokeWidth={1}
                     />
@@ -984,12 +1073,12 @@ export function InteractiveDagCanvas({
                   {hasUnlocks ? (
                     <g
                       className="dag-expand-pill-bottom"
-                      transform={`translate(${width / 2 - 44}, ${height - 8})`}
+                      transform={`translate(${width / 2 - 42}, ${height - 9})`}
                       onClick={e => handleToggleUnlocks(node.id, e)}
                       style={{ cursor: 'pointer' }}
                     >
                       <rect
-                        width={88}
+                        width={84}
                         height={18}
                         rx={9}
                         fill={hasHiddenUnlocks ? '#eff6ff' : '#f1f5f9'}
@@ -997,7 +1086,7 @@ export function InteractiveDagCanvas({
                         strokeWidth={1.2}
                       />
                       <text
-                        x={44}
+                        x={42}
                         y={12.5}
                         fontSize={9.5}
                         fontWeight={650}

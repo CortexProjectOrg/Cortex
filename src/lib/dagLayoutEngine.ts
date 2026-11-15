@@ -13,6 +13,19 @@ export interface NodeLayout {
   level: number;
 }
 
+export interface TransitiveReductionResult {
+  /**
+   * For each visible node id, the list of visible prerequisite ids
+   * with transitively redundant edges removed.
+   */
+  essentialPrerequisites: Map<string, string[]>;
+  /**
+   * Set of edge IDs ("fromId->toId") that are transitively redundant
+   * in the visible subgraph (bypassed through intermediate visible nodes).
+   */
+  redundantEdges: Set<string>;
+}
+
 export interface DagLayoutResult {
   layoutMap: Map<string, NodeLayout>;
   bounds: {
@@ -23,6 +36,7 @@ export interface DagLayoutResult {
     width: number;
     height: number;
   };
+  transitiveReduction: TransitiveReductionResult;
 }
 
 export interface LayoutOptions {
@@ -30,21 +44,100 @@ export interface LayoutOptions {
   nodeHeight?: number;
   levelHeight?: number;
   minNodeGap?: number;
+  extraBranchGap?: number;
   topPadding?: number;
 }
 
 const DEFAULT_OPTIONS: Required<LayoutOptions> = {
-  nodeWidth: 230,
-  nodeHeight: 84,
-  levelHeight: 165,
-  minNodeGap: 40,
-  topPadding: 60
+  nodeWidth: 220,
+  nodeHeight: 78,
+  levelHeight: 195,
+  minNodeGap: 65,
+  extraBranchGap: 45,
+  topPadding: 50
 };
 
 /**
- * Top-to-Bottom Sugiyama-style Barycentric Layout Engine with Collision Resolution.
+ * Computes the transitive reduction of the visible subgraph.
+ * An edge u -> v is transitively redundant if there is an alternative directed path
+ * of length >= 2 from u to v through other visible nodes.
+ */
+export function computeVisibleTransitiveReduction(
+  visibleNodes: GraphNode[],
+  dag: KnowledgeDAG
+): TransitiveReductionResult {
+  const visibleSet = new Set(visibleNodes.map(n => n.id));
+  const essentialPrerequisites = new Map<string, string[]>();
+  const redundantEdges = new Set<string>();
+
+  // Map of direct visible prerequisites for each visible node
+  const directVisiblePrereqs = new Map<string, string[]>();
+  visibleNodes.forEach(node => {
+    directVisiblePrereqs.set(
+      node.id,
+      node.prerequisites.filter(pId => visibleSet.has(pId))
+    );
+  });
+
+  // For each node v, check which of its parents u have an alternative path
+  // to v through other visible nodes (i.e. u can reach some other parent w of v).
+  visibleNodes.forEach(targetNode => {
+    const parents = directVisiblePrereqs.get(targetNode.id) || [];
+    if (parents.length <= 1) {
+      essentialPrerequisites.set(targetNode.id, [...parents]);
+      return;
+    }
+
+    const parentsSet = new Set(parents);
+    const essential: string[] = [];
+
+    parents.forEach(u => {
+      let isRedundant = false;
+      const visited = new Set<string>([u]);
+      const queue = [u];
+
+      while (queue.length > 0) {
+        const curr = queue.shift()!;
+        const currNode = dag.nodes.get(curr);
+        if (!currNode) continue;
+
+        for (const childId of currNode.unlockedLectures) {
+          if (!visibleSet.has(childId)) continue;
+          if (childId === targetNode.id) continue; // Direct edge to target doesn't count
+
+          if (parentsSet.has(childId) && childId !== u) {
+            isRedundant = true;
+            break;
+          }
+
+          if (!visited.has(childId)) {
+            visited.add(childId);
+            queue.push(childId);
+          }
+        }
+
+        if (isRedundant) break;
+      }
+
+      if (isRedundant) {
+        redundantEdges.add(`${u}->${targetNode.id}`);
+      } else {
+        essential.push(u);
+      }
+    });
+
+    essentialPrerequisites.set(targetNode.id, essential);
+  });
+
+  return { essentialPrerequisites, redundantEdges };
+}
+
+/**
+ * Top-to-Bottom Sugiyama-style Barycentric Layout Engine with Transitive Reduction & Collision Resolution.
  * Positions visible DAG nodes strictly top-to-bottom:
- * Bedrock / Axioms at the top -> Foundations -> Intermediate -> Applications at bottom.
+ * - Eliminates transitively redundant bypass edges for maximum visual sparsity.
+ * - Dynamic level assignment based on visible longest paths.
+ * - Parents above children with generous horizontal and vertical breathing room.
  */
 export function computeTopDownDagLayout(
   visibleNodes: GraphNode[],
@@ -57,35 +150,66 @@ export function computeTopDownDagLayout(
   if (!visibleNodes.length) {
     return {
       layoutMap,
-      bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 }
+      bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 },
+      transitiveReduction: {
+        essentialPrerequisites: new Map(),
+        redundantEdges: new Set()
+      }
     };
   }
 
   const visibleSet = new Set(visibleNodes.map(n => n.id));
 
-  // 1. Assign compact normalized levels based on topological ranks of visible nodes
-  const activeRanks = Array.from(new Set(visibleNodes.map(n => n.topologicalRank))).sort((a, b) => a - b);
-  const rankToLevel = new Map<number, number>();
-  activeRanks.forEach((rank, idx) => {
-    rankToLevel.set(rank, idx);
+  // 1. Compute Transitive Reduction on visible nodes
+  const tr = computeVisibleTransitiveReduction(visibleNodes, dag);
+  const { essentialPrerequisites } = tr;
+
+  // 2. Assign dynamic levels based on visible topological longest paths
+  // Ensures every visible parent sits at a strictly lower level index than its children,
+  // without artificial gaps from unexpanded global ranks.
+  const levelMap = new Map<string, number>();
+
+  function getNodeLevel(nodeId: string, visiting: Set<string>): number {
+    if (levelMap.has(nodeId)) return levelMap.get(nodeId)!;
+    if (visiting.has(nodeId)) return 0;
+    visiting.add(nodeId);
+
+    const node = dag.nodes.get(nodeId);
+    // Use all visible prerequisites to guarantee strict monotonicity
+    const parents = node ? node.prerequisites.filter(pId => visibleSet.has(pId)) : [];
+
+    let maxParentLvl = -1;
+    for (const pId of parents) {
+      maxParentLvl = Math.max(maxParentLvl, getNodeLevel(pId, visiting));
+    }
+
+    visiting.delete(nodeId);
+    const lvl = maxParentLvl + 1;
+    levelMap.set(nodeId, lvl);
+    return lvl;
+  }
+
+  const visitingSet = new Set<string>();
+  visibleNodes.forEach(node => {
+    getNodeLevel(node.id, visitingSet);
   });
 
+  const maxLevel = Math.max(...Array.from(levelMap.values()), 0);
+
   const levelBuckets = new Map<number, GraphNode[]>();
-  for (let i = 0; i < activeRanks.length; i++) {
+  for (let i = 0; i <= maxLevel; i++) {
     levelBuckets.set(i, []);
   }
 
-  for (const node of visibleNodes) {
-    const level = rankToLevel.get(node.topologicalRank) ?? 0;
-    levelBuckets.get(level)!.push(node);
-  }
+  visibleNodes.forEach(node => {
+    const lvl = levelMap.get(node.id) ?? 0;
+    levelBuckets.get(lvl)!.push(node);
+  });
 
   // Intermediate position tracker
   const posX = new Map<string, number>();
 
-  // 2. Initial placement level-by-level
-  const maxLevel = activeRanks.length - 1;
-
+  // 3. Initial placement level-by-level
   for (let lvl = 0; lvl <= maxLevel; lvl++) {
     const nodes = levelBuckets.get(lvl) || [];
     if (!nodes.length) continue;
@@ -103,7 +227,12 @@ export function computeTopDownDagLayout(
       const preferred = new Map<string, number>();
 
       for (const node of nodes) {
-        const visibleParents = node.prerequisites.filter(pId => visibleSet.has(pId));
+        // Prefer essential structural parents for direct alignment
+        const parents = essentialPrerequisites.get(node.id) || [];
+        const visibleParents = parents.length > 0
+          ? parents
+          : node.prerequisites.filter(pId => visibleSet.has(pId));
+
         if (visibleParents.length > 0) {
           const avgX = visibleParents.reduce((sum, pId) => sum + (posX.get(pId) ?? 0), 0) / visibleParents.length;
           preferred.set(node.id, avgX);
@@ -115,12 +244,20 @@ export function computeTopDownDagLayout(
       // Sort nodes in this level by preferred X
       nodes.sort((a, b) => (preferred.get(a.id) ?? 0) - (preferred.get(b.id) ?? 0));
 
-      // Resolve overlaps left to right
-      placeAndResolveOverlaps(nodes, preferred, posX, opts.nodeWidth, opts.minNodeGap);
+      // Resolve overlaps left to right with extra branch spacing for sparsity
+      placeAndResolveOverlaps(
+        nodes,
+        preferred,
+        posX,
+        opts.nodeWidth,
+        opts.minNodeGap,
+        opts.extraBranchGap,
+        essentialPrerequisites
+      );
     }
   }
 
-  // 3. Bottom-Up Relaxation Pass (align parents over children centroids)
+  // 4. Bottom-Up Relaxation Pass (align parents over children centroids)
   for (let lvl = maxLevel - 1; lvl >= 0; lvl--) {
     const nodes = levelBuckets.get(lvl) || [];
     if (!nodes.length) continue;
@@ -137,17 +274,29 @@ export function computeTopDownDagLayout(
     }
 
     nodes.sort((a, b) => (preferred.get(a.id) ?? 0) - (preferred.get(b.id) ?? 0));
-    placeAndResolveOverlaps(nodes, preferred, posX, opts.nodeWidth, opts.minNodeGap);
+    placeAndResolveOverlaps(
+      nodes,
+      preferred,
+      posX,
+      opts.nodeWidth,
+      opts.minNodeGap,
+      opts.extraBranchGap,
+      essentialPrerequisites
+    );
   }
 
-  // 4. Top-Down Relaxation Pass (align children under parents centroids)
+  // 5. Top-Down Relaxation Pass (align children under parents centroids)
   for (let lvl = 1; lvl <= maxLevel; lvl++) {
     const nodes = levelBuckets.get(lvl) || [];
     if (!nodes.length) continue;
 
     const preferred = new Map<string, number>();
     for (const node of nodes) {
-      const visibleParents = node.prerequisites.filter(pId => visibleSet.has(pId));
+      const parents = essentialPrerequisites.get(node.id) || [];
+      const visibleParents = parents.length > 0
+        ? parents
+        : node.prerequisites.filter(pId => visibleSet.has(pId));
+
       if (visibleParents.length > 0) {
         const parentAvgX = visibleParents.reduce((sum, pId) => sum + (posX.get(pId) ?? 0), 0) / visibleParents.length;
         preferred.set(node.id, (posX.get(node.id)! + parentAvgX) / 2);
@@ -157,10 +306,18 @@ export function computeTopDownDagLayout(
     }
 
     nodes.sort((a, b) => (preferred.get(a.id) ?? 0) - (preferred.get(b.id) ?? 0));
-    placeAndResolveOverlaps(nodes, preferred, posX, opts.nodeWidth, opts.minNodeGap);
+    placeAndResolveOverlaps(
+      nodes,
+      preferred,
+      posX,
+      opts.nodeWidth,
+      opts.minNodeGap,
+      opts.extraBranchGap,
+      essentialPrerequisites
+    );
   }
 
-  // 5. Final centering of all levels
+  // 6. Centering of all levels
   let overallMinX = Infinity;
   let overallMaxX = -Infinity;
   posX.forEach(x => {
@@ -170,7 +327,7 @@ export function computeTopDownDagLayout(
 
   const centerOffset = -(overallMinX + overallMaxX) / 2;
 
-  // 6. Build final NodeLayout records with ports
+  // 7. Build final NodeLayout records with top-down ports
   let minY = Infinity;
   let maxY = -Infinity;
   let minX = Infinity;
@@ -213,19 +370,23 @@ export function computeTopDownDagLayout(
       maxY,
       width: maxX - minX,
       height: maxY - minY
-    }
+    },
+    transitiveReduction: tr
   };
 }
 
 /**
- * Helper to place nodes using preferred X and enforce minimum gaps without overlaps.
+ * Places nodes sequentially left-to-right enforcing minimum gaps and extra spacing
+ * between unrelated branches to favour sparsity.
  */
 function placeAndResolveOverlaps(
   nodes: GraphNode[],
   preferred: Map<string, number>,
   posX: Map<string, number>,
   nodeWidth: number,
-  minGap: number
+  minGap: number,
+  extraBranchGap: number,
+  essentialPrereqs?: Map<string, string[]>
 ) {
   if (!nodes.length) return;
 
@@ -235,8 +396,20 @@ function placeAndResolveOverlaps(
     let targetX = preferred.get(node.id) ?? (posX.get(node.id) ?? 0);
     if (i > 0) {
       const prevX = currentX[i - 1];
-      if (targetX < prevX + nodeWidth + minGap) {
-        targetX = prevX + nodeWidth + minGap;
+      const prevNode = nodes[i - 1];
+
+      // Check if adjacent nodes share any structural parent
+      let shareParent = false;
+      if (essentialPrereqs) {
+        const currParents = new Set(essentialPrereqs.get(node.id) || []);
+        const prevParents = essentialPrereqs.get(prevNode.id) || [];
+        shareParent = prevParents.some(p => currParents.has(p));
+      }
+
+      // Add extra branch gap between unrelated branches for visual sparsity
+      const gap = shareParent || !essentialPrereqs ? minGap : minGap + extraBranchGap;
+      if (targetX < prevX + nodeWidth + gap) {
+        targetX = prevX + nodeWidth + gap;
       }
     }
     currentX.push(targetX);
@@ -400,6 +573,34 @@ export function expandAllDescendants(
     });
   }
   return next;
+}
+
+/**
+ * Prunes the visible set down to strictly the active focal node,
+ * its visible upstream ancestors, and its visible downstream descendants.
+ * Prunes unrelated side branches to ensure maximum sparsity and cognitive clarity.
+ */
+export function pruneToActiveBranch(
+  currentVisible: Set<string>,
+  targetId: string,
+  dag: KnowledgeDAG
+): Set<string> {
+  const targetNode = dag.nodes.get(targetId);
+  if (!targetNode) return currentVisible;
+
+  const activeBranch = new Set<string>([targetId]);
+
+  // Direct and transitive ancestors
+  targetNode.allPrerequisites.forEach(pId => {
+    if (currentVisible.has(pId)) activeBranch.add(pId);
+  });
+
+  // Direct and transitive descendants
+  targetNode.allUnlocked.forEach(uId => {
+    if (currentVisible.has(uId)) activeBranch.add(uId);
+  });
+
+  return activeBranch;
 }
 
 /**
