@@ -16,7 +16,10 @@ import {
   deserializeInk,
   serializeInk,
   renderStrokeToPath,
-  inkToSvgString
+  inkToSvgString,
+  PEN_COLORS,
+  HIGHLIGHTER_COLORS,
+  ERASER_THRESHOLD
 } from '../lib/ink';
 import type { InkStroke } from '../lib/ink';
 
@@ -28,17 +31,7 @@ interface InkCanvasProps {
   minHeight?: number;
 }
 
-const COLORS = [
-  { label: 'Ink', value: '#1e2822' },
-  { label: 'Blue', value: '#245a78' },
-  { label: 'Red', value: '#9c3428' },
-  { label: 'Sage', value: '#3a5d49' }
-];
-
-const HIGHLIGHTER_COLORS = [
-  { label: 'Yellow', value: '#d4b106' },
-  { label: 'Green', value: '#5ba36b' }
-];
+const COLORS = PEN_COLORS;
 
 export function InkCanvas({
   initialData,
@@ -183,7 +176,7 @@ export function InkCanvas({
   };
 
   const eraseAtPoint = (x: number, y: number) => {
-    const threshold = 18;
+    const threshold = ERASER_THRESHOLD;
     setStrokes(prev => {
       const next = prev.filter(stroke => {
         return !stroke.points.some(([sx, sy]) => {

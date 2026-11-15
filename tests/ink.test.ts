@@ -2,11 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
   serializeInk,
   deserializeInk,
+  deserializeTextAnnotations,
+  deserializeInkPayload,
   parseInkData,
   renderStrokeToPath,
   inkToSvgString,
   CANONICAL_PAGE_GEOMETRY,
-  type InkStroke
+  type InkStroke,
+  type TextAnnotation
 } from '../src/lib/ink';
 
 describe('Ink vector smoothing and serialization engine', () => {
@@ -46,6 +49,15 @@ describe('Ink vector smoothing and serialization engine', () => {
     isHighlighter: false
   };
 
+  const sampleTextAnnotation: TextAnnotation = {
+    id: 'text-1',
+    x: 710,
+    y: 420,
+    text: 'Note: domega = 0 implies closed symplectic form',
+    color: '#1a5f8a',
+    fontSize: 14
+  };
+
   it('serializes ink strokes with Version 2 metadata and canonical page geometry', () => {
     const serialized = serializeInk([sampleStroke, highlighterStroke, marginNoteStroke], 960, 2400);
     expect(typeof serialized).toBe('string');
@@ -67,6 +79,25 @@ describe('Ink vector smoothing and serialization engine', () => {
     expect(deserialized[2]).toEqual(marginNoteStroke);
   });
 
+  it('serializes and deserializes typed text annotations alongside ink strokes', () => {
+    const serialized = serializeInk(
+      [sampleStroke],
+      960,
+      2000,
+      CANONICAL_PAGE_GEOMETRY,
+      [sampleTextAnnotation]
+    );
+
+    const payload = deserializeInkPayload(serialized);
+    expect(payload.strokes.length).toBe(1);
+    expect(payload.textAnnotations.length).toBe(1);
+    expect(payload.textAnnotations[0]).toEqual(sampleTextAnnotation);
+
+    const justTexts = deserializeTextAnnotations(serialized);
+    expect(justTexts.length).toBe(1);
+    expect(justTexts[0].text).toContain('domega = 0');
+  });
+
   it('maintains full backward compatibility with legacy Version 1 payloads', () => {
     const legacyV1Payload = JSON.stringify({
       version: 1,
@@ -85,16 +116,18 @@ describe('Ink vector smoothing and serialization engine', () => {
     expect(parsedData?.version).toBe(1);
     expect(parsedData?.width).toBe(850);
     expect(parsedData?.strokes.length).toBe(2);
+    expect(parsedData?.textAnnotations).toEqual([]);
   });
 
   it('parses version 2 ink data with complete visualization metadata', () => {
-    const serialized = serializeInk([marginNoteStroke]);
+    const serialized = serializeInk([marginNoteStroke], 960, 1600, CANONICAL_PAGE_GEOMETRY, [sampleTextAnnotation]);
     const parsedData = parseInkData(serialized);
 
     expect(parsedData).not.toBeNull();
     expect(parsedData?.version).toBe(2);
     expect(parsedData?.visualization?.geometry).toBe('academic-margin-v1');
     expect(parsedData?.visualization?.marginWidth).toBe(240);
+    expect(parsedData?.textAnnotations?.length).toBe(1);
   });
 
   it('gracefully handles empty or corrupted input', () => {
@@ -104,6 +137,8 @@ describe('Ink vector smoothing and serialization engine', () => {
     expect(deserializeInk('{}')).toEqual([]);
     expect(deserializeInk('{"version":1,"strokes":[]}')).toEqual([]);
     expect(deserializeInk('{"version":2,"strokes":[]}')).toEqual([]);
+    expect(deserializeTextAnnotations(undefined)).toEqual([]);
+    expect(deserializeTextAnnotations('{ bad json')).toEqual([]);
     expect(parseInkData(undefined)).toBeNull();
     expect(parseInkData('{ bad json')).toBeNull();
   });
@@ -116,11 +151,13 @@ describe('Ink vector smoothing and serialization engine', () => {
     expect(path.endsWith('Z')).toBe(true);
   });
 
-  it('generates well-formed SVG string with correct opacity for highlighters and pens', () => {
-    const svg = inkToSvgString([sampleStroke, highlighterStroke], 960, 1600);
+  it('generates well-formed SVG string with correct opacity for highlighters, pens and text', () => {
+    const svg = inkToSvgString([sampleStroke, highlighterStroke], 960, 1600, [sampleTextAnnotation]);
     expect(svg).toContain('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 1600"');
     expect(svg).toContain('fill="#1a5f8a" opacity="1"');
     expect(svg).toContain('fill="#e0b200" opacity="0.35"');
+    expect(svg).toContain('<text x="710" y="420"');
+    expect(svg).toContain('domega = 0 implies closed symplectic form');
     expect(svg).toContain('</svg>');
   });
 });

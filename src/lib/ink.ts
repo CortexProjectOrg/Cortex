@@ -14,6 +14,30 @@ export interface InkStroke {
   isHighlighter?: boolean;
 }
 
+export interface TextAnnotation {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  fontSize: number;
+}
+
+export const PEN_COLORS = [
+  { label: 'Black Ink', value: '#1e2822' },
+  { label: 'Blueprint Blue', value: '#1a5f8a' },
+  { label: 'Crimson Red', value: '#a32a2a' },
+  { label: 'Forest Green', value: '#2e6b3f' }
+];
+
+export const HIGHLIGHTER_COLORS = [
+  { label: 'Amber Yellow', value: '#e0b200' },
+  { label: 'Sage Green', value: '#48a860' },
+  { label: 'Cyan', value: '#0ea5e9' }
+];
+
+export const ERASER_THRESHOLD = 24;
+
 export interface InkVisualizationMeta {
   geometry: 'academic-margin-v1';
   canonicalWidth: number;
@@ -35,6 +59,7 @@ export interface InkData {
   width: number;
   height: number;
   strokes: InkStroke[];
+  textAnnotations?: TextAnnotation[];
   visualization?: InkVisualizationMeta;
 }
 
@@ -80,32 +105,55 @@ export function serializeInk(
   strokes: InkStroke[],
   width = 960,
   height = 1600,
-  visualization: InkVisualizationMeta = CANONICAL_PAGE_GEOMETRY
+  visualization: InkVisualizationMeta = CANONICAL_PAGE_GEOMETRY,
+  textAnnotations: TextAnnotation[] = []
 ): string {
   const data: InkData = {
     version: 2,
     width,
     height,
     strokes,
+    textAnnotations,
     visualization
   };
   return JSON.stringify(data);
 }
 
-export function deserializeInk(serialized?: string): InkStroke[] {
-  if (!serialized) return [];
+export function deserializeInkPayload(serialized?: string): {
+  strokes: InkStroke[];
+  textAnnotations: TextAnnotation[];
+  visualization?: InkVisualizationMeta;
+  width: number;
+  height: number;
+} {
+  if (!serialized) {
+    return { strokes: [], textAnnotations: [], width: 960, height: 1600 };
+  }
   try {
     const parsed = JSON.parse(serialized);
-    if (parsed && Array.isArray(parsed.strokes)) {
-      return parsed.strokes;
+    if (parsed && typeof parsed === 'object') {
+      const strokes = Array.isArray(parsed.strokes) ? parsed.strokes : Array.isArray(parsed) ? parsed : [];
+      const textAnnotations = Array.isArray(parsed.textAnnotations) ? parsed.textAnnotations : [];
+      return {
+        strokes,
+        textAnnotations,
+        visualization: parsed.visualization,
+        width: parsed.width || 960,
+        height: parsed.height || 1600
+      };
     }
-    if (Array.isArray(parsed)) {
-      return parsed;
-    }
-    return [];
+    return { strokes: [], textAnnotations: [], width: 960, height: 1600 };
   } catch {
-    return [];
+    return { strokes: [], textAnnotations: [], width: 960, height: 1600 };
   }
+}
+
+export function deserializeInk(serialized?: string): InkStroke[] {
+  return deserializeInkPayload(serialized).strokes;
+}
+
+export function deserializeTextAnnotations(serialized?: string): TextAnnotation[] {
+  return deserializeInkPayload(serialized).textAnnotations;
 }
 
 export function parseInkData(serialized?: string): InkData | null {
@@ -118,6 +166,7 @@ export function parseInkData(serialized?: string): InkData | null {
         width: parsed.width || 960,
         height: parsed.height || 1600,
         strokes: parsed.strokes,
+        textAnnotations: Array.isArray(parsed.textAnnotations) ? parsed.textAnnotations : [],
         visualization: parsed.visualization
       };
     }
@@ -126,7 +175,8 @@ export function parseInkData(serialized?: string): InkData | null {
         version: 1,
         width: 800,
         height: 600,
-        strokes: parsed
+        strokes: parsed,
+        textAnnotations: []
       };
     }
     return null;
@@ -135,7 +185,12 @@ export function parseInkData(serialized?: string): InkData | null {
   }
 }
 
-export function inkToSvgString(strokes: InkStroke[], width = 960, height = 1600): string {
+export function inkToSvgString(
+  strokes: InkStroke[],
+  width = 960,
+  height = 1600,
+  textAnnotations: TextAnnotation[] = []
+): string {
   const paths = strokes
     .map(stroke => {
       const d = renderStrokeToPath(stroke);
@@ -144,7 +199,15 @@ export function inkToSvgString(strokes: InkStroke[], width = 960, height = 1600)
     })
     .join('\n  ');
 
+  const texts = textAnnotations
+    .map(ann => {
+      const escaped = ann.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<text x="${ann.x}" y="${ann.y}" fill="${ann.color}" font-size="${ann.fontSize}" font-family="Georgia, serif">${escaped}</text>`;
+    })
+    .join('\n  ');
+
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
   ${paths}
+  ${texts}
 </svg>`;
 }
