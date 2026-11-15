@@ -13,11 +13,12 @@ import {
   ChevronRight,
   Sparkles,
   Cloud,
-  Layers
+  Layers,
+  Package
 } from 'lucide-react';
 import { useWorkspace } from '../lib/workspace';
 import { useAuth } from '../lib/auth';
-import { TOPICS, SUNDAY_SCHOLAR_PATH, ALL_LECTURES, LECTURE_MAP } from '../lib/curriculum';
+import { TOPICS, FOUR_HOUR_MASTERY_PATH, ALL_LECTURES, LECTURE_MAP } from '../lib/curriculum';
 import { docRoute, lectureRoute } from '../lib/model';
 
 export function Dashboard() {
@@ -26,13 +27,14 @@ export function Dashboard() {
 
   const completedCount = data.completedLectures?.length || 0;
   const totalLectures = ALL_LECTURES.length;
-  const currentWeekNum = data.studyPlan?.currentWeek || 1;
-  const currentWeek = SUNDAY_SCHOLAR_PATH.weeks[currentWeekNum - 1] || SUNDAY_SCHOLAR_PATH.weeks[0];
+  const currentPackNum = data.studyPlan?.currentWeek || 1;
+  const currentPack =
+    FOUR_HOUR_MASTERY_PATH.packs[currentPackNum - 1] || FOUR_HOUR_MASTERY_PATH.packs[0];
 
   // Find next uncompleted lecture
   const nextLectureId =
-    currentWeek.lectureIds.find(id => !data.completedLectures?.includes(id)) ||
-    currentWeek.lectureIds[0];
+    currentPack.lectureIds.find(id => !data.completedLectures?.includes(id)) ||
+    currentPack.lectureIds[0];
   const nextLecture = LECTURE_MAP.get(nextLectureId) || ALL_LECTURES[0];
 
   const recentNotes = [...data.notes]
@@ -78,32 +80,33 @@ export function Dashboard() {
       {/* Hero Section */}
       <section className="hero">
         <div className="hero-copy">
-          <span className="eyebrow">THE SYMPLECTIC FIELD GUIDE & CODEBASE COMPANION</span>
+          <span className="eyebrow">OPEN STUDY PLATFORM & SYMPLECTIC QUANTUM GUIDE</span>
           <h1>
             A little theory.
             <br />
             <em>A clearer picture.</em>
           </h1>
           <p>
-            From zero to complete mastery of the mathematics and implementation of{' '}
-            <code>QuAOS-Lab</code>. 15 structured Sunday sessions of four 1-hour lectures.
+            A foundational, concept-first learning platform for discrete mathematics, symplectic
+            geometry, Clifford operators, and quantum simulation. 15 four-hour mastery packs of
+            focused 1-hour lectures.
           </p>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
             <Link
               className="button primary"
               to={lectureRoute(nextLecture.topicId, nextLecture.id)}
             >
-              Continue Sunday {currentWeekNum}: {nextLecture.title}
+              Continue Pack {currentPackNum}: {nextLecture.title}
               <ArrowRight size={17} />
             </Link>
             <Link className="button secondary" to="/path">
               <Calendar size={15} />
-              View 15-Week Study Plan
+              View 15-Pack Study Plan
             </Link>
           </div>
           <div className="hero-meta">
             <span>
-              <Clock3 size={14} /> 4 focused hours / Sunday
+              <Clock3 size={14} /> 4 focused hours / pack
             </span>
             <span>
               <Layers size={14} /> 60 atomic 1-hour lectures
@@ -131,30 +134,30 @@ export function Dashboard() {
                 <span>0</span>
               </span>
             </div>
-            <div className="matrix-caption">Commutation as finite geometry.</div>
+            <div className="matrix-caption">Commutation as discrete geometry.</div>
           </div>
           <span className="art-dot" />
         </div>
       </section>
 
-      {/* Sunday Session Focus */}
+      {/* Current 4-Hour Pack Focus */}
       <div className="journey-heading" style={{ marginTop: '36px' }}>
         <div>
-          <span className="eyebrow">CURRENT FOCUS: SUNDAY {currentWeekNum} OF 15</span>
-          <h2>{currentWeek.title}</h2>
+          <span className="eyebrow">ACTIVE STUDY BLOCK: PACK {currentPackNum} OF 15</span>
+          <h2>{currentPack.title}</h2>
           <p style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>
-            {currentWeek.theme}
+            {currentPack.theme}
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
           <span className="subtle progress-label">
-            {currentWeek.lectureIds.filter(id => data.completedLectures?.includes(id)).length} of 4
-            lectures completed today
+            {currentPack.lectureIds.filter(id => data.completedLectures?.includes(id)).length} of 4
+            lectures completed in this pack
           </span>
         </div>
       </div>
 
-      {/* 4 Lecture Blocks for this Sunday */}
+      {/* 4 Lecture Slots for this Pack */}
       <div
         style={{
           display: 'grid',
@@ -163,7 +166,7 @@ export function Dashboard() {
           marginBottom: '36px'
         }}
       >
-        {currentWeek.lectureIds.map((lId, idx) => {
+        {currentPack.lectureIds.map((lId, idx) => {
           const lec = LECTURE_MAP.get(lId);
           if (!lec) return null;
           const isDone = data.completedLectures?.includes(lId);
@@ -345,10 +348,10 @@ export function Dashboard() {
               <br />
               explanations close.
             </h3>
-            <p>Direct references to papers, mathematical glossary, and repository source maps.</p>
+            <p>Direct references to primary literature, mathematical glossary, and codebase architecture.</p>
             <div className="shelf-links">
               <Link to={docRoute('CODEBASE_MAP.md')}>
-                <span>QuAOS-Lab Codebase Map</span>
+                <span>Systems Architecture Map</span>
                 <ChevronRight size={16} />
               </Link>
               <Link to={docRoute('GLOSSARY.md')}>
@@ -356,11 +359,11 @@ export function Dashboard() {
                 <ChevronRight size={16} />
               </Link>
               <Link to={docRoute('SOURCES.md')}>
-                <span>Research Papers Guide</span>
+                <span>Primary Literature Guide</span>
                 <ChevronRight size={16} />
               </Link>
               <Link to={docRoute('SETUP.md')}>
-                <span>Rust & CUDA Practice Harness</span>
+                <span>Practice & Simulation Setup</span>
                 <ChevronRight size={16} />
               </Link>
             </div>
@@ -372,7 +375,7 @@ export function Dashboard() {
             <h3>Stylus & Paper Notes</h3>
             <p>
               Draw quantum circuits, derive symplectic formulas with your tablet pen, and review
-              clean SVG diagrams on your PC.
+              clean SVG diagrams on your PC. Notes taken during lectures auto-collect here.
             </p>
             <Link to="/notes" className="text-link">
               Open your notebook <ArrowRight size={15} />
@@ -423,7 +426,7 @@ export function Dashboard() {
                         fontWeight: 600
                       }}
                     >
-                      Pen Drawing Attached
+                      Stylus Drawing Attached
                     </span>
                   )}
                 </div>

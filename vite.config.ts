@@ -7,8 +7,8 @@ export default defineConfig({
     registerType: 'prompt',
     includeAssets: ['icon.svg', 'apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png'],
     manifest: {
-      id: '/', name: 'QuAOS Study', short_name: 'QuAOS Study',
-      description: 'Your personal study room for symplectic theory, Rust, and simulation.',
+      id: '/', name: 'AINotes Study', short_name: 'AINotes',
+      description: 'Foundational study room for discrete mathematics, symplectic algebra, and quantum simulation.',
       theme_color: '#f6f5f0', background_color: '#f6f5f0', display: 'standalone',
       start_url: '/', scope: '/', orientation: 'any', lang: 'en',
       icons: [

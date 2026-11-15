@@ -74,7 +74,7 @@ function Logo({ small = false }: { small?: boolean }) {
     <span className={join('brand', small && 'small')}>
       <img src="/icon.svg" alt="" width="38" height="38" />
       <span>
-        QuAOS<span className="brand-sub">THE STUDY ROOM</span>
+        AINotes<span className="brand-sub">THE STUDY ROOM</span>
       </span>
     </span>
   );
@@ -654,10 +654,10 @@ export default function App() {
 
         {/* Sidebar */}
         <aside className={join('sidebar', menuOpen && 'open')}>
-          <Link to="/" className="brand-link" aria-label="QuAOS Study home">
+          <Link to="/" className="brand-link" aria-label="AINotes home">
             <Logo />
           </Link>
-          <div className="sidebar-caption">LEARNING PLATFORM</div>
+          <div className="sidebar-caption">OPEN STUDY PLATFORM</div>
 
           <nav className="main-nav" aria-label="Main navigation">
             {navItems.map(item => (
@@ -737,7 +737,7 @@ export default function App() {
               >
                 <Menu size={20} />
               </button>
-              <span className="topbar-label">QuAOS Study · Symplectic Field Guide</span>
+              <span className="topbar-label">AINotes · Symplectic & Quantum Systems Guide</span>
               <Link className="mobile-brand" to="/">
                 <Logo small />
               </Link>
@@ -843,10 +843,10 @@ export default function App() {
 
           <footer className="site-footer">
             <span>
-              QuAOS Lab <span className="footer-dot">·</span> Open Project for Symplectic Quantum
-              Computing.
+              AINotes <span className="footer-dot">·</span> Open Foundational Platform for
+              Quantum & Symplectic Computing.
             </span>
-            <span>Theory ↔ Codebase ↔ Implementation</span>
+            <span>Theory ↔ Systems Architecture ↔ Derivations</span>
           </footer>
         </div>
       </div>

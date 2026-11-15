@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -9,18 +9,20 @@ import {
   Clock3,
   ExternalLink,
   FileCode,
-  FileText,
   PanelRightClose,
   PanelRightOpen,
   PenTool,
   PencilLine,
-  Plus,
   Trash2,
-  Download
+  Download,
+  Bookmark,
+  Sparkles,
+  Link2
 } from 'lucide-react';
 import { LECTURE_MAP, ALL_LECTURES, TOPICS } from '../lib/curriculum';
 import { useWorkspace } from '../lib/workspace';
-import { makeNote, lectureRoute, noteMarkdown } from '../lib/model';
+import { makeNote, lectureRoute } from '../lib/model';
+import type { Note } from '../lib/model';
 import { MarkdownView } from './MarkdownView';
 import { InkCanvas } from './InkCanvas';
 
@@ -32,21 +34,42 @@ export function LectureReader() {
   const lecture = (lectureId && LECTURE_MAP.get(lectureId)) || ALL_LECTURES[0];
   const topic = TOPICS.find(t => t.id === lecture.topicId) || TOPICS[0];
 
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const [notesOpen, setNotesOpen] = useState(true); // Open by default for easy note-taking
 
-  // Find next lecture in order
+  // Find next and previous lectures in syllabus sequence
   const currentIndex = ALL_LECTURES.findIndex(l => l.id === lecture.id);
   const nextLecture = ALL_LECTURES[currentIndex + 1];
   const prevLecture = ALL_LECTURES[currentIndex - 1];
 
   const isCompleted = data.completedLectures?.includes(lecture.id);
 
-  // Find notes associated with this lecture
-  const lectureNotes = data.notes.filter(n => n.lectureId === lecture.id || n.documentId === lecture.id);
-  const activeNote = lectureNotes.find(n => n.id === activeNoteId) || lectureNotes[0];
+  // AUTOMATIC NOTE ASSOCIATION:
+  // Automatically find or create the note associated with this lecture
+  const existingNote = data.notes.find(
+    n => n.lectureId === lecture.id || n.documentId === lecture.id
+  );
 
-  // Remember reading position and last read
+  // Ensure an associated note exists as soon as lecture is loaded
+  useEffect(() => {
+    if (!existingNote && data.notes) {
+      const autoNote = makeNote(`Notes: ${lecture.title}`, undefined, lecture.id);
+      update(cur => ({
+        ...cur,
+        notes: [autoNote, ...cur.notes]
+      }));
+    }
+  }, [lecture.id, lecture.title, existingNote, update, data.notes]);
+
+  const activeNote = existingNote || {
+    id: `auto-${lecture.id}`,
+    title: `Notes: ${lecture.title}`,
+    body: '',
+    lectureId: lecture.id,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  // Track reading position and last read
   useEffect(() => {
     update(cur => ({
       ...cur,
@@ -57,6 +80,21 @@ export function LectureReader() {
     }));
     window.scrollTo(0, 0);
   }, [lecture.id, update]);
+
+  // Keyboard shortcut: toggle notes panel with 'N'
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (
+        (e.key === 'n' || e.key === 'N') &&
+        !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
+      ) {
+        e.preventDefault();
+        setNotesOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   const toggleCompleted = () => {
     update(cur => {
@@ -79,36 +117,35 @@ export function LectureReader() {
     });
   };
 
-  const createNote = () => {
-    const note = makeNote(`Notes on ${lecture.title}`, undefined, lecture.id);
-    update(cur => ({
-      ...cur,
-      notes: [note, ...cur.notes]
-    }));
-    setActiveNoteId(note.id);
-    setNotesOpen(true);
-  };
-
-  const updateActiveNote = (patch: Partial<typeof activeNote>) => {
-    if (!activeNote) return;
-    update(cur => ({
-      ...cur,
-      notes: cur.notes.map(n =>
-        n.id === activeNote.id ? { ...n, ...patch, updatedAt: new Date().toISOString() } : n
-      )
-    }));
-  };
-
-  const deleteActiveNote = () => {
-    if (!activeNote) return;
-    if (window.confirm('Delete this note from this device?')) {
-      update(cur => ({
-        ...cur,
-        notes: cur.notes.filter(n => n.id !== activeNote.id)
-      }));
-      setActiveNoteId(null);
-    }
-  };
+  const updateActiveNote = useCallback(
+    (patch: Partial<Note>) => {
+      update(cur => {
+        const found = cur.notes.some(n => n.id === activeNote.id || n.lectureId === lecture.id);
+        if (found) {
+          return {
+            ...cur,
+            notes: cur.notes.map(n =>
+              n.id === activeNote.id || n.lectureId === lecture.id
+                ? { ...n, ...patch, updatedAt: new Date().toISOString() }
+                : n
+            )
+          };
+        } else {
+          // If note was virtual, insert it
+          const freshNote: Note = {
+            ...activeNote,
+            ...patch,
+            updatedAt: new Date().toISOString()
+          };
+          return {
+            ...cur,
+            notes: [freshNote, ...cur.notes]
+          };
+        }
+      });
+    },
+    [activeNote, lecture.id, update]
+  );
 
   return (
     <div className={`reading-layout ${notesOpen ? 'with-notes' : ''}`}>
@@ -116,8 +153,9 @@ export function LectureReader() {
         {/* Navigation Toolbar */}
         <div className="reader-toolbar">
           <Link className="breadcrumb" to="/path">
-            <ArrowLeft size={14} /> Sunday {lecture.sundaySession} · Slot {lecture.sundaySlot}
+            <ArrowLeft size={14} /> Pack {lecture.packNumber} · Slot {lecture.packSlot}
           </Link>
+
           <div className="toolbar-actions">
             <button
               type="button"
@@ -127,25 +165,28 @@ export function LectureReader() {
               {isCompleted ? <CheckCircle2 size={16} /> : <Check size={16} />}
               <span>{isCompleted ? 'Lecture Mastered' : 'Mark as Mastered'}</span>
             </button>
+
+            {/* Easy-to-toggle Note Taker button */}
             <button
               type="button"
-              className={`button small ${notesOpen ? 'soft' : 'secondary'}`}
+              className={`button small ${notesOpen ? 'soft' : 'primary'}`}
               onClick={() => setNotesOpen(!notesOpen)}
+              title="Toggle Note Taker (Shortcut: N)"
             >
               {notesOpen ? <PanelRightClose size={16} /> : <PenTool size={16} />}
-              <span>Stylus Notes</span>
-              {lectureNotes.length > 0 && <span className="count-pill">{lectureNotes.length}</span>}
+              <span>{notesOpen ? 'Hide Notes' : 'Open Scratchpad & Stylus'}</span>
+              <kbd style={{ fontSize: '9px', opacity: 0.7, marginLeft: '4px' }}>N</kbd>
             </button>
           </div>
         </div>
 
-        {/* Lecture Article */}
+        {/* Lecture Article Content */}
         <article className="article">
           <header className="article-heading">
             <div className="article-meta">
               <span className="eyebrow">
-                TOPIC {topic.number}: {topic.title.toUpperCase()} · SUNDAY {lecture.sundaySession}, SLOT{' '}
-                {lecture.sundaySlot}
+                TOPIC {topic.number}: {topic.title.toUpperCase()} · 4H PACK {lecture.packNumber}, SLOT{' '}
+                {lecture.packSlot}
               </span>
               <span>
                 <Clock3 size={13} /> 60 min true effort
@@ -172,7 +213,7 @@ export function LectureReader() {
               borderLeft: '4px solid var(--accent, #3a5d49)',
               padding: '18px 24px',
               borderRadius: '0 8px 8px 0',
-              marginBottom: '32px'
+              marginBottom: '28px'
             }}
           >
             <span
@@ -185,7 +226,7 @@ export function LectureReader() {
                 marginBottom: '4px'
               }}
             >
-              THE CORE QUESTION OF THIS HOUR
+              THE CORE THEORETICAL QUESTION
             </span>
             <p
               style={{
@@ -198,6 +239,51 @@ export function LectureReader() {
               {lecture.question}
             </p>
           </div>
+
+          {/* Theoretical Citations & Formal Formula References */}
+          {lecture.theoreticalCitations && lecture.theoreticalCitations.length > 0 && (
+            <div
+              style={{
+                background: '#fff',
+                border: '1px solid var(--line, #e2e4da)',
+                borderRadius: '8px',
+                padding: '18px 22px',
+                marginBottom: '32px'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  letterSpacing: '1px',
+                  color: 'var(--accent)',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <BookOpen size={14} /> THEORETICAL FORMULAS & PRIMARY CITATIONS
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {lecture.theoreticalCitations.map((cite, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      borderLeft: '3px solid #8caa7c',
+                      paddingLeft: '12px',
+                      fontSize: '13px'
+                    }}
+                  >
+                    <strong>{cite.formulaName}:</strong> <code>${cite.expression}$</code>
+                    <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+                      Source: <em>{cite.source}</em> · {cite.theoremOrEquation}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Section 1: Motivation */}
           <section style={{ marginBottom: '32px' }}>
@@ -212,7 +298,7 @@ export function LectureReader() {
           {/* Section 2: Mathematical Theory & Derivation */}
           <section style={{ marginBottom: '36px' }}>
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: '24px', marginBottom: '16px' }}>
-              2. Theory & Formal Derivation
+              2. Theory & Formal Derivations
             </h2>
             <MarkdownView source={lecture.content.theory} />
           </section>
@@ -233,10 +319,10 @@ export function LectureReader() {
             <MarkdownView source={lecture.content.workedExample} />
           </section>
 
-          {/* Section 4: QuAOS-Lab Codebase Connection */}
+          {/* Section 4: Canonical Systems Architecture */}
           <section style={{ marginBottom: '36px' }}>
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: '24px', marginBottom: '16px' }}>
-              4. Inside the QuAOS-Lab Codebase
+              4. Systems & Implementation Architecture
             </h2>
 
             <div
@@ -273,7 +359,8 @@ export function LectureReader() {
                     </span>
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '8px' }}>
-                    <strong>Key symbols:</strong> {ref.symbols.map(s => `\`${s}\``).join(', ')}
+                    <strong>Key patterns & symbols:</strong>{' '}
+                    {ref.symbols.map(s => `\`${s}\``).join(', ')}
                   </div>
                   <div style={{ fontSize: '13px', color: 'var(--ink)' }}>{ref.purpose}</div>
                 </div>
@@ -282,7 +369,7 @@ export function LectureReader() {
 
             <div style={{ marginBottom: '20px' }}>
               <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '8px' }}>
-                Implementation Choices & Tradeoffs:
+                Algorithmic & Engineering Choices:
               </h4>
               <ul style={{ paddingLeft: '20px', fontSize: '14px', lineHeight: '1.7' }}>
                 {lecture.implementationChoices.map((choice, i) => (
@@ -297,7 +384,7 @@ export function LectureReader() {
           {/* Section 5: Associated Research Papers */}
           <section style={{ marginBottom: '36px' }}>
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: '24px', marginBottom: '14px' }}>
-              5. Associated Papers & Primary Literature
+              5. Primary Literature & Research Papers
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {lecture.paperReferences.map((p, i) => (
@@ -315,7 +402,8 @@ export function LectureReader() {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'flex-start',
-                      gap: '12px'
+                      gap: '12px',
+                      flexWrap: 'wrap'
                     }}
                   >
                     <div>
@@ -337,7 +425,7 @@ export function LectureReader() {
                         className="button small secondary"
                         style={{ flexShrink: 0, textDecoration: 'none' }}
                       >
-                        Read arXiv <ExternalLink size={12} />
+                        Read Paper <ExternalLink size={12} />
                       </a>
                     )}
                   </div>
@@ -357,19 +445,22 @@ export function LectureReader() {
             }}
           >
             <h2 style={{ fontFamily: 'var(--serif)', fontSize: '22px', marginBottom: '12px' }}>
-              6. Paper & Pencil Exercise
+              6. Paper & Pencil Exercise — Test Your Understanding
             </h2>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '12px' }}>
+              Work out this exercise right in the stylus scratchpad on the right:
+            </p>
             <MarkdownView source={lecture.content.exercise} />
           </section>
 
-          {/* Bottom Actions */}
+          {/* Bottom Navigation */}
           <div className="reader-pagination">
             {prevLecture ? (
               <Link
                 className="button secondary"
                 to={lectureRoute(prevLecture.topicId, prevLecture.id)}
               >
-                <ArrowLeft size={16} /> Slot {prevLecture.sundaySlot}: {prevLecture.title}
+                <ArrowLeft size={16} /> Slot {prevLecture.packSlot}: {prevLecture.title}
               </Link>
             ) : (
               <span />
@@ -381,7 +472,7 @@ export function LectureReader() {
               onClick={toggleCompleted}
             >
               {isCompleted ? <CheckCircle2 size={17} /> : <Check size={17} />}
-              {isCompleted ? 'Completed' : 'Mark Slot Completed'}
+              {isCompleted ? 'Mastered' : 'Mark Slot Mastered'}
             </button>
 
             {nextLecture ? (
@@ -397,158 +488,137 @@ export function LectureReader() {
               </button>
             ) : (
               <Link className="button primary" to="/path">
-                View Full Path <ArrowRight size={16} />
+                View Full Mastery Path <ArrowRight size={16} />
               </Link>
             )}
           </div>
         </article>
       </div>
 
-      {/* Stylus Pen Notes Drawer / Side Panel */}
+      {/* EASY-TO-TOGGLE STYLUS & PEN NOTE TAKER */}
       {notesOpen && (
-        <aside className="reading-notes" style={{ width: '420px', maxWidth: '90vw' }}>
+        <aside className="reading-notes" style={{ width: '450px', maxWidth: '92vw' }}>
           <div className="notes-panel-heading">
             <div>
-              <span className="eyebrow">TABLET STYLUS & PEN NOTES</span>
-              <h3>Derivations & Sketches</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="eyebrow">STYLUS & PEN SCRATCHPAD</span>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--accent)',
+                    background: 'var(--soft)',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px'
+                  }}
+                  title="This note is automatically associated with this lecture and saved in your Notebook"
+                >
+                  <Link2 size={10} /> Auto-collected
+                </span>
+              </div>
+              <h3 style={{ fontSize: '18px', marginTop: '2px' }}>Test Your Understanding</h3>
             </div>
             <button
               type="button"
               className="icon-button"
-              aria-label="Close notes panel"
+              aria-label="Hide notes panel"
+              title="Hide notes (Shortcut: N)"
               onClick={() => setNotesOpen(false)}
             >
               ✕
             </button>
           </div>
 
-          {lectureNotes.length > 0 && (
-            <div className="attached-note-select" style={{ marginBottom: '12px' }}>
-              <select
-                aria-label="Select note"
-                value={activeNote?.id}
-                onChange={e => setActiveNoteId(e.target.value)}
-                style={{ flex: 1, padding: '6px 10px', borderRadius: '6px' }}
-              >
-                {lectureNotes.map(n => (
-                  <option key={n.id} value={n.id}>
-                    {n.title || 'Untitled Note'}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="icon-button"
-                title="Create another note"
-                onClick={createNote}
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-          )}
-
-          {activeNote ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
-              <input
-                className="note-title"
-                value={activeNote.title}
-                onChange={e => updateActiveNote({ title: e.target.value })}
-                placeholder="Give this derivation a title"
-                style={{
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  border: '1px solid var(--line)',
-                  borderRadius: '6px',
-                  padding: '8px 12px'
-                }}
-              />
-
-              {/* Tablet Pen Canvas */}
-              <div>
-                <div
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 650,
-                    letterSpacing: '0.8px',
-                    color: 'var(--muted)',
-                    marginBottom: '6px'
-                  }}
-                >
-                  DRAWING CANVAS (PEN / STYLUS):
-                </div>
-                <InkCanvas
-                  initialData={activeNote.inkData}
-                  onChange={inkData => updateActiveNote({ inkData })}
-                  minHeight={260}
-                />
-              </div>
-
-              {/* Text reflection below */}
-              <div>
-                <div
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 650,
-                    letterSpacing: '0.8px',
-                    color: 'var(--muted)',
-                    marginBottom: '6px'
-                  }}
-                >
-                  TYPED REFLECTIONS & FORMULAS:
-                </div>
-                <textarea
-                  className="note-body"
-                  value={activeNote.body}
-                  onChange={e => updateActiveNote({ body: e.target.value })}
-                  placeholder="Notes, formulas, or questions for this lecture..."
-                  rows={4}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--line)',
-                    fontFamily: 'inherit',
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              flex: 1,
+              overflowY: 'auto'
+            }}
+          >
+            {/* Tablet Stylus Canvas */}
+            <div>
               <div
                 style={{
+                  fontSize: '11px',
+                  fontWeight: 650,
+                  letterSpacing: '0.8px',
+                  color: 'var(--muted)',
+                  marginBottom: '6px',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginTop: 'auto',
-                  paddingTop: '10px'
+                  alignItems: 'center'
                 }}
               >
-                <button
-                  type="button"
-                  className="icon-button"
-                  title="Delete note"
-                  onClick={deleteActiveNote}
-                >
-                  <Trash2 size={16} />
-                </button>
-                <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                  Auto-saved & synced across devices
+                <span>PEN & STYLUS SURFACE:</span>
+                <span style={{ fontSize: '10px', color: 'var(--muted)' }}>
+                  Pressure-sensitive ink
                 </span>
               </div>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '36px 12px' }}>
-              <PencilLine
-                size={28}
-                style={{ color: 'var(--muted)', display: 'block', margin: '0 auto 12px' }}
+              <InkCanvas
+                initialData={activeNote.inkData}
+                onChange={inkData => updateActiveNote({ inkData })}
+                minHeight={290}
               />
-              <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '16px' }}>
-                No stylus notes for this lecture yet.
-              </p>
-              <button type="button" className="button primary" onClick={createNote}>
-                <Plus size={15} /> Start Pen Note
-              </button>
             </div>
-          )}
+
+            {/* Typed Notes & Derivations */}
+            <div>
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 650,
+                  letterSpacing: '0.8px',
+                  color: 'var(--muted)',
+                  marginBottom: '6px'
+                }}
+              >
+                TYPED DERIVATIONS & REFLECTIONS:
+              </div>
+              <textarea
+                className="note-body"
+                value={activeNote.body}
+                onChange={e => updateActiveNote({ body: e.target.value })}
+                placeholder="Test your derivations, write notes ($...$), or record questions..."
+                rows={5}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--line)',
+                  fontFamily: 'inherit',
+                  fontSize: '13px',
+                  lineHeight: '1.6'
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: 'auto',
+                paddingTop: '10px',
+                borderTop: '1px solid var(--line)'
+              }}
+            >
+              <Link
+                to={`/notes/${activeNote.id}`}
+                className="text-link"
+                style={{ fontSize: '11px' }}
+              >
+                Open in Full Notebook <ArrowRight size={12} />
+              </Link>
+              <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                Auto-saved & synced across devices
+              </span>
+            </div>
+          </div>
         </aside>
       )}
     </div>

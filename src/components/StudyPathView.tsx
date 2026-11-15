@@ -9,23 +9,24 @@ import {
   BookOpen,
   ArrowUpRight,
   CheckCircle2,
-  Circle
+  Circle,
+  Package
 } from 'lucide-react';
-import { SUNDAY_SCHOLAR_PATH, LECTURE_MAP } from '../lib/curriculum';
+import { FOUR_HOUR_MASTERY_PATH, LECTURE_MAP } from '../lib/curriculum';
 import { useWorkspace } from '../lib/workspace';
 import { lectureRoute } from '../lib/model';
 
 export function StudyPathView() {
   const { data, update } = useWorkspace();
-  const currentWeek = data.studyPlan?.currentWeek || 1;
+  const currentPackNum = data.studyPlan?.currentWeek || 1;
   const completedLectures = data.completedLectures || [];
 
-  const setWeek = (week: number) => {
+  const setPack = (pack: number) => {
     update(cur => ({
       ...cur,
       studyPlan: {
         ...cur.studyPlan,
-        currentWeek: week
+        currentWeek: pack
       }
     }));
   };
@@ -36,19 +37,20 @@ export function StudyPathView() {
   return (
     <div className="page study-path-page">
       <div className="page-eyebrow">
-        <span className="tiny-line" /> STRUCTURED LEARNING SCHEDULE
+        <span className="tiny-line" /> MODULAR 4-HOUR MASTERY SCHEDULE
       </div>
 
       <div className="page-title-row" style={{ marginBottom: '20px' }}>
         <div>
-          <h1>15-Sunday Study Plan</h1>
+          <h1>15 Four-Hour Mastery Packs</h1>
           <p>
-            4 focused hours every Sunday. 60 lectures from zero to complete mastery of QuAOS-Lab.
+            Structured 4-hour study sessions. 60 atomic 1-hour lectures from foundational
+            mathematics to production quantum simulation.
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
           <span className="library-count">
-            {totalCompleted} / 60<span>lectures done ({percent}%)</span>
+            {totalCompleted} / 60<span>lectures mastered ({percent}%)</span>
           </span>
         </div>
       </div>
@@ -71,17 +73,17 @@ export function StudyPathView() {
         <div>
           <span className="eyebrow">ACTIVE TIMELINE</span>
           <h3 style={{ fontFamily: 'var(--serif)', fontSize: '20px', margin: '4px 0' }}>
-            Currently Studying: Sunday {currentWeek} of 15
+            Currently Studying: Pack {currentPackNum} of 15
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--muted)', margin: 0 }}>
-            {SUNDAY_SCHOLAR_PATH.weeks[currentWeek - 1]?.theme}
+            {FOUR_HOUR_MASTERY_PATH.packs[currentPackNum - 1]?.theme}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', color: 'var(--muted)' }}>Jump to Sunday:</span>
+          <span style={{ fontSize: '13px', color: 'var(--muted)' }}>Select Pack:</span>
           <select
-            value={currentWeek}
-            onChange={e => setWeek(Number(e.target.value))}
+            value={currentPackNum}
+            onChange={e => setPack(Number(e.target.value))}
             style={{
               padding: '6px 12px',
               borderRadius: '6px',
@@ -90,27 +92,27 @@ export function StudyPathView() {
               fontSize: '13px'
             }}
           >
-            {SUNDAY_SCHOLAR_PATH.weeks.map(w => (
-              <option key={w.weekNumber} value={w.weekNumber}>
-                Sunday {w.weekNumber}: {w.title.replace(/^Sunday \d+:\s*/, '')}
+            {FOUR_HOUR_MASTERY_PATH.packs.map(p => (
+              <option key={p.packNumber} value={p.packNumber}>
+                Pack {p.packNumber}: {p.title.replace(/^Pack \d+:\s*/, '')}
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* 15 Sundays Timeline */}
+      {/* 15 Mastery Packs Timeline */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {SUNDAY_SCHOLAR_PATH.weeks.map(week => {
-          const isCurrent = week.weekNumber === currentWeek;
-          const weekCompletedLectures = week.lectureIds.filter(id =>
+        {FOUR_HOUR_MASTERY_PATH.packs.map(pack => {
+          const isCurrent = pack.packNumber === currentPackNum;
+          const packCompletedLectures = pack.lectureIds.filter(id =>
             completedLectures.includes(id)
           );
-          const isWeekDone = weekCompletedLectures.length === 4;
+          const isPackDone = packCompletedLectures.length === 4;
 
           return (
             <div
-              key={week.weekNumber}
+              key={pack.packNumber}
               style={{
                 border: isCurrent
                   ? '2px solid var(--accent, #3a5d49)'
@@ -141,10 +143,10 @@ export function StudyPathView() {
                         fontSize: '11px',
                         fontWeight: 700,
                         letterSpacing: '1px',
-                        color: isWeekDone ? 'var(--accent)' : isCurrent ? '#b86e00' : 'var(--muted)'
+                        color: isPackDone ? 'var(--accent)' : isCurrent ? '#b86e00' : 'var(--muted)'
                       }}
                     >
-                      SUNDAY {week.weekNumber} OF 15 · 4 HOURS
+                      4-HOUR MASTERY PACK {pack.packNumber} OF 15
                     </span>
                     {isCurrent && (
                       <span
@@ -160,7 +162,7 @@ export function StudyPathView() {
                         CURRENT FOCUS
                       </span>
                     )}
-                    {isWeekDone && (
+                    {isPackDone && (
                       <span
                         style={{
                           fontSize: '10px',
@@ -171,7 +173,7 @@ export function StudyPathView() {
                           fontWeight: 600
                         }}
                       >
-                        SUNDAY COMPLETED
+                        PACK COMPLETED
                       </span>
                     )}
                   </div>
@@ -182,9 +184,9 @@ export function StudyPathView() {
                       margin: '4px 0 2px'
                     }}
                   >
-                    {week.title}
+                    {pack.title}
                   </h3>
-                  <p style={{ fontSize: '13px', color: 'var(--muted)', margin: 0 }}>{week.theme}</p>
+                  <p style={{ fontSize: '13px', color: 'var(--muted)', margin: 0 }}>{pack.theme}</p>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -192,13 +194,13 @@ export function StudyPathView() {
                     <button
                       type="button"
                       className="button small secondary"
-                      onClick={() => setWeek(week.weekNumber)}
+                      onClick={() => setPack(pack.packNumber)}
                     >
-                      Set as Active Sunday
+                      Set as Active Pack
                     </button>
                   )}
                   <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                    {weekCompletedLectures.length} / 4 lectures completed
+                    {packCompletedLectures.length} / 4 lectures completed
                   </span>
                 </div>
               </div>
@@ -211,7 +213,7 @@ export function StudyPathView() {
                   gap: '12px'
                 }}
               >
-                {week.lectureIds.map((lId, slotIdx) => {
+                {pack.lectureIds.map((lId, slotIdx) => {
                   const lec = LECTURE_MAP.get(lId);
                   if (!lec) return null;
                   const done = completedLectures.includes(lId);

@@ -63,7 +63,7 @@ export function SettingsModal({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `quaos-study-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `ainotes-backup-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     onShowToast('Workspace backup exported successfully.');
@@ -294,8 +294,8 @@ export function SettingsModal({
           </div>
           <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
             {installed
-              ? 'QuAOS Study is running as an installed PWA on this device.'
-              : 'Install this application to your home screen on iPad or Android tablet for full-screen pen input.'}
+              ? 'AINotes is running as an installed PWA on this device.'
+              : 'Install this application to your home screen on iPad or Android tablet for full-screen stylus input.'}
           </p>
           {installEvent && !installed && (
             <button
@@ -306,7 +306,7 @@ export function SettingsModal({
                 await installEvent.userChoice;
               }}
             >
-              Install QuAOS Study App
+              Install AINotes App
             </button>
           )}
           <div className="offline-setting" style={{ marginTop: '10px' }}>

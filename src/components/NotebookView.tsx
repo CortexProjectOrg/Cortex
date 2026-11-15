@@ -12,32 +12,43 @@ import {
   Eye,
   Edit3,
   Cloud,
-  FileText
+  FileText,
+  ArrowRight,
+  Layers,
+  ArrowUpRight,
+  Sparkles
 } from 'lucide-react';
 import { useWorkspace } from '../lib/workspace';
-import { makeNote, noteMarkdown, notePrompt } from '../lib/model';
+import { makeNote, noteMarkdown, notePrompt, lectureRoute } from '../lib/model';
 import type { Note } from '../lib/model';
 import { InkCanvas } from './InkCanvas';
 import { MarkdownView } from './MarkdownView';
-import { LECTURE_MAP } from '../lib/curriculum';
+import { LECTURE_MAP, TOPICS } from '../lib/curriculum';
 
 export function NotebookView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data, update, saving, syncState } = useWorkspace();
   const [query, setQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<'all' | 'lectures' | 'scratchpad'>('all');
   const [activeTab, setActiveTab] = useState<'both' | 'ink' | 'text'>('both');
   const [previewMarkdown, setPreviewMarkdown] = useState(false);
 
   const notes = [...data.notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const filtered = notes.filter(
-    n => `${n.title} ${n.body}`.toLowerCase().includes(query.toLowerCase())
-  );
 
-  const selectedNote = notes.find(n => n.id === id) || (!id ? notes[0] : undefined);
+  const filtered = notes.filter(n => {
+    const matchesQuery = `${n.title} ${n.body}`.toLowerCase().includes(query.toLowerCase());
+    if (!matchesQuery) return false;
+    if (filterMode === 'lectures') return Boolean(n.lectureId);
+    if (filterMode === 'scratchpad') return !n.lectureId;
+    return true;
+  });
+
+  const selectedNote = notes.find(n => n.id === id) || (!id ? filtered[0] : undefined);
+  const selectedLecture = selectedNote?.lectureId ? LECTURE_MAP.get(selectedNote.lectureId) : null;
 
   const createNewNote = () => {
-    const note = makeNote('Untitled Note');
+    const note = makeNote('General Scratchpad Note');
     update(cur => ({
       ...cur,
       notes: [note, ...cur.notes]
@@ -82,16 +93,42 @@ export function NotebookView() {
     <div className="page notebook">
       <div className="page-title-row">
         <div>
-          <span className="eyebrow">YOUR RECORD OF THINKING</span>
-          <h1>Notebook & Stylus Sketches</h1>
+          <span className="eyebrow">AUTOMATICALLY COLLECTED WORKSPACE</span>
+          <h1>Notebook & Stylus Archive</h1>
           <p>
-            Take hand-drawn notes on tablet with pressure sensitivity, derive equations on PC, and
-            persist everything across devices.
+            All your notes, derivations, and stylus sketches from lectures are automatically
+            organized here.
           </p>
         </div>
         <button type="button" className="button primary" onClick={createNewNote}>
-          <Plus size={17} /> New Note
+          <Plus size={17} /> New Scratchpad Note
         </button>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="library-controls" style={{ marginBottom: '16px' }}>
+        <div className="filter-tabs">
+          {[
+            ['all', `All Notes (${notes.length})`],
+            [
+              'lectures',
+              `Lecture Notes (${notes.filter(n => n.lectureId).length})`
+            ],
+            [
+              'scratchpad',
+              `General Notes (${notes.filter(n => !n.lectureId).length})`
+            ]
+          ].map(([val, label]) => (
+            <button
+              key={val}
+              type="button"
+              className={filterMode === val ? 'active' : ''}
+              onClick={() => setFilterMode(val as any)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="notebook-layout">
@@ -101,7 +138,7 @@ export function NotebookView() {
             <Search size={16} />
             <input
               aria-label="Search notes"
-              placeholder="Search notes & equations..."
+              placeholder="Search derivations & formulas..."
               value={query}
               onChange={e => setQuery(e.target.value)}
             />
@@ -143,13 +180,16 @@ export function NotebookView() {
                         fontSize: '10px',
                         color: 'var(--accent)',
                         marginBottom: '4px',
-                        fontWeight: 600
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px'
                       }}
                     >
-                      {lec.title}
+                      <BookOpen size={10} /> {lec.title}
                     </div>
                   )}
-                  <p>{note.body.replace(/[#*`]/g, '').slice(0, 75) || 'Pen sketch & notes...'}</p>
+                  <p>{note.body.replace(/[#*`]/g, '').slice(0, 75) || 'Stylus drawing & notes...'}</p>
                 </Link>
               );
             })}
@@ -286,14 +326,33 @@ export function NotebookView() {
                 placeholder="Give this thought or derivation a title"
               />
 
-              {/* Attached Lecture link if present */}
-              {selectedNote.lectureId && LECTURE_MAP.has(selectedNote.lectureId) && (
-                <div style={{ fontSize: '12px', color: 'var(--muted)', display: 'flex', gap: '6px' }}>
-                  <BookOpen size={14} style={{ color: 'var(--accent)' }} />
-                  <span>
-                    Linked to Lecture:{' '}
-                    <strong>{LECTURE_MAP.get(selectedNote.lectureId)?.title}</strong>
-                  </span>
+              {/* Associated Lecture Callout */}
+              {selectedLecture && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: 'var(--soft)',
+                    border: '1px solid #dce2d2'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                    <BookOpen size={14} style={{ color: 'var(--accent)' }} />
+                    <span>
+                      Associated with Lecture:{' '}
+                      <strong>{selectedLecture.title}</strong> (Pack {selectedLecture.packNumber}, Slot {selectedLecture.packSlot})
+                    </span>
+                  </div>
+                  <Link
+                    to={lectureRoute(selectedLecture.topicId, selectedLecture.id)}
+                    className="text-link"
+                    style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}
+                  >
+                    Go to Lecture <ArrowUpRight size={12} />
+                  </Link>
                 </div>
               )}
 
@@ -339,7 +398,7 @@ export function NotebookView() {
                       justifyContent: 'space-between'
                     }}
                   >
-                    <span>TYPED NOTES & LATEX FORMULAS:</span>
+                    <span>TYPED REFLECTIONS & LATEX EQUATIONS:</span>
                     <button
                       type="button"
                       className="text-button"
@@ -398,12 +457,12 @@ export function NotebookView() {
                 size={34}
                 style={{ color: 'var(--muted)', display: 'block', margin: '0 auto 12px' }}
               />
-              <h3>Choose a note to open</h3>
+              <h3>No note selected</h3>
               <p style={{ color: 'var(--muted)', fontSize: '14px', margin: '8px 0 20px' }}>
-                Select a note from the left sidebar or start a new derivation.
+                Select a lecture note from the list or create a general scratchpad note.
               </p>
               <button type="button" className="button primary" onClick={createNewNote}>
-                <Plus size={16} /> Create Note
+                <Plus size={16} /> Create Scratchpad Note
               </button>
             </div>
           )}
