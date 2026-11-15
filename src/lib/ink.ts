@@ -14,11 +14,28 @@ export interface InkStroke {
   isHighlighter?: boolean;
 }
 
+export interface InkVisualizationMeta {
+  geometry: 'academic-margin-v1';
+  canonicalWidth: number;
+  contentWidth: number;
+  marginWidth: number;
+  version: number;
+}
+
+export const CANONICAL_PAGE_GEOMETRY: InkVisualizationMeta = {
+  geometry: 'academic-margin-v1',
+  canonicalWidth: 960,
+  contentWidth: 640,
+  marginWidth: 240,
+  version: 2
+};
+
 export interface InkData {
-  version: 1;
+  version: 1 | 2;
   width: number;
   height: number;
   strokes: InkStroke[];
+  visualization?: InkVisualizationMeta;
 }
 
 export function getSvgPathFromStroke(stroke: number[][]): string {
@@ -59,12 +76,18 @@ export function renderStrokeToPath(stroke: InkStroke): string {
   return getSvgPathFromStroke(outline);
 }
 
-export function serializeInk(strokes: InkStroke[], width = 800, height = 600): string {
+export function serializeInk(
+  strokes: InkStroke[],
+  width = 960,
+  height = 1600,
+  visualization: InkVisualizationMeta = CANONICAL_PAGE_GEOMETRY
+): string {
   const data: InkData = {
-    version: 1,
+    version: 2,
     width,
     height,
-    strokes
+    strokes,
+    visualization
   };
   return JSON.stringify(data);
 }
@@ -85,7 +108,34 @@ export function deserializeInk(serialized?: string): InkStroke[] {
   }
 }
 
-export function inkToSvgString(strokes: InkStroke[], width = 800, height = 600): string {
+export function parseInkData(serialized?: string): InkData | null {
+  if (!serialized) return null;
+  try {
+    const parsed = JSON.parse(serialized);
+    if (parsed && Array.isArray(parsed.strokes)) {
+      return {
+        version: parsed.version || 1,
+        width: parsed.width || 960,
+        height: parsed.height || 1600,
+        strokes: parsed.strokes,
+        visualization: parsed.visualization
+      };
+    }
+    if (Array.isArray(parsed)) {
+      return {
+        version: 1,
+        width: 800,
+        height: 600,
+        strokes: parsed
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function inkToSvgString(strokes: InkStroke[], width = 960, height = 1600): string {
   const paths = strokes
     .map(stroke => {
       const d = renderStrokeToPath(stroke);

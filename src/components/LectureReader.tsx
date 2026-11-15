@@ -247,19 +247,18 @@ export function LectureReader() {
           </div>
         </div>
 
-        {/* Lecture Article Content with Direct Fluid Ink Overlay */}
-        <article className="article" ref={articleRef} style={{ position: 'relative' }}>
-          <DocumentInkOverlay
-            key={lecture.id}
-            initialData={activeNote.lectureInk}
-            onChange={lectureInk => updateActiveNote({ lectureInk })}
-            containerRef={articleRef}
-            onToggleSideNotes={() => setNotesOpen(!notesOpen)}
-            sideNotesOpen={notesOpen}
-            sideNotesWidth={notesWidth}
-          />
-
-          <header className="article-heading">
+        {/* Canonical Academic Reading Sheet with Fluid Ink Overlay & Preserved Marginalia */}
+        <DocumentInkOverlay
+          key={lecture.id}
+          initialData={activeNote.lectureInk}
+          onChange={lectureInk => updateActiveNote({ lectureInk })}
+          onToggleSideNotes={() => setNotesOpen(!notesOpen)}
+          sideNotesOpen={notesOpen}
+          sideNotesWidth={notesWidth}
+        >
+          {/* Column 1: Main Lecture Text & Derivations (640px invariant width) */}
+          <article className="article sheet-content-column" ref={articleRef} style={{ position: 'relative' }}>
+            <header className="article-heading">
             <div className="article-meta">
               <span className="eyebrow">
                 TOPIC {topic.number}: {topic.title.toUpperCase()} · 4H PACK {lecture.packNumber}, SLOT{' '}
@@ -829,6 +828,44 @@ export function LectureReader() {
             )}
           </div>
         </article>
+
+        {/* Column 2: Dedicated Preserved Margin Column (240px invariant width) */}
+        <aside className="sheet-margin-column" aria-label="Academic Margin Notes and Proofs">
+          <div className="sheet-margin-header">
+            <div className="sheet-margin-title">
+              <PenTool size={11} />
+              <span>MARGINALIA & PROOFS</span>
+            </div>
+            <p className="sheet-margin-desc">
+              Preserved margin notes column. Draw proofs, side derivations & notes directly alongside the text.
+            </p>
+          </div>
+
+          <div className="margin-guide-marker" style={{ marginTop: '24px' }}>
+            <span className="margin-section-tag">§ 1 Motivation Notes</span>
+          </div>
+
+          <div className="margin-guide-marker" style={{ marginTop: '260px' }}>
+            <span className="margin-section-tag">§ 2 Theory & Proofs</span>
+          </div>
+
+          <div className="margin-guide-marker" style={{ marginTop: '540px' }}>
+            <span className="margin-section-tag">§ 3 Worked Derivations</span>
+          </div>
+
+          <div className="margin-guide-marker" style={{ marginTop: '500px' }}>
+            <span className="margin-section-tag">§ 4 Systems & Code Notes</span>
+          </div>
+
+          <div className="margin-guide-marker" style={{ marginTop: '480px' }}>
+            <span className="margin-section-tag">§ 5 Literature Marginalia</span>
+          </div>
+
+          <div className="margin-guide-marker" style={{ marginTop: '440px' }}>
+            <span className="margin-section-tag">§ 6 Exercise Calculations</span>
+          </div>
+        </aside>
+      </DocumentInkOverlay>
       </div>
 
       {/* EASY-TO-TOGGLE STYLUS & PEN NOTE TAKER */}

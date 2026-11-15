@@ -254,14 +254,134 @@
 }
 
 /* ==========================================================================
-   STICKY DRAWING MENUS ON CANVAS SCROLL
+   ACADEMIC READING SHEET & PRESERVED MARGIN CANVAS ARCHITECTURE
+   Fixed 960px canonical geometry: 640px text column + 240px margin notes gutter
+   100% letter-locked ink overlay and drift-free annotations
    ========================================================================== */
 
-.document-annotation-toolbar {
-  position: sticky !important;
-  top: 14px !important;
-  z-index: 100 !important;
+.document-ink-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  position: relative;
+}
+
+.document-annotation-hud {
+  position: sticky;
+  top: 14px;
+  z-index: 120;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  margin-bottom: 16px;
+  pointer-events: none;
+}
+
+.document-annotation-hud .document-annotation-toolbar {
+  pointer-events: auto;
+  position: relative !important;
+  top: auto !important;
+  margin: 0 !important;
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.12) !important;
+}
+
+.reading-sheet-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 0 16px 60px;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+.reading-sheet {
+  position: relative;
+  width: 960px !important;
+  min-width: 960px !important;
+  max-width: 960px !important;
+  background: #ffffff;
+  border: 1px solid var(--line, #e2e4da);
+  border-radius: 9px;
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.05);
+  padding: 42px 24px 60px;
+  display: grid;
+  grid-template-columns: 640px 240px;
+  gap: 32px;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.sheet-content-column {
+  width: 640px !important;
+  min-width: 640px !important;
+  max-width: 640px !important;
+  box-sizing: border-box;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.sheet-margin-column {
+  width: 240px !important;
+  min-width: 240px !important;
+  max-width: 240px !important;
+  box-sizing: border-box;
+  border-left: 1.5px dashed var(--line, #d4d8cb);
+  padding-left: 16px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 31px,
+    rgba(215, 220, 205, 0.35) 31px,
+    rgba(215, 220, 205, 0.35) 32px
+  );
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  user-select: none;
+  pointer-events: none;
+}
+
+.sheet-margin-header {
+  border-bottom: 1px solid var(--line, #e2e4da);
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+}
+
+.sheet-margin-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--accent, #3a5d49);
+  text-transform: uppercase;
+}
+
+.sheet-margin-desc {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--muted, #737a6f);
+  margin-top: 4px;
+}
+
+.margin-guide-marker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.65;
+}
+
+.margin-section-tag {
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.8px;
+  color: var(--muted, #737a6f);
+  background: rgba(235, 240, 230, 0.85);
+  border: 1px solid var(--line, #e2e4da);
+  padding: 2px 7px;
+  border-radius: 4px;
 }
 
 .ink-tools {

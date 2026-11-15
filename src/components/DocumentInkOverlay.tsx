@@ -20,16 +20,18 @@ import {
   type InkStroke,
   deserializeInk,
   serializeInk,
-  renderStrokeToPath
+  renderStrokeToPath,
+  CANONICAL_PAGE_GEOMETRY
 } from '../lib/ink';
 
 interface DocumentInkOverlayProps {
   initialData?: string;
   onChange?: (data: string) => void;
-  containerRef: React.RefObject<HTMLElement | null>;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
   onToggleSideNotes?: () => void;
   sideNotesOpen?: boolean;
   sideNotesWidth?: number;
+  children?: React.ReactNode;
 }
 
 type ToolMode = 'browse' | 'pen' | 'highlighter' | 'eraser';
@@ -53,7 +55,8 @@ export function DocumentInkOverlay({
   containerRef,
   onToggleSideNotes,
   sideNotesOpen = false,
-  sideNotesWidth = 450
+  sideNotesWidth = 450,
+  children
 }: DocumentInkOverlayProps) {
   const [strokes, setStrokes] = useState<InkStroke[]>(() => deserializeInk(initialData));
   const [redoStack, setRedoStack] = useState<InkStroke[][]>([]);
@@ -67,18 +70,24 @@ export function DocumentInkOverlay({
   const [visible, setVisible] = useState(true);
   const [palmRejection, setPalmRejection] = useState(true);
 
-  const [dimensions, setDimensions] = useState({ width: 850, height: 1600 });
+  const internalSheetRef = useRef<HTMLDivElement>(null);
+  const activeSheetRef = containerRef || internalSheetRef;
 
-  // Dynamically track the document container's width & full scroll height
+  const [dimensions, setDimensions] = useState({
+    width: CANONICAL_PAGE_GEOMETRY.canonicalWidth,
+    height: 1800
+  });
+
+  // Dynamically track the document sheet's full scroll height while canonical width is invariant (960px)
   useEffect(() => {
-    const el = containerRef.current;
+    const el = activeSheetRef.current;
     if (!el) return;
 
     const updateDimensions = () => {
-      if (containerRef.current) {
+      if (activeSheetRef.current) {
         setDimensions({
-          width: containerRef.current.offsetWidth || 850,
-          height: Math.max(containerRef.current.scrollHeight, containerRef.current.offsetHeight, 1000)
+          width: CANONICAL_PAGE_GEOMETRY.canonicalWidth,
+          height: Math.max(activeSheetRef.current.scrollHeight, activeSheetRef.current.offsetHeight, 1200)
         });
       }
     };
@@ -96,7 +105,7 @@ export function DocumentInkOverlay({
       window.removeEventListener('resize', updateDimensions);
       clearTimeout(timer);
     };
-  }, [containerRef]);
+  }, [activeSheetRef]);
 
   // Sync external data changes
   useEffect(() => {
@@ -107,11 +116,16 @@ export function DocumentInkOverlay({
   const notifyChange = useCallback(
     (newStrokes: InkStroke[]) => {
       if (onChange) {
-        const serialized = serializeInk(newStrokes, dimensions.width, dimensions.height);
+        const serialized = serializeInk(
+          newStrokes,
+          CANONICAL_PAGE_GEOMETRY.canonicalWidth,
+          dimensions.height,
+          CANONICAL_PAGE_GEOMETRY
+        );
         onChange(serialized);
       }
     },
-    [onChange, dimensions]
+    [onChange, dimensions.height]
   );
 
   // FREEZE PAGE SCROLLING IN DRAWING MODE:
@@ -148,19 +162,17 @@ export function DocumentInkOverlay({
     });
   };
 
-  // Stylus, Pen & Touch pointer handlers
+  // Stylus, Pen & Touch pointer handlers mapped to canonical 960px coordinate space
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (tool === 'browse' || !visible) return;
 
     if (palmRejection && e.pointerType === 'touch' && (e.nativeEvent as any).pointerType === 'touch') {
-      // If user specifically enabled stylus-only mode, ignore touch inputs
-      // but still prevent page scroll
       return;
     }
 
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
-    const scaleX = rect.width ? dimensions.width / rect.width : 1;
+    const scaleX = rect.width ? CANONICAL_PAGE_GEOMETRY.canonicalWidth / rect.width : 1;
     const scaleY = rect.height ? dimensions.height / rect.height : 1;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
@@ -191,7 +203,7 @@ export function DocumentInkOverlay({
 
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
-    const scaleX = rect.width ? dimensions.width / rect.width : 1;
+    const scaleX = rect.width ? CANONICAL_PAGE_GEOMETRY.canonicalWidth / rect.width : 1;
     const scaleY = rect.height ? dimensions.height / rect.height : 1;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
@@ -273,401 +285,431 @@ export function DocumentInkOverlay({
     }
   };
 
-  return (
-    <>
-      {/* FLOATING ANNOTATION TOOLBAR */}
-      <div
-        className="document-annotation-toolbar"
-        style={{
-          position: 'sticky',
-          top: '14px',
-          zIndex: 90,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'rgba(255, 254, 250, 0.96)',
-          backdropFilter: 'blur(12px)',
-          border: '1px solid var(--line, #e2e4da)',
-          borderRadius: '30px',
-          padding: '6px 14px',
-          margin: '0 auto 20px',
-          maxWidth: '720px',
-          boxShadow: '0 6px 28px rgba(0, 0, 0, 0.12)',
-          gap: '8px',
-          flexWrap: 'wrap'
-        }}
-      >
-        {/* Tool Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <button
-            type="button"
-            className={`icon-button small ${tool === 'browse' ? 'is-active' : ''}`}
-            title="Pointer / Browse Mode (Default: scroll & select text normally)"
-            onClick={() => setTool('browse')}
-            style={{
-              borderRadius: '20px',
-              background: tool === 'browse' ? 'var(--soft)' : 'transparent',
-              color: tool === 'browse' ? 'var(--accent)' : 'inherit'
-            }}
-          >
-            <MousePointer size={15} />
-          </button>
+  const renderToolbar = () => (
+    <div
+      className="document-annotation-toolbar"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: 'rgba(255, 254, 250, 0.96)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid var(--line, #e2e4da)',
+        borderRadius: '30px',
+        padding: '6px 14px',
+        maxWidth: '720px',
+        boxShadow: '0 6px 28px rgba(0, 0, 0, 0.12)',
+        gap: '8px',
+        flexWrap: 'wrap'
+      }}
+    >
+      {/* Tool Selector */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+        <button
+          type="button"
+          className={`icon-button small ${tool === 'browse' ? 'is-active' : ''}`}
+          title="Pointer / Browse Mode (Default: scroll & select text normally)"
+          onClick={() => setTool('browse')}
+          style={{
+            borderRadius: '20px',
+            background: tool === 'browse' ? 'var(--soft)' : 'transparent',
+            color: tool === 'browse' ? 'var(--accent)' : 'inherit'
+          }}
+        >
+          <MousePointer size={15} />
+        </button>
 
-          <button
-            type="button"
-            className={`icon-button small ${tool === 'pen' ? 'is-active' : ''}`}
-            title="Pen (Write & Draw directly over lecture text; freezes scroll for precision)"
-            onClick={() => setTool('pen')}
-            style={{
-              borderRadius: '20px',
-              background: tool === 'pen' ? 'var(--soft)' : 'transparent',
-              color: tool === 'pen' ? 'var(--accent)' : 'inherit'
-            }}
-          >
-            <Pen size={15} />
-          </button>
+        <button
+          type="button"
+          className={`icon-button small ${tool === 'pen' ? 'is-active' : ''}`}
+          title="Pen (Write & Draw directly over lecture text or margin; freezes scroll for precision)"
+          onClick={() => setTool('pen')}
+          style={{
+            borderRadius: '20px',
+            background: tool === 'pen' ? 'var(--soft)' : 'transparent',
+            color: tool === 'pen' ? 'var(--accent)' : 'inherit'
+          }}
+        >
+          <Pen size={15} />
+        </button>
 
-          <button
-            type="button"
-            className={`icon-button small ${tool === 'highlighter' ? 'is-active' : ''}`}
-            title="Highlighter (Highlight text & equations; freezes scroll)"
-            onClick={() => setTool('highlighter')}
-            style={{
-              borderRadius: '20px',
-              background: tool === 'highlighter' ? 'var(--soft)' : 'transparent',
-              color: tool === 'highlighter' ? 'var(--accent)' : 'inherit'
-            }}
-          >
-            <Highlighter size={15} />
-          </button>
+        <button
+          type="button"
+          className={`icon-button small ${tool === 'highlighter' ? 'is-active' : ''}`}
+          title="Highlighter (Highlight text & equations; freezes scroll)"
+          onClick={() => setTool('highlighter')}
+          style={{
+            borderRadius: '20px',
+            background: tool === 'highlighter' ? 'var(--soft)' : 'transparent',
+            color: tool === 'highlighter' ? 'var(--accent)' : 'inherit'
+          }}
+        >
+          <Highlighter size={15} />
+        </button>
 
-          <button
-            type="button"
-            className={`icon-button small ${tool === 'eraser' ? 'is-active' : ''}`}
-            title="Stroke Eraser"
-            onClick={() => setTool('eraser')}
-            style={{
-              borderRadius: '20px',
-              background: tool === 'eraser' ? 'var(--soft)' : 'transparent',
-              color: tool === 'eraser' ? 'var(--accent)' : 'inherit'
-            }}
-          >
-            <Eraser size={15} />
-          </button>
+        <button
+          type="button"
+          className={`icon-button small ${tool === 'eraser' ? 'is-active' : ''}`}
+          title="Stroke Eraser"
+          onClick={() => setTool('eraser')}
+          style={{
+            borderRadius: '20px',
+            background: tool === 'eraser' ? 'var(--soft)' : 'transparent',
+            color: tool === 'eraser' ? 'var(--accent)' : 'inherit'
+          }}
+        >
+          <Eraser size={15} />
+        </button>
 
-          {tool !== 'browse' && (
-            <span
-              style={{
-                fontSize: '9px',
-                color: 'var(--accent)',
-                background: 'var(--soft)',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 650,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '3px',
-                marginLeft: '4px'
-              }}
-              title="Page scrolling is frozen so you can draw precisely. Use the arrows in the lower right to scroll."
-            >
-              <Lock size={10} /> Scroll Frozen
-            </span>
-          )}
-
+        {tool !== 'browse' && (
           <span
             style={{
-              width: '1px',
-              height: '18px',
-              background: 'var(--line)',
-              margin: '0 4px'
+              fontSize: '9px',
+              color: 'var(--accent)',
+              background: 'var(--soft)',
+              padding: '2px 7px',
+              borderRadius: '10px',
+              fontWeight: 650,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px',
+              marginLeft: '4px'
             }}
-          />
-
-          {/* Color Palettes */}
-          {tool === 'pen' &&
-            PEN_COLORS.map(c => (
-              <button
-                key={c.value}
-                type="button"
-                title={c.label}
-                onClick={() => setPenColor(c.value)}
-                style={{
-                  width: '18px',
-                  height: '18px',
-                  borderRadius: '50%',
-                  background: c.value,
-                  border: penColor === c.value ? '2px solid #fff' : '1px solid #ccc',
-                  boxShadow: penColor === c.value ? '0 0 0 2px var(--accent)' : 'none',
-                  margin: '0 2px',
-                  cursor: 'pointer'
-                }}
-              />
-            ))}
-
-          {tool === 'highlighter' &&
-            HIGHLIGHTER_COLORS.map(c => (
-              <button
-                key={c.value}
-                type="button"
-                title={c.label}
-                onClick={() => setHighlighterColor(c.value)}
-                style={{
-                  width: '18px',
-                  height: '18px',
-                  borderRadius: '50%',
-                  background: c.value,
-                  border: highlighterColor === c.value ? '2px solid #fff' : '1px solid #ccc',
-                  boxShadow: highlighterColor === c.value ? '0 0 0 2px var(--accent)' : 'none',
-                  margin: '0 2px',
-                  cursor: 'pointer'
-                }}
-              />
-            ))}
-
-          {tool === 'pen' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
-              {[2, 3.5, 6].map(sz => (
-                <button
-                  key={sz}
-                  type="button"
-                  onClick={() => setPenSize(sz)}
-                  style={{
-                    padding: '2px 5px',
-                    borderRadius: '4px',
-                    fontSize: '9px',
-                    background: penSize === sz ? 'var(--soft)' : 'transparent',
-                    color: penSize === sz ? 'var(--accent)' : 'var(--muted)',
-                    border: '0',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {sz === 2 ? 'Fine' : sz === 3.5 ? 'Mid' : 'Thick'}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {/* Palm Rejection Toggle */}
-          <button
-            type="button"
-            className={`button small ${palmRejection ? 'soft' : 'secondary'}`}
-            style={{
-              padding: '2px 8px',
-              minHeight: '26px',
-              fontSize: '10px',
-              borderRadius: '14px',
-              gap: '4px'
-            }}
-            title={
-              palmRejection
-                ? 'Palm Rejection ON: Stylus/pen draws, finger touch scrolls'
-                : 'Palm Rejection OFF: Finger touch also draws'
-            }
-            onClick={() => setPalmRejection(!palmRejection)}
+            title="Page scrolling is frozen so you can draw precisely. Use the arrows in the lower right to scroll."
           >
-            <ShieldCheck size={12} style={{ color: palmRejection ? 'var(--accent)' : 'var(--muted)' }} />
-            <span>{palmRejection ? 'Stylus Only' : 'Touch Draw'}</span>
-          </button>
+            <Lock size={10} /> Scroll Frozen
+          </span>
+        )}
 
-          <button
-            type="button"
-            className="icon-button small"
-            title="Undo stroke"
-            disabled={strokes.length === 0}
-            onClick={handleUndo}
-          >
-            <Undo2 size={14} />
-          </button>
-
-          <button
-            type="button"
-            className="icon-button small"
-            title="Redo stroke"
-            disabled={redoStack.length === 0}
-            onClick={handleRedo}
-          >
-            <Redo2 size={14} />
-          </button>
-
-          <button
-            type="button"
-            className="icon-button small"
-            title={visible ? 'Hide annotations' : 'Show annotations'}
-            onClick={() => setVisible(!visible)}
-          >
-            {visible ? <Eye size={14} /> : <EyeOff size={14} />}
-          </button>
-
-          {strokes.length > 0 && (
-            <button
-              type="button"
-              className="icon-button small"
-              title="Clear all page annotations"
-              onClick={handleClear}
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-
-          {onToggleSideNotes && (
-            <>
-              <span
-                style={{
-                  width: '1px',
-                  height: '18px',
-                  background: 'var(--line)',
-                  margin: '0 4px'
-                }}
-              />
-              <button
-                type="button"
-                className="button small secondary"
-                onClick={onToggleSideNotes}
-                style={{
-                  padding: '4px 10px',
-                  minHeight: '28px',
-                  fontSize: '11px',
-                  borderRadius: '16px'
-                }}
-              >
-                {sideNotesOpen ? <PanelRightClose size={13} /> : <PanelRightOpen size={13} />}
-                <span>{sideNotesOpen ? 'Hide Scratchpad' : 'Open Scratchpad'}</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* OVERLAY SVG DRAWING SURFACE LAYERED DIRECTLY OVER THE LECTURE ARTICLE */}
-      {visible && (
-        <svg
-          className="document-ink-overlay-svg"
-          viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
+        <span
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            zIndex: 10,
-            pointerEvents: tool === 'browse' ? 'none' : 'auto',
-            touchAction: tool === 'browse' ? 'auto' : 'none',
-            cursor:
-              tool === 'browse'
-                ? 'default'
-                : tool === 'eraser'
-                  ? 'cell'
-                  : 'crosshair'
+            width: '1px',
+            height: '18px',
+            background: 'var(--line)',
+            margin: '0 4px'
           }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-        >
-          {/* Render committed ink strokes directly on top of the text */}
-          {strokes.map(stroke => {
-            const d = renderStrokeToPath(stroke);
-            const isHigh = stroke.isHighlighter;
-            return (
-              <path
-                key={stroke.id}
-                d={d}
-                fill={stroke.color}
-                opacity={isHigh ? 0.38 : 0.95}
-                style={{
-                  mixBlendMode: isHigh ? 'multiply' : 'normal'
-                }}
-              />
-            );
-          })}
+        />
 
-          {/* Render active live stroke */}
-          {currentStroke && (
-            <path
-              d={renderStrokeToPath(currentStroke)}
-              fill={currentStroke.color}
-              opacity={currentStroke.isHighlighter ? 0.38 : 0.95}
+        {/* Color Palettes */}
+        {tool === 'pen' &&
+          PEN_COLORS.map(c => (
+            <button
+              key={c.value}
+              type="button"
+              title={c.label}
+              onClick={() => setPenColor(c.value)}
               style={{
-                mixBlendMode: currentStroke.isHighlighter ? 'multiply' : 'normal'
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                background: c.value,
+                border: penColor === c.value ? '2px solid #fff' : '1px solid #ccc',
+                boxShadow: penColor === c.value ? '0 0 0 2px var(--accent)' : 'none',
+                margin: '0 2px',
+                cursor: 'pointer'
               }}
             />
-          )}
-        </svg>
-      )}
+          ))}
 
-      {/* Floating navigation buttons in lower right corner when drawing mode freezes page scrolling */}
-      {tool !== 'browse' && (
-        <div
-          className="canvas-scroll-controls"
+        {tool === 'highlighter' &&
+          HIGHLIGHTER_COLORS.map(c => (
+            <button
+              key={c.value}
+              type="button"
+              title={c.label}
+              onClick={() => setHighlighterColor(c.value)}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                background: c.value,
+                border: highlighterColor === c.value ? '2px solid #fff' : '1px solid #ccc',
+                boxShadow: highlighterColor === c.value ? '0 0 0 2px var(--accent)' : 'none',
+                margin: '0 2px',
+                cursor: 'pointer'
+              }}
+            />
+          ))}
+
+        {tool === 'pen' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+            {[2, 3.5, 6].map(sz => (
+              <button
+                key={sz}
+                type="button"
+                onClick={() => setPenSize(sz)}
+                style={{
+                  padding: '2px 5px',
+                  borderRadius: '4px',
+                  fontSize: '9px',
+                  background: penSize === sz ? 'var(--soft)' : 'transparent',
+                  color: penSize === sz ? 'var(--accent)' : 'var(--muted)',
+                  border: '0',
+                  cursor: 'pointer'
+                }}
+              >
+                {sz === 2 ? 'Fine' : sz === 3.5 ? 'Mid' : 'Thick'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Action Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        {/* Palm Rejection Toggle */}
+        <button
+          type="button"
+          className={`button small ${palmRejection ? 'soft' : 'secondary'}`}
           style={{
-            position: 'fixed',
-            bottom: '24px',
-            right:
-              sideNotesOpen && typeof window !== 'undefined' && window.innerWidth > 900
-                ? `${sideNotesWidth + 24}px`
-                : '24px',
-            zIndex: 160,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 254, 250, 0.96)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid var(--line, #e2e4da)',
-            borderRadius: '28px',
-            padding: '6px',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.16)',
-            transition: 'right 0.22s cubic-bezier(0.16, 1, 0.3, 1)'
+            padding: '2px 8px',
+            minHeight: '26px',
+            fontSize: '10px',
+            borderRadius: '14px',
+            gap: '4px'
+          }}
+          title={
+            palmRejection
+              ? 'Palm Rejection ON: Stylus/pen draws, finger touch scrolls'
+              : 'Palm Rejection OFF: Finger touch also draws'
+          }
+          onClick={() => setPalmRejection(!palmRejection)}
+        >
+          <ShieldCheck size={12} style={{ color: palmRejection ? 'var(--accent)' : 'var(--muted)' }} />
+          <span>{palmRejection ? 'Stylus Only' : 'Touch Draw'}</span>
+        </button>
+
+        <button
+          type="button"
+          className="icon-button small"
+          title="Undo stroke"
+          disabled={strokes.length === 0}
+          onClick={handleUndo}
+        >
+          <Undo2 size={14} />
+        </button>
+
+        <button
+          type="button"
+          className="icon-button small"
+          title="Redo stroke"
+          disabled={redoStack.length === 0}
+          onClick={handleRedo}
+        >
+          <Redo2 size={14} />
+        </button>
+
+        <button
+          type="button"
+          className="icon-button small"
+          title={visible ? 'Hide annotations' : 'Show annotations'}
+          onClick={() => setVisible(!visible)}
+        >
+          {visible ? <Eye size={14} /> : <EyeOff size={14} />}
+        </button>
+
+        {strokes.length > 0 && (
+          <button
+            type="button"
+            className="icon-button small"
+            title="Clear all page annotations"
+            onClick={handleClear}
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+
+        {onToggleSideNotes && (
+          <>
+            <span
+              style={{
+                width: '1px',
+                height: '18px',
+                background: 'var(--line)',
+                margin: '0 4px'
+              }}
+            />
+            <button
+              type="button"
+              className="button small secondary"
+              onClick={onToggleSideNotes}
+              style={{
+                padding: '4px 10px',
+                minHeight: '28px',
+                fontSize: '11px',
+                borderRadius: '16px'
+              }}
+            >
+              {sideNotesOpen ? <PanelRightClose size={13} /> : <PanelRightOpen size={13} />}
+              <span>{sideNotesOpen ? 'Hide Scratchpad' : 'Open Scratchpad'}</span>
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderSvgOverlay = () => {
+    if (!visible) return null;
+    return (
+      <svg
+        className="document-ink-overlay-svg"
+        viewBox={`0 0 ${CANONICAL_PAGE_GEOMETRY.canonicalWidth} ${dimensions.height}`}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 10,
+          pointerEvents: tool === 'browse' ? 'none' : 'auto',
+          touchAction: tool === 'browse' ? 'auto' : 'none',
+          cursor:
+            tool === 'browse'
+              ? 'default'
+              : tool === 'eraser'
+                ? 'cell'
+                : 'crosshair'
+        }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      >
+        {/* Render committed ink strokes directly on top of the text and margin */}
+        {strokes.map(stroke => {
+          const d = renderStrokeToPath(stroke);
+          const isHigh = stroke.isHighlighter;
+          return (
+            <path
+              key={stroke.id}
+              d={d}
+              fill={stroke.color}
+              opacity={isHigh ? 0.38 : 0.95}
+              style={{
+                mixBlendMode: isHigh ? 'multiply' : 'normal'
+              }}
+            />
+          );
+        })}
+
+        {/* Render active live stroke */}
+        {currentStroke && (
+          <path
+            d={renderStrokeToPath(currentStroke)}
+            fill={currentStroke.color}
+            opacity={currentStroke.isHighlighter ? 0.38 : 0.95}
+            style={{
+              mixBlendMode: currentStroke.isHighlighter ? 'multiply' : 'normal'
+            }}
+          />
+        )}
+      </svg>
+    );
+  };
+
+  const renderScrollControls = () => {
+    if (tool === 'browse') return null;
+    return (
+      <div
+        className="canvas-scroll-controls"
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right:
+            sideNotesOpen && typeof window !== 'undefined' && window.innerWidth > 900
+              ? `${sideNotesWidth + 24}px`
+              : '24px',
+          zIndex: 160,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '6px',
+          background: 'rgba(255, 254, 250, 0.96)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid var(--line, #e2e4da)',
+          borderRadius: '28px',
+          padding: '6px',
+          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.16)',
+          transition: 'right 0.22s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}
+      >
+        <button
+          type="button"
+          className="icon-button"
+          style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            background: 'var(--soft)',
+            color: 'var(--accent)'
+          }}
+          onClick={() => handleScrollStep('up')}
+          title="Scroll Document Up (Drawing Mode frozen)"
+          aria-label="Scroll document up"
+        >
+          <ArrowUp size={20} />
+        </button>
+        <span
+          style={{
+            fontSize: '8px',
+            fontWeight: 800,
+            letterSpacing: '0.8px',
+            color: 'var(--muted)',
+            userSelect: 'none'
           }}
         >
-          <button
-            type="button"
-            className="icon-button"
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '50%',
-              background: 'var(--soft)',
-              color: 'var(--accent)'
-            }}
-            onClick={() => handleScrollStep('up')}
-            title="Scroll Document Up (Drawing Mode frozen)"
-            aria-label="Scroll document up"
-          >
-            <ArrowUp size={20} />
-          </button>
-          <span
-            style={{
-              fontSize: '8px',
-              fontWeight: 800,
-              letterSpacing: '0.8px',
-              color: 'var(--muted)',
-              userSelect: 'none'
-            }}
-          >
-            SCROLL
-          </span>
-          <button
-            type="button"
-            className="icon-button"
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '50%',
-              background: 'var(--soft)',
-              color: 'var(--accent)'
-            }}
-            onClick={() => handleScrollStep('down')}
-            title="Scroll Document Down (Drawing Mode frozen)"
-            aria-label="Scroll document down"
-          >
-            <ArrowDown size={20} />
-          </button>
+          SCROLL
+        </span>
+        <button
+          type="button"
+          className="icon-button"
+          style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            background: 'var(--soft)',
+            color: 'var(--accent)'
+          }}
+          onClick={() => handleScrollStep('down')}
+          title="Scroll Document Down (Drawing Mode frozen)"
+          aria-label="Scroll document down"
+        >
+          <ArrowDown size={20} />
+        </button>
+      </div>
+    );
+  };
+
+  // If children are supplied, wrap the reading sheet with the scroll container and sticky HUD
+  if (children) {
+    return (
+      <div className="document-ink-container">
+        {/* Sticky HUD: decoupled from reading sheet so toolbar resizing NEVER shifts underlying text */}
+        <div className="document-annotation-hud">
+          {renderToolbar()}
         </div>
-      )}
+
+        {/* Canonical Academic Reading Sheet container: preserves 960px geometry and margin notes */}
+        <div className="reading-sheet-scroll-container">
+          <div className="reading-sheet" ref={activeSheetRef}>
+            {children}
+            {renderSvgOverlay()}
+          </div>
+        </div>
+
+        {renderScrollControls()}
+      </div>
+    );
+  }
+
+  // Fallback if rendered as a standalone overlay inside an external container
+  return (
+    <>
+      <div className="document-annotation-hud">
+        {renderToolbar()}
+      </div>
+      {renderSvgOverlay()}
+      {renderScrollControls()}
     </>
   );
 }
