@@ -39,7 +39,7 @@ For a refresher on the product rule, see [M1](../../SOURCES.md#m1). The modulo-t
 
 Write down which field your components belong to and whether you use row or column vectors. Quantum amplitudes will be complex numbers; Pauli labels will be binary. Matrices acting on those two objects can have different sizes and different meanings.
 
-For today's calculations use columns. Sympleq stores Pauli labels as rows in an [x | z] layout. Transposition connects the two conventions, but the side on which you multiply changes as well.
+For today's calculations use columns. In canonical tableau data structures, Pauli labels are typically stored as rows in an $[x \mid z]$ block layout. Transposition connects the two conventions, but the side on which you multiply changes as well.
 
 ## Questions to carry forward
 

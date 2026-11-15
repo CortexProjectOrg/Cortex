@@ -123,8 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Restore stored session on mount
   useEffect(() => {
-    const savedToken =
-      localStorage.getItem('ainotes-google-token') || localStorage.getItem('quaos-google-token');
+    const savedToken = localStorage.getItem('ainotes-google-token');
     if (savedToken) {
       const payload = parseJwt(savedToken);
       // Check expiration
@@ -139,8 +138,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } else {
         localStorage.removeItem('ainotes-google-token');
-        localStorage.removeItem('ainotes-google-token');
-    localStorage.removeItem('quaos-google-token');
       }
     }
     setIsLoading(false);
@@ -212,7 +209,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       google.accounts.id.revoke(user.email, () => {});
     }
     localStorage.removeItem('ainotes-google-token');
-    localStorage.removeItem('quaos-google-token');
     setToken(null);
     setUser(null);
   }, [user]);

@@ -29,20 +29,6 @@ const dbPromise = (async () => {
     }
   });
 
-  // Seamlessly migrate legacy local storage if present
-  try {
-    const current = await db.get('workspace', 'current');
-    if (!current) {
-      const legacyDb = await openDB('quaos-study', 2).catch(() => null);
-      if (legacyDb && legacyDb.objectStoreNames.contains('workspace')) {
-        const legacyData = await legacyDb.get('workspace', 'current');
-        if (legacyData) {
-          await db.put('workspace', legacyData, 'current');
-        }
-      }
-    }
-  } catch {}
-
   return db;
 })();
 

@@ -122,7 +122,7 @@ function ReferenceReader() {
           block: 'start'
         });
       } else {
-        window.scrollTo(0, Number(localStorage.getItem(`quaos-position:${id}`) ?? 0));
+        window.scrollTo(0, Number(localStorage.getItem(`ainotes-position:${id}`) ?? 0));
       }
     }, 80);
     return () => clearTimeout(timeout);
@@ -131,7 +131,7 @@ function ReferenceReader() {
   useEffect(() => {
     const save = () => {
       try {
-        localStorage.setItem(`quaos-position:${id}`, String(Math.round(window.scrollY)));
+        localStorage.setItem(`ainotes-position:${id}`, String(Math.round(window.scrollY)));
       } catch {}
     };
     window.addEventListener('scroll', save, { passive: true });

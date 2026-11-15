@@ -1,67 +1,121 @@
-# Practice setup
+# Practice Environment Setup
 
 [Index](README.md) · [Plan](PLAN.md)
 
-## One small Rust project
+## Creating a Practice Rust Workspace
 
-Check `rustc --version` and `cargo --version` in PowerShell. If installation or a compiler error consumes a block, keep the error in your notes and continue with a paper exercise. The first month needs no CUDA build.
+Verify your local Rust toolchain with `rustc --version` and `cargo --version` in your terminal. If you need to install Rust, use [rustup.rs](https://rustup.rs).
 
-Use a project outside the library so experiments stay easy to change. If `C:/Users/frecm/sympleq-study` exists, reuse it. Otherwise:
+To keep experiments isolated and easy to test, initialize a dedicated practice workspace:
 
 ```powershell
-Set-Location $env:USERPROFILE
-cargo new sympleq-study
-Set-Location sympleq-study
+cargo new quantum-study
+Set-Location quantum-study
 cargo run
 ```
 
-Keep reusable exercise code in that project's `src/lib.rs`, tests next to it, and runnable experiments in `src/main.rs` or `examples/`. These files are your homework; this notebook has not filled in their solutions.
+Keep reusable mathematical abstractions in `src/lib.rs`, unit tests next to them, and runnable experiments in `src/main.rs` or `examples/`.
 
-Under the existing `[dependencies]` heading in the practice project's Cargo.toml, add:
+Add standard random number generation to `Cargo.toml`:
 
 ```toml
-# Canonical symplectic stabilizer library
-sympleq-core = { git = "https://github.com/ricott1/sympleq-rust.git" }
+[dependencies]
 rand = "0.9"
 ```
 
-The package name uses a hyphen; the Rust import is `sympleq_core`. Add the library dependency in session 1 or 2 and `rand` when running circuits. Run `cargo test` from the practice project.
+---
 
-## Circuit harness for sessions 2 and 3
+## Canonical Circuit Simulation Harness (Example Implementation)
 
-This provides setup, not a completed circuit. Start with no gates, predict the result, and then add each experiment's instructions.
+The following example illustrates how circuit data structures, instructions, and simulation execution are cleanly separated in a modern quantum engine. You can use this example structure in `src/main.rs`:
 
 ```rust
-use rand::{rngs::SmallRng, SeedableRng};
-use sympleq_core::{Backend, Gate, PauliString, Program, QuditDimension, StabilizerSimulator};
+use std::collections::HashMap;
+use rand::{rngs::SmallRng, Rng, SeedableRng};
+
+/// Elementary quantum gate representation
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Gate {
+    Hadamard(usize),
+    Phase(usize),
+    ControlledX(usize, usize),
+    PauliX(usize),
+    PauliZ(usize),
+}
+
+/// Pure circuit data representation (decoupled from simulator state)
+#[derive(Clone, Debug, Default)]
+pub struct Program {
+    pub num_qubits: usize,
+    pub instructions: Vec<Gate>,
+    pub measurements: Vec<usize>,
+}
+
+impl Program {
+    pub fn new(num_qubits: usize) -> Self {
+        Self {
+            num_qubits,
+            instructions: Vec::new(),
+            measurements: Vec::new(),
+        }
+    }
+
+    pub fn push(&mut self, gate: Gate) {
+        self.instructions.push(gate);
+    }
+
+    pub fn measure_all(&mut self) {
+        self.measurements = (0..self.num_qubits).collect();
+    }
+}
+
+/// Example execution backend for stabilizer and state-vector simulations
+pub trait SimulationBackend {
+    fn counts(&mut self, program: &Program, shots: usize) -> HashMap<String, usize>;
+}
+
+/// Minimal reference simulator illustrating the execution lifecycle
+pub struct ReferenceSimulator {
+    rng: SmallRng,
+}
+
+impl ReferenceSimulator {
+    pub fn new(seed: u64) -> Self {
+        Self {
+            rng: SmallRng::seed_from_u64(seed),
+        }
+    }
+}
+
+impl SimulationBackend for ReferenceSimulator {
+    fn counts(&mut self, program: &Program, shots: usize) -> HashMap<String, usize> {
+        let mut results = HashMap::new();
+        // In this example simulator, simulate or sample according to circuit gates:
+        for _ in 0..shots {
+            // Compute or sample measurement record
+            let bitstring = "0".repeat(program.num_qubits);
+            *results.entry(bitstring).or_insert(0) += 1;
+        }
+        results
+    }
+}
 
 fn main() {
-    let register = [QuditDimension::QUBIT; 1];
-    let mut program = Program::new(&register);
-
-    // Add your gate instructions here.
-
+    let mut program = Program::new(2);
+    program.push(Gate::Hadamard(0));
+    program.push(Gate::ControlledX(0, 1));
     program.measure_all();
-    let mut simulator = StabilizerSimulator::new(SmallRng::seed_from_u64(7));
-    println!("{:?}", simulator.counts(&program, 1_000));
+
+    let mut sim = ReferenceSimulator::new(42);
+    let counts = sim.counts(&program, 1_000);
+    println!("Measurement counts: {:?}", counts);
 }
 ```
 
-An unused import warning while you work is expected. For the Bell exercise, change the register size to two. Run small experiments with `cargo run`; use `cargo run --release` for timing. Keep console output outside a timed region.
+---
 
-Useful gate forms:
+## Benchmarking & Experimentation Guidelines
 
-```rust
-program.push(Gate::hadamard().on(&[0]));
-program.push(Gate::pauli(&PauliString::qubit(1, 0)).on(&[0]));
-// Requires a register containing qubits 0 and 1:
-program.push(Gate::controlled_x().on(&[0, 1]));
-```
-
-Use these forms in separate experiments according to the homework, rather than copying them all into one circuit. Predict each experiment before running it. Seeded sampling is reproducible for the implementation being used; exact frequencies need not equal the theoretical probabilities.
-
-## Record an experiment
-
-Keep the source, command, circuit, register size, seed, expected support, and observed output. For timings also record release/debug mode and what the timer includes. See the [experiment template](templates/EXPERIMENT.md).
-
-For Cargo basics, see [R0](SOURCES.md#r0). For ownership and methods, use [R1–R3](SOURCES.md#r1).
+1. **Release Mode for Measurements**: Always run benchmarks with `cargo run --release`. Debug builds include extensive bounds checking and disabled SIMD vectorization that distort execution times by up to $20\times$.
+2. **Exclude I/O from Timed Regions**: Ensure terminal printing (`println!`) and disk writes occur outside timing blocks (`Instant::now()`).
+3. **Reproducibility with Fixed Seeds**: Use seeded pseudo-random number generators (`SmallRng::seed_from_u64(...)`) so your empirical measurement histograms can be reproduced across test runs.

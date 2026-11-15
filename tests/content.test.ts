@@ -65,4 +65,11 @@ Check [the plan](PLAN.md) and equation $x^2 + y^2 = 1$.
       href: '/read/sessions/01-foundations/theory.md'
     });
   });
+
+  it('ensures no legacy proprietary brand references (quaos, sympleq) exist in generated content or curriculum', async () => {
+    const content = await import('../src/generated/content.json');
+    const jsonStr = JSON.stringify(content).toLowerCase();
+    expect(jsonStr).not.toContain('quaos');
+    expect(jsonStr).not.toContain('sympleq');
+  });
 });

@@ -21,8 +21,6 @@ export function linkTarget(fromId, href, ids) {
   if (target === 'PERSONAL_PATH.md' || decoded.endsWith('PERSONAL_PATH.md')) return { kind: 'path', href: '/path' };
   if (target === 'PROGRESS.md' || decoded.endsWith('PROGRESS.md')) return { kind: 'progress', href: '/' };
   if (ids.has(target)) return { kind: 'document', href: documentRoute(target, anchor) };
-  const codeMatch = target.match(/(?:^|\/)sympleq\/sympleq-rust\/(.+)$/);
-  if (codeMatch) return { kind: 'external', href: `https://github.com/ricott1/sympleq-rust/blob/main/${codeMatch[1]}${anchor ? `#${anchor}` : ''}` };
   return { kind: 'unavailable', href, label: rawPath };
 }
 async function walk(dir = root) {

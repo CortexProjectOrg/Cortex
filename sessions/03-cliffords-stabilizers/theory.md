@@ -37,7 +37,7 @@ J = [0 I]
 
 A binary map F preserves this product when F^T J F=J. This is the symplectic condition. In the one-qubit case the swap matrix A from session 1 is the label action of H. The shear B is the label action of the phase gate S=diag(1,i).
 
-If labels are row vectors transformed as v -> vC, use C J C^T=J. Here C is the transpose of the column-action matrix. Sympleq stores rows, so always state the convention before comparing formulas.
+If labels are row vectors transformed as $v \to vC$, use $C J C^T = J$. Here $C$ is the transpose of the column-action matrix. Standard tableau engines store rows, so always verify the layout convention before evaluating transformations.
 
 A binary map alone does not determine every Pauli image's sign. For example, HYH=-Y. This is invisible in a label-only result. The phase data is essential to the complete Clifford action.
 
