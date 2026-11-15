@@ -5,13 +5,10 @@ import {
   Maximize2,
   RotateCcw,
   Sparkles,
-  Share2,
-  ChevronRight,
   GitBranch,
-  Compass,
+  CornerDownRight,
   ArrowUp,
-  ArrowDown,
-  Filter
+  ArrowDown
 } from 'lucide-react';
 import {
   type GraphNode,
@@ -20,15 +17,7 @@ import {
 } from '../lib/knowledgeGraph';
 import {
   computeTopDownDagLayout,
-  pruneToActiveBranch,
-  expandNodePrerequisites,
-  collapseNodePrerequisites,
-  expandNodeUnlocks,
-  collapseNodeUnlocks,
-  expandAllAncestors,
-  expandAllDescendants,
   getOneHopNeighborhood,
-  getBedrockRootNodeIds,
   type NodeLayout
 } from '../lib/dagLayoutEngine';
 
@@ -74,17 +63,29 @@ export function InteractiveDagCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Dynamic set of visible node IDs on canvas
-  const [visibleNodeIds, setVisibleNodeIds] = useState<Set<string>>(() => {
-    if (selectedNodeId && dag.nodes.has(selectedNodeId)) {
-      return getOneHopNeighborhood(selectedNodeId, dag);
-    }
-    const roots = getBedrockRootNodeIds(dag);
-    return roots.size > 0 ? roots : new Set([dag.nodeList[0]?.id || 'L01-sets-maps-proofs']);
-  });
+  // Active focal lecture (defaults to foundational root L01 if none selected)
+  const focalId = selectedNodeId && dag.nodes.has(selectedNodeId)
+    ? selectedNodeId
+    : dag.nodeList[0]?.id || 'L01-sets-maps-proofs';
+
+  const focalNode = dag.nodes.get(focalId);
+
+  // Toggle to optionally show derived (indirect / transitive) dependencies
+  const [showDerived, setShowDerived] = useState(false);
+
+  // 1-Hop Neighborhood is the exclusive exploration model
+  // Deterministically contains focal node + direct prerequisites + direct unlocks
+  // (plus derived dependencies when showDerived is enabled)
+  const visibleNodeIds = useMemo(() => {
+    return getOneHopNeighborhood(focalId, dag, showDerived);
+  }, [focalId, dag, showDerived]);
+
+  const visibleNodes = useMemo(() => {
+    return dag.nodeList.filter(n => visibleNodeIds.has(n.id));
+  }, [dag, visibleNodeIds]);
 
   // Pan & Zoom camera state
-  const [zoom, setZoom] = useState(0.85);
+  const [zoom, setZoom] = useState(0.9);
   const [pan, setPan] = useState<Point>({ x: 300, y: 80 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<Point>({ x: 0, y: 0 });
@@ -92,73 +93,20 @@ export function InteractiveDagCanvas({
 
   // Hover state for tooltip / edge glow
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [showSoftLinks, setShowSoftLinks] = useState(true);
 
-  // History trail of explored nodes for DAG walking
-  const [historyTrail, setHistoryTrail] = useState<string[]>(() => {
-    return selectedNodeId ? [selectedNodeId] : ['L01-sets-maps-proofs'];
-  });
-
-  // Ensure selectedNodeId is visible whenever it changes
-  useEffect(() => {
-    if (selectedNodeId && dag.nodes.has(selectedNodeId)) {
-      setVisibleNodeIds(prev => {
-        if (prev.has(selectedNodeId)) return prev;
-        const next = new Set(prev);
-        next.add(selectedNodeId);
-        // Also expand immediate prerequisites so user sees its direct provenance
-        const node = dag.nodes.get(selectedNodeId);
-        node?.prerequisites.forEach(p => next.add(p));
-        return next;
-      });
-
-      setHistoryTrail(trail => {
-        if (trail[trail.length - 1] === selectedNodeId) return trail;
-        return [...trail.slice(-6), selectedNodeId];
-      });
-    }
-  }, [selectedNodeId, dag]);
-
-  // Derive visible GraphNode objects
-  const visibleNodes = useMemo(() => {
-    return dag.nodeList.filter(n => visibleNodeIds.has(n.id));
-  }, [dag, visibleNodeIds]);
-
-  // Compute top-down Sugiyama barycentric layout with Transitive Reduction
-  const { layoutMap, bounds, transitiveReduction } = useMemo(() => {
+  // Compute clean top-down Sugiyama barycentric layout for the 1-hop cluster
+  const { layoutMap, bounds } = useMemo(() => {
     return computeTopDownDagLayout(visibleNodes, dag, {
-      nodeWidth: 220,
-      nodeHeight: 78,
-      levelHeight: 195,
-      minNodeGap: 65,
-      extraBranchGap: 45,
+      nodeWidth: 230,
+      nodeHeight: 82,
+      levelHeight: 185,
+      minNodeGap: 60,
+      extraBranchGap: 40,
       topPadding: 50
     });
   }, [visibleNodes, dag]);
 
-  // Highlight sets for active node
-  const activeFocusId = hoveredNodeId || selectedNodeId;
-  const { ancestorSet, descendantSet, softLinkSet } = useMemo(() => {
-    const aSet = new Set<string>();
-    const dSet = new Set<string>();
-    const sSet = new Set<string>();
-
-    if (!activeFocusId) return { ancestorSet: aSet, descendantSet: dSet, softLinkSet: sSet };
-
-    const activeNode = dag.nodes.get(activeFocusId);
-    if (!activeNode) return { ancestorSet: aSet, descendantSet: dSet, softLinkSet: sSet };
-
-    // Direct and transitive ancestors
-    activeNode.allPrerequisites.forEach(id => aSet.add(id));
-    // Direct and transitive descendants
-    activeNode.allUnlocked.forEach(id => dSet.add(id));
-    // Soft links
-    activeNode.softLinks.forEach(l => sSet.add(l.targetId));
-
-    return { ancestorSet: aSet, descendantSet: dSet, softLinkSet: sSet };
-  }, [dag, activeFocusId]);
-
-  // Fit camera to framed bounding box
+  // Fit camera to center the 1-hop neighborhood
   const fitToCurrentBounds = useCallback(() => {
     if (!containerRef.current || bounds.width === 0 || bounds.height === 0) return;
 
@@ -168,7 +116,7 @@ export function InteractiveDagCanvas({
 
     const scaleX = (container.width - padX * 2) / Math.max(1, bounds.width);
     const scaleY = (container.height - padY * 2) / Math.max(1, bounds.height);
-    const newZoom = Math.max(0.25, Math.min(1.2, Math.min(scaleX, scaleY)));
+    const newZoom = Math.max(0.4, Math.min(1.15, Math.min(scaleX, scaleY)));
 
     const centerX = bounds.minX + bounds.width / 2;
     const centerY = bounds.minY + bounds.height / 2;
@@ -180,14 +128,10 @@ export function InteractiveDagCanvas({
     setPan({ x: newPanX, y: newPanY });
   }, [bounds]);
 
-  // Auto-fit on first load or when visible set changes significantly
-  const prevCountRef = useRef(visibleNodes.length);
+  // Automatically center whenever focal node changes
   useEffect(() => {
-    if (Math.abs(prevCountRef.current - visibleNodes.length) >= 3 || prevCountRef.current === 0) {
-      fitToCurrentBounds();
-    }
-    prevCountRef.current = visibleNodes.length;
-  }, [visibleNodes.length, fitToCurrentBounds]);
+    fitToCurrentBounds();
+  }, [focalId, showDerived, fitToCurrentBounds]);
 
   // Pan interaction handlers
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -219,7 +163,7 @@ export function InteractiveDagCanvas({
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.2, Math.min(2.5, zoom * zoomFactor));
+    const newZoom = Math.max(0.3, Math.min(2.2, zoom * zoomFactor));
 
     if (!containerRef.current) {
       setZoom(newZoom);
@@ -237,81 +181,29 @@ export function InteractiveDagCanvas({
     setPan({ x: newPanX, y: newPanY });
   };
 
-  // Top/bottom expand & collapse actions for node pills
-  const handleTogglePrerequisites = (nodeId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const node = dag.nodes.get(nodeId);
-    if (!node) return;
-
-    const hidden = node.prerequisites.filter(pId => !visibleNodeIds.has(pId));
-    if (hidden.length > 0) {
-      setVisibleNodeIds(prev => expandNodePrerequisites(prev, nodeId, dag));
-    } else {
-      const protectedSet = new Set<string>([selectedNodeId].filter(Boolean) as string[]);
-      setVisibleNodeIds(prev => collapseNodePrerequisites(prev, nodeId, dag, protectedSet));
-    }
-  };
-
-  const handleToggleUnlocks = (nodeId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const node = dag.nodes.get(nodeId);
-    if (!node) return;
-
-    const hidden = node.unlockedLectures.filter(uId => !visibleNodeIds.has(uId));
-    if (hidden.length > 0) {
-      setVisibleNodeIds(prev => expandNodeUnlocks(prev, nodeId, dag));
-    } else {
-      const protectedSet = new Set<string>([selectedNodeId].filter(Boolean) as string[]);
-      setVisibleNodeIds(prev => collapseNodeUnlocks(prev, nodeId, dag, protectedSet));
-    }
-  };
-
-  // Action helpers for toolbar
-  const handleFocusOneHop = () => {
-    const focusId = selectedNodeId || dag.nodeList[0]?.id;
-    if (!focusId) return;
-    setVisibleNodeIds(getOneHopNeighborhood(focusId, dag));
-  };
-
-  const handlePruneBranch = () => {
-    const focusId = selectedNodeId || dag.nodeList[0]?.id;
-    if (!focusId) return;
-    setVisibleNodeIds(prev => pruneToActiveBranch(prev, focusId, dag));
-  };
-
-  const handleExpandAncestors = () => {
-    const focusId = selectedNodeId || dag.nodeList[0]?.id;
-    if (!focusId) return;
-    setVisibleNodeIds(prev => expandAllAncestors(prev, focusId, dag));
-  };
-
-  const handleExpandDescendants = () => {
-    const focusId = selectedNodeId || dag.nodeList[0]?.id;
-    if (!focusId) return;
-    setVisibleNodeIds(prev => expandAllDescendants(prev, focusId, dag));
-  };
-
-  const handleResetToAxioms = () => {
-    setVisibleNodeIds(getBedrockRootNodeIds(dag));
-  };
-
-  // Pre-calculate visible directed Bezier edges (ONLY essential edges; transitive bypass edges removed)
-  const hardEdges = useMemo(() => {
-    const list: Array<{
+  // Pre-calculate Directed Edges for 1-Hop cluster
+  const { directEdges, derivedEdges } = useMemo(() => {
+    const dList: Array<{
       id: string;
       fromId: string;
       toId: string;
       d: string;
-      isAncestor: boolean;
-      isDescendant: boolean;
+      isHighlighted: boolean;
       isDimmed: boolean;
     }> = [];
 
-    const { essentialPrerequisites } = transitiveReduction;
+    const derList: Array<{
+      id: string;
+      fromId: string;
+      toId: string;
+      d: string;
+      isHighlighted: boolean;
+      isDimmed: boolean;
+    }> = [];
 
+    // 1. Direct dependencies: node.prerequisites -> node.id
     visibleNodes.forEach(toNode => {
-      const essentialParents = essentialPrerequisites.get(toNode.id) || [];
-      essentialParents.forEach(fromId => {
+      toNode.prerequisites.forEach(fromId => {
         if (!visibleNodeIds.has(fromId)) return;
         const fromLayout = layoutMap.get(fromId);
         const toLayout = layoutMap.get(toNode.id);
@@ -321,123 +213,73 @@ export function InteractiveDagCanvas({
         const y1 = fromLayout.outY;
         const x2 = toLayout.inX;
         const y2 = toLayout.inY;
-        const dy = Math.max(30, (y2 - y1) * 0.5);
+        const dy = Math.max(25, (y2 - y1) * 0.5);
 
-        // Smooth cubic vertical Bezier flowing top to bottom
         const d = `M ${x1} ${y1} C ${x1} ${y1 + dy}, ${x2} ${y2 - dy}, ${x2} ${y2}`;
 
-        const isAncestor =
-          activeFocusId === toNode.id ||
-          (ancestorSet.has(fromId) && (ancestorSet.has(toNode.id) || activeFocusId === toNode.id));
+        const isHighlighted =
+          hoveredNodeId === fromId ||
+          hoveredNodeId === toNode.id ||
+          focalId === fromId ||
+          focalId === toNode.id;
 
-        const isDescendant =
-          activeFocusId === fromId ||
-          (descendantSet.has(toNode.id) && (descendantSet.has(fromId) || activeFocusId === fromId));
+        const isDimmed = Boolean(hoveredNodeId) && !isHighlighted;
 
-        const isDimmed =
-          Boolean(activeFocusId) && !isAncestor && !isDescendant && fromId !== activeFocusId && toNode.id !== activeFocusId;
-
-        list.push({
+        dList.push({
           id: `${fromId}->${toNode.id}`,
           fromId,
           toId: toNode.id,
           d,
-          isAncestor,
-          isDescendant,
+          isHighlighted,
           isDimmed
         });
       });
     });
 
-    return list;
-  }, [visibleNodes, visibleNodeIds, layoutMap, transitiveReduction, activeFocusId, ancestorSet, descendantSet]);
+    // 2. Derived dependencies (if enabled)
+    if (showDerived) {
+      visibleNodes.forEach(toNode => {
+        (toNode.derivedPrerequisites || []).forEach(fromId => {
+          if (!visibleNodeIds.has(fromId)) return;
+          const fromLayout = layoutMap.get(fromId);
+          const toLayout = layoutMap.get(toNode.id);
+          if (!fromLayout || !toLayout) return;
 
-  // Pre-calculate visible soft link curves (Cross-disciplinary links + Transitive bypass edges)
-  const softEdges = useMemo(() => {
-    if (!showSoftLinks) return [];
+          // Side-curved dashed arc for derived
+          const fromRight = fromLayout.x <= toLayout.x;
+          const x1 = fromRight ? fromLayout.x + fromLayout.width : fromLayout.x;
+          const y1 = fromLayout.y + fromLayout.height / 2;
+          const x2 = fromRight ? toLayout.x : toLayout.x + toLayout.width;
+          const y2 = toLayout.y + toLayout.height / 2;
 
-    const list: Array<{
-      id: string;
-      fromId: string;
-      toId: string;
-      d: string;
-      relationship: string;
-      isTransitiveBypass: boolean;
-      isActive: boolean;
-      isDimmed: boolean;
-    }> = [];
+          const midX = (x1 + x2) / 2 + (fromRight ? 40 : -40);
+          const midY = (y1 + y2) / 2;
+          const d = `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`;
 
-    // 1. Cross-disciplinary soft links
-    visibleNodes.forEach(fromNode => {
-      fromNode.softLinks.forEach(link => {
-        if (!visibleNodeIds.has(link.targetId)) return;
-        const fromLayout = layoutMap.get(fromNode.id);
-        const toLayout = layoutMap.get(link.targetId);
-        if (!fromLayout || !toLayout) return;
+          const isHighlighted =
+            hoveredNodeId === fromId ||
+            hoveredNodeId === toNode.id ||
+            focalId === fromId ||
+            focalId === toNode.id;
 
-        const fromRight = fromLayout.x < toLayout.x;
-        const x1 = fromRight ? fromLayout.x + fromLayout.width : fromLayout.x;
-        const y1 = fromLayout.y + fromLayout.height / 2;
-        const x2 = fromRight ? toLayout.x : toLayout.x + toLayout.width;
-        const y2 = toLayout.y + toLayout.height / 2;
+          const isDimmed = Boolean(hoveredNodeId) && !isHighlighted;
 
-        const midX = (x1 + x2) / 2 + (fromRight ? 30 : -30);
-        const midY = (y1 + y2) / 2;
-        const d = `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`;
-
-        const isActive =
-          activeFocusId === fromNode.id || activeFocusId === link.targetId || softLinkSet.has(link.targetId);
-        const isDimmed = Boolean(activeFocusId) && !isActive;
-
-        list.push({
-          id: `soft:${fromNode.id}->${link.targetId}`,
-          fromId: fromNode.id,
-          toId: link.targetId,
-          d,
-          relationship: link.relationship,
-          isTransitiveBypass: false,
-          isActive,
-          isDimmed
+          derList.push({
+            id: `derived:${fromId}->${toNode.id}`,
+            fromId,
+            toId: toNode.id,
+            d,
+            isHighlighted,
+            isDimmed
+          });
         });
       });
-    });
+    }
 
-    // 2. Transitive bypass edges (redundant hard edges demoted to soft links)
-    const { redundantEdges } = transitiveReduction;
-    redundantEdges.forEach(edgeKey => {
-      const [fromId, toId] = edgeKey.split('->');
-      const fromLayout = layoutMap.get(fromId);
-      const toLayout = layoutMap.get(toId);
-      if (!fromLayout || !toLayout) return;
+    return { directEdges: dList, derivedEdges: derList };
+  }, [visibleNodes, visibleNodeIds, layoutMap, focalId, hoveredNodeId, showDerived]);
 
-      const fromRight = fromLayout.x <= toLayout.x;
-      const x1 = fromRight ? fromLayout.x + fromLayout.width : fromLayout.x;
-      const y1 = fromLayout.y + fromLayout.height / 2;
-      const x2 = fromRight ? toLayout.x : toLayout.x + toLayout.width;
-      const y2 = toLayout.y + toLayout.height / 2;
-
-      const midX = (x1 + x2) / 2 + (fromRight ? 40 : -40);
-      const midY = (y1 + y2) / 2;
-      const d = `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`;
-
-      const isActive =
-        activeFocusId === fromId || activeFocusId === toId || ancestorSet.has(fromId) || descendantSet.has(toId);
-      const isDimmed = Boolean(activeFocusId) && !isActive;
-
-      list.push({
-        id: `transitive:${edgeKey}`,
-        fromId,
-        toId,
-        d,
-        relationship: 'Transitive Prerequisite (subsumed by intermediate lecture)',
-        isTransitiveBypass: true,
-        isActive,
-        isDimmed
-      });
-    });
-
-    return list;
-  }, [visibleNodes, visibleNodeIds, layoutMap, transitiveReduction, showSoftLinks, activeFocusId, softLinkSet, ancestorSet, descendantSet]);
+  const focalTopicColor = focalNode ? (TOPIC_COLORS[focalNode.topicNumber] || 'var(--accent)') : 'var(--accent)';
 
   return (
     <div
@@ -453,7 +295,7 @@ export function InteractiveDagCanvas({
       }}
       ref={containerRef}
     >
-      {/* Top Floating Control Bar */}
+      {/* Top Clean 1-Hop Toolbar */}
       <div
         style={{
           position: 'absolute',
@@ -464,12 +306,11 @@ export function InteractiveDagCanvas({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '10px',
-          pointerEvents: 'none',
-          flexWrap: 'wrap'
+          gap: '12px',
+          pointerEvents: 'none'
         }}
       >
-        {/* Navigation Breadcrumbs & Walking Trail */}
+        {/* Left: Focal Lecture Identity & Jump to Root */}
         <div
           style={{
             pointerEvents: 'auto',
@@ -480,48 +321,38 @@ export function InteractiveDagCanvas({
             padding: '5px 12px',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            overflowX: 'auto',
-            maxWidth: '50%'
+            gap: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
           }}
         >
-          <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>
-            DAG TRAIL:
+          <span
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              background: focalTopicColor,
+              boxShadow: '0 0 0 2px rgba(0,0,0,0.08)'
+            }}
+          />
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink)' }}>
+            Focal: L{focalNode ? String(focalNode.lectureNumber).padStart(2, '0') : '01'} · {focalNode?.title}
           </span>
-          {historyTrail.map((nodeId, idx) => {
-            const node = dag.nodes.get(nodeId);
-            if (!node) return null;
-            const isLast = idx === historyTrail.length - 1;
-            const topicColor = TOPIC_COLORS[node.topicNumber] || 'var(--accent)';
 
-            return (
-              <React.Fragment key={nodeId + idx}>
-                <button
-                  type="button"
-                  onClick={() => onSelectNode(nodeId)}
-                  style={{
-                    background: isLast ? 'var(--soft)' : 'none',
-                    border: 'none',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: isLast ? 750 : 500,
-                    color: isLast ? topicColor : 'var(--ink)',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
-                  title={node.title}
-                >
-                  L{String(node.lectureNumber).padStart(2, '0')}
-                </button>
-                {!isLast && <ChevronRight size={12} style={{ color: 'var(--muted)', flexShrink: 0 }} />}
-              </React.Fragment>
-            );
-          })}
+          <div style={{ width: '1px', height: '14px', background: 'var(--line)', margin: '0 2px' }} />
+
+          <button
+            type="button"
+            className="button small secondary"
+            style={{ minHeight: '26px', padding: '2px 8px', fontSize: '10.5px' }}
+            onClick={() => onSelectNode('L01-sets-maps-proofs')}
+            title="Reset focus to foundational bedrock root L01"
+          >
+            <GitBranch size={12} style={{ marginRight: '4px' }} />
+            L01 Root
+          </button>
         </div>
 
-        {/* Dynamic Subgraph Action Buttons & Sparsity Controls */}
+        {/* Right: 1-Hop Exploration Tools */}
         <div
           style={{
             pointerEvents: 'auto',
@@ -532,139 +363,83 @@ export function InteractiveDagCanvas({
             padding: '4px 8px',
             display: 'flex',
             alignItems: 'center',
-            gap: '4px',
+            gap: '6px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
           }}
         >
-          {/* Subgraph size indicator */}
+          {/* Explicit 1-Hop Mode Pill */}
           <span
             style={{
-              fontSize: '11px',
-              fontWeight: 650,
-              color: 'var(--muted)',
-              padding: '0 6px',
-              borderRight: '1px solid var(--line)',
+              fontSize: '10.5px',
+              fontWeight: 700,
+              color: 'var(--accent)',
+              background: 'var(--soft)',
+              padding: '2px 7px',
+              borderRadius: '4px',
               whiteSpace: 'nowrap'
             }}
           >
-            {visibleNodes.length} / {dag.nodeList.length} Nodes
+            1-Hop View
           </span>
 
-          {/* Quick Sparsity Presets */}
+          {/* Derived Dependencies Toggle */}
           <button
             type="button"
-            className="button small secondary"
-            style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
-            onClick={handleFocusOneHop}
-            title="Focus on selected node + direct 1-hop prerequisites and unlocks"
+            className={`button small ${showDerived ? 'soft' : 'secondary'}`}
+            style={{ minHeight: '26px', padding: '2px 8px', fontSize: '10.5px' }}
+            onClick={() => setShowDerived(v => !v)}
+            title="Flag and display derived (transitive / indirect) dependencies"
           >
-            <Compass size={13} style={{ marginRight: '4px' }} />
-            1-Hop
+            <CornerDownRight size={12} style={{ marginRight: '4px' }} />
+            {showDerived ? 'Hide Derived' : 'Show Derived'}
           </button>
 
-          <button
-            type="button"
-            className="button small secondary"
-            style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
-            onClick={handlePruneBranch}
-            title="Prune unrelated branches: keep only active lecture's direct ancestor and descendant pipeline"
-          >
-            <Filter size={12} style={{ marginRight: '3px' }} />
-            Prune Branch
-          </button>
-
-          <button
-            type="button"
-            className="button small secondary"
-            style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
-            onClick={handleExpandAncestors}
-            title="Expand entire upstream prerequisite tree up to foundational bedrock"
-          >
-            <ArrowUp size={13} style={{ marginRight: '3px' }} />
-            Ancestors
-          </button>
-
-          <button
-            type="button"
-            className="button small secondary"
-            style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
-            onClick={handleExpandDescendants}
-            title="Expand entire downstream unlocked branches"
-          >
-            <ArrowDown size={13} style={{ marginRight: '3px' }} />
-            Unlocks
-          </button>
-
-          <button
-            type="button"
-            className="button small secondary"
-            style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
-            onClick={handleResetToAxioms}
-            title="Reset visible canvas to foundational bedrock root lectures (in-degree 0)"
-          >
-            <GitBranch size={13} style={{ marginRight: '3px' }} />
-            Axioms
-          </button>
-
-          <div style={{ width: '1px', height: '18px', background: 'var(--line)', margin: '0 2px' }} />
+          <div style={{ width: '1px', height: '16px', background: 'var(--line)', margin: '0 2px' }} />
 
           {/* Camera Controls */}
           <button
             type="button"
             className="icon-button"
-            style={{ width: '30px', height: '30px' }}
-            onClick={() => setZoom(z => Math.min(2.5, z + 0.15))}
+            style={{ width: '28px', height: '28px' }}
+            onClick={() => setZoom(z => Math.min(2.2, z + 0.15))}
             title="Zoom In"
           >
-            <ZoomIn size={15} />
+            <ZoomIn size={14} />
           </button>
           <button
             type="button"
             className="icon-button"
-            style={{ width: '30px', height: '30px' }}
-            onClick={() => setZoom(z => Math.max(0.2, z - 0.15))}
+            style={{ width: '28px', height: '28px' }}
+            onClick={() => setZoom(z => Math.max(0.3, z - 0.15))}
             title="Zoom Out"
           >
-            <ZoomOut size={15} />
+            <ZoomOut size={14} />
           </button>
           <button
             type="button"
             className="icon-button"
-            style={{ width: '30px', height: '30px' }}
+            style={{ width: '28px', height: '28px' }}
             onClick={fitToCurrentBounds}
-            title="Fit Subgraph into Canvas View"
+            title="Center 1-Hop Neighborhood"
           >
-            <Maximize2 size={15} />
+            <Maximize2 size={14} />
           </button>
           <button
             type="button"
             className="icon-button"
-            style={{ width: '30px', height: '30px' }}
+            style={{ width: '28px', height: '28px' }}
             onClick={() => {
-              setZoom(0.85);
+              setZoom(0.9);
               setPan({ x: 300, y: 80 });
             }}
             title="Reset Pan & Zoom"
           >
-            <RotateCcw size={15} />
-          </button>
-
-          <div style={{ width: '1px', height: '18px', background: 'var(--line)', margin: '0 2px' }} />
-
-          <button
-            type="button"
-            className={`button small ${showSoftLinks ? 'soft' : 'secondary'}`}
-            style={{ minHeight: '28px', padding: '3px 8px', fontSize: '11px' }}
-            onClick={() => setShowSoftLinks(v => !v)}
-            title="Toggle cross-disciplinary and transitive bypass soft links"
-          >
-            <Share2 size={12} style={{ marginRight: '4px' }} />
-            Soft
+            <RotateCcw size={14} />
           </button>
         </div>
       </div>
 
-      {/* Bottom Floating Topic Color Palette & Legend (No Rank or Tier Concept) */}
+      {/* Bottom Floating Topic Color Palette & Legend */}
       <div
         style={{
           position: 'absolute',
@@ -690,14 +465,14 @@ export function InteractiveDagCanvas({
             padding: '5px 10px',
             display: 'flex',
             alignItems: 'center',
-            gap: '9px',
+            gap: '8px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             overflowX: 'auto',
             maxWidth: '72%'
           }}
         >
-          <span style={{ fontSize: '9.5px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.6px', whiteSpace: 'nowrap' }}>
-            TOPICS:
+          <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
+            TOPIC COLORS:
           </span>
           {TOPIC_PALETTE.map(topic => (
             <span
@@ -706,7 +481,7 @@ export function InteractiveDagCanvas({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                fontSize: '10.5px',
+                fontSize: '10px',
                 color: 'var(--ink)',
                 whiteSpace: 'nowrap',
                 cursor: 'pointer'
@@ -719,11 +494,10 @@ export function InteractiveDagCanvas({
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  background: topic.color,
-                  boxShadow: '0 0 0 1px rgba(0,0,0,0.1)'
+                  background: topic.color
                 }}
               />
-              <span style={{ color: 'var(--muted)', fontSize: '10px' }}>
+              <span style={{ color: 'var(--muted)' }}>
                 {topic.shortName}
               </span>
             </span>
@@ -738,8 +512,8 @@ export function InteractiveDagCanvas({
             backdropFilter: 'blur(8px)',
             border: '1px solid var(--line)',
             borderRadius: '8px',
-            padding: '6px 12px',
-            fontSize: '11px',
+            padding: '5px 12px',
+            fontSize: '10.5px',
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
@@ -747,14 +521,14 @@ export function InteractiveDagCanvas({
             whiteSpace: 'nowrap'
           }}
         >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', color: 'var(--ink)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--ink)' }}>
             <span style={{ width: '12px', height: '2.5px', background: '#3b82f6', borderRadius: '2px' }} />
-            Prerequisite
+            Direct Dependency
           </span>
-          {showSoftLinks && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10.5px', color: 'var(--muted)' }}>
+          {showDerived && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#b45309' }}>
               <span style={{ width: '12px', height: '2px', borderTop: '2px dashed #d97706' }} />
-              Soft / Transitive
+              Derived Dependency (Indirect)
             </span>
           )}
         </div>
@@ -774,9 +548,9 @@ export function InteractiveDagCanvas({
         onWheel={handleWheel}
       >
         <defs>
-          {/* Default Downward Arrowhead Marker */}
+          {/* Direct Dependency Downward Arrowhead Marker */}
           <marker
-            id="arrow-down"
+            id="arrow-direct-down"
             viewBox="0 0 10 10"
             refX="8"
             refY="5"
@@ -784,12 +558,12 @@ export function InteractiveDagCanvas({
             markerHeight="6"
             orient="auto"
           >
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#b8c2b0" />
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#3b82f6" />
           </marker>
 
-          {/* Ancestor Green Arrowhead Marker */}
+          {/* Highlighted Arrowhead Marker */}
           <marker
-            id="arrow-ancestor-down"
+            id="arrow-highlight-down"
             viewBox="0 0 10 10"
             refX="8"
             refY="5"
@@ -800,44 +574,37 @@ export function InteractiveDagCanvas({
             <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#10b981" />
           </marker>
 
-          {/* Descendant Blue Arrowhead Marker */}
+          {/* Derived Dependency Arrowhead Marker */}
           <marker
-            id="arrow-descendant-down"
+            id="arrow-derived-down"
             viewBox="0 0 10 10"
             refX="8"
             refY="5"
-            markerWidth="7"
-            markerHeight="7"
+            markerWidth="6"
+            markerHeight="6"
             orient="auto"
           >
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#3b82f6" />
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#d97706" />
           </marker>
 
-          {/* Selected Node Glow Shadow */}
-          <filter id="glow-selected" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#3a5d49" floodOpacity="0.25" />
+          {/* Focal Node Glow Shadow */}
+          <filter id="glow-focal" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#3a5d49" floodOpacity="0.28" />
           </filter>
         </defs>
 
         {/* Graph Transform Container */}
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-          {/* Hard Directed Downward Bezier Edges (Transitively Reduced) */}
-          <g className="dag-edges">
-            {hardEdges.map(edge => {
-              const markerUrl = edge.isAncestor
-                ? 'url(#arrow-ancestor-down)'
-                : edge.isDescendant
-                ? 'url(#arrow-descendant-down)'
-                : 'url(#arrow-down)';
+          {/* Direct Dependency Bezier Curves */}
+          <g className="dag-direct-edges">
+            {directEdges.map(edge => {
+              const markerUrl = edge.isHighlighted
+                ? 'url(#arrow-highlight-down)'
+                : 'url(#arrow-direct-down)';
 
-              const strokeColor = edge.isAncestor
-                ? '#10b981'
-                : edge.isDescendant
-                ? '#3b82f6'
-                : '#cbd5e1';
-
-              const strokeWidth = edge.isAncestor || edge.isDescendant ? 2.8 : 1.3;
-              const opacity = edge.isDimmed ? 0.08 : edge.isAncestor || edge.isDescendant ? 1 : 0.65;
+              const strokeColor = edge.isHighlighted ? '#10b981' : '#93c5fd';
+              const strokeWidth = edge.isHighlighted ? 2.8 : 1.8;
+              const opacity = edge.isDimmed ? 0.15 : 0.9;
 
               return (
                 <path
@@ -854,27 +621,22 @@ export function InteractiveDagCanvas({
             })}
           </g>
 
-          {/* Soft Links & Transitive Bypass Connections */}
-          <g className="dag-soft-edges">
-            {softEdges.map(edge => {
-              const strokeColor = edge.isTransitiveBypass
-                ? edge.isActive ? '#d97706' : '#cbd5e1'
-                : edge.isActive ? '#d97706' : '#f59e0b';
-              const strokeWidth = edge.isActive ? 2.2 : 1.1;
-              const opacity = edge.isDimmed ? 0.06 : edge.isActive ? 0.9 : 0.45;
-
+          {/* Derived Dependency Curves (Dashed Amber) */}
+          <g className="dag-derived-edges">
+            {derivedEdges.map(edge => {
               return (
                 <path
                   key={edge.id}
                   d={edge.d}
                   fill="none"
-                  stroke={strokeColor}
-                  strokeWidth={strokeWidth}
+                  stroke="#d97706"
+                  strokeWidth={edge.isHighlighted ? 2.2 : 1.3}
                   strokeDasharray="4,4"
-                  opacity={opacity}
+                  markerEnd="url(#arrow-derived-down)"
+                  opacity={edge.isDimmed ? 0.1 : 0.75}
                   style={{ transition: 'opacity 0.2s, stroke-width 0.2s' }}
                 >
-                  <title>{edge.relationship}</title>
+                  <title>Derived Dependency: indirect connection through intermediate lectures</title>
                 </path>
               );
             })}
@@ -884,64 +646,44 @@ export function InteractiveDagCanvas({
           <g className="dag-nodes">
             {Array.from(layoutMap.values()).map(layout => {
               const { node, x, y, width, height } = layout;
-              const isSelected = selectedNodeId === node.id;
+              const isFocal = node.id === focalId;
               const isHovered = hoveredNodeId === node.id;
-              const isAncestor = ancestorSet.has(node.id);
-              const isDescendant = descendantSet.has(node.id);
-              const isSoftLinked = softLinkSet.has(node.id);
+
+              const isDirectPrereq = focalNode?.prerequisites.includes(node.id);
+              const isDerivedPrereq = focalNode?.derivedPrerequisites.includes(node.id);
+              const isDirectUnlock = focalNode?.unlockedLectures.includes(node.id);
+              const isDerivedUnlock = focalNode?.derivedUnlocked.includes(node.id);
 
               const isCompleted = completedSet.has(node.id);
               const readiness = computeNodeReadiness(node.id, completedSet);
               const isReady = readiness.status === 'ready';
 
-              const isDimmed =
-                Boolean(activeFocusId) &&
-                !isSelected &&
-                !isHovered &&
-                !isAncestor &&
-                !isDescendant &&
-                !isSoftLinked;
-
               const topicColor = TOPIC_COLORS[node.topicNumber] || 'var(--accent)';
 
-              const borderColor = isSelected
+              const borderColor = isFocal
                 ? topicColor
-                : isAncestor
+                : isDirectPrereq
                 ? '#10b981'
-                : isDescendant
+                : isDirectUnlock
                 ? '#3b82f6'
-                : isSoftLinked
+                : isDerivedPrereq || isDerivedUnlock
                 ? '#d97706'
-                : isCompleted
-                ? '#a5c09e'
                 : 'var(--line)';
 
-              const borderWidth = isSelected ? 2.5 : isAncestor || isDescendant ? 2 : 1.2;
-
-              // Top prerequisites expand/collapse calculation
-              const hiddenPrereqs = node.prerequisites.filter(pId => !visibleNodeIds.has(pId));
-              const visiblePrereqs = node.prerequisites.filter(pId => visibleNodeIds.has(pId));
-              const hasPrereqs = node.prerequisites.length > 0;
-              const hasHiddenPrereqs = hiddenPrereqs.length > 0;
-
-              // Bottom unlocks expand/collapse calculation
-              const hiddenUnlocks = node.unlockedLectures.filter(uId => !visibleNodeIds.has(uId));
-              const visibleUnlocks = node.unlockedLectures.filter(uId => visibleNodeIds.has(uId));
-              const hasUnlocks = node.unlockedLectures.length > 0;
-              const hasHiddenUnlocks = hiddenUnlocks.length > 0;
+              const borderWidth = isFocal ? 3 : isDirectPrereq || isDirectUnlock ? 2 : 1.2;
 
               return (
                 <g
                   key={node.id}
                   className="dag-node-card"
                   transform={`translate(${x}, ${y})`}
-                  opacity={isDimmed ? 0.15 : 1}
                   style={{
                     cursor: 'pointer',
-                    transition: 'opacity 0.2s, transform 0.15s ease'
+                    transition: 'transform 0.15s ease'
                   }}
                   onClick={e => {
                     e.stopPropagation();
+                    // Clicking any node transitions focal 1-hop view to that node
                     onSelectNode(node.id);
                   }}
                   onMouseEnter={() => setHoveredNodeId(node.id)}
@@ -953,32 +695,60 @@ export function InteractiveDagCanvas({
                     height={height}
                     rx={10}
                     ry={10}
-                    fill={isSelected ? '#f4f8f2' : isCompleted ? '#fcfffa' : '#ffffff'}
+                    fill={isFocal ? '#f4f8f2' : isCompleted ? '#fcfffa' : '#ffffff'}
                     stroke={borderColor}
                     strokeWidth={borderWidth}
-                    filter={isSelected ? 'url(#glow-selected)' : undefined}
+                    strokeDasharray={isDerivedPrereq || isDerivedUnlock ? '4,3' : undefined}
+                    filter={isFocal ? 'url(#glow-focal)' : undefined}
                   />
 
-                  {/* Left Topic Indicator Color Bar (Color Distinguishes Topic) */}
+                  {/* Left Topic Indicator Color Bar */}
                   <rect
                     x={0}
                     y={0}
-                    width={5}
+                    width={6}
                     height={height}
-                    rx={2.5}
+                    rx={3}
                     fill={topicColor}
                   />
 
-                  {/* Top Header: Lecture Identifier Badge in Topic Color (No Topic or Rank Printed) */}
+                  {/* Top Header: Lecture Badge in Topic Color & Context Tag */}
                   <text
                     x={14}
                     y={21}
                     fontSize={11}
-                    fontWeight={750}
+                    fontWeight={800}
                     fill={topicColor}
                     letterSpacing="0.5px"
                   >
                     L{String(node.lectureNumber).padStart(2, '0')}
+                  </text>
+
+                  {/* Role Tag in 1-Hop context */}
+                  <text
+                    x={44}
+                    y={20.5}
+                    fontSize={9.5}
+                    fontWeight={700}
+                    fill={
+                      isFocal
+                        ? 'var(--accent)'
+                        : isDirectPrereq
+                        ? '#047857'
+                        : isDirectUnlock
+                        ? '#1d4ed8'
+                        : '#b45309'
+                    }
+                  >
+                    {isFocal
+                      ? '● FOCAL'
+                      : isDirectPrereq
+                      ? '▲ PREREQUISITE'
+                      : isDirectUnlock
+                      ? '▼ DIRECT UNLOCK'
+                      : isDerivedPrereq
+                      ? '▲ DERIVED PREREQ'
+                      : '▼ DERIVED UNLOCK'}
                   </text>
 
                   {/* Readiness Status Badge */}
@@ -996,117 +766,46 @@ export function InteractiveDagCanvas({
                   {/* Node Title */}
                   <text
                     x={14}
-                    y={39}
+                    y={40}
                     fontSize={12}
                     fontWeight={600}
                     fill="var(--ink)"
                     fontFamily="var(--serif)"
                   >
-                    {node.title.length > 24 ? `${node.title.slice(0, 23)}…` : node.title}
+                    {node.title.length > 25 ? `${node.title.slice(0, 24)}…` : node.title}
                   </text>
 
-                  {/* Subtitle: Direct Count Stats */}
+                  {/* Subtitle / Navigation Instruction */}
                   <text
                     x={14}
-                    y={56}
+                    y={58}
                     fontSize={9.5}
-                    fill="var(--muted)"
+                    fill={isFocal ? 'var(--ink)' : 'var(--muted)'}
                   >
-                    {node.prerequisites.length} prereq{node.prerequisites.length === 1 ? '' : 's'} ·{' '}
-                    {node.unlockedLectures.length} unlocks
+                    {isFocal
+                      ? `${node.prerequisites.length} direct prereq${node.prerequisites.length === 1 ? '' : 's'} · ${node.unlockedLectures.length} direct unlock${node.unlockedLectures.length === 1 ? '' : 's'}${node.derivedUnlocked.length > 0 ? ` (${node.derivedUnlocked.length} derived)` : ''}`
+                      : 'Click to shift 1-hop view to this lecture →'}
                   </text>
 
-                  {/* Soft Links Indicator badge if applicable */}
-                  {node.softLinks.length > 0 && (
-                    <g transform={`translate(${width - 24}, ${height - 24})`}>
-                      <circle cx={10} cy={10} r={6.5} fill="#fef3c7" stroke="#f59e0b" strokeWidth={1} />
-                      <text x={10} y={13} fontSize={8} fontWeight={700} textAnchor="middle" fill="#b45309">
-                        ~
-                      </text>
-                    </g>
-                  )}
+                  {/* Top Direct Port Marker */}
+                  <circle
+                    cx={width / 2}
+                    cy={0}
+                    r={3}
+                    fill={isDirectPrereq || isFocal ? '#10b981' : topicColor}
+                    stroke="#fff"
+                    strokeWidth={1}
+                  />
 
-                  {/* ======================================================== */}
-                  {/* TOP EXPAND / COLLAPSE PILL (Prerequisites Entering Port) */}
-                  {/* ======================================================== */}
-                  {hasPrereqs ? (
-                    <g
-                      className="dag-expand-pill-top"
-                      transform={`translate(${width / 2 - 42}, -9)`}
-                      onClick={e => handleTogglePrerequisites(node.id, e)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <rect
-                        width={84}
-                        height={18}
-                        rx={9}
-                        fill={hasHiddenPrereqs ? '#ecfdf5' : '#f1f5f9'}
-                        stroke={hasHiddenPrereqs ? '#10b981' : '#94a3b8'}
-                        strokeWidth={1.2}
-                      />
-                      <text
-                        x={42}
-                        y={12.5}
-                        fontSize={9.5}
-                        fontWeight={650}
-                        textAnchor="middle"
-                        fill={hasHiddenPrereqs ? '#047857' : '#475569'}
-                      >
-                        {hasHiddenPrereqs ? `▲ +${hiddenPrereqs.length} Prereqs` : `▲ Hide (${visiblePrereqs.length})`}
-                      </text>
-                    </g>
-                  ) : (
-                    /* Root / Axiom Bedrock Port Marker */
-                    <circle
-                      cx={width / 2}
-                      cy={0}
-                      r={3}
-                      fill={topicColor}
-                      stroke="#fff"
-                      strokeWidth={1}
-                    />
-                  )}
-
-                  {/* ======================================================== */}
-                  {/* BOTTOM EXPAND / COLLAPSE PILL (Unlocks Outgoing Port)     */}
-                  {/* ======================================================== */}
-                  {hasUnlocks ? (
-                    <g
-                      className="dag-expand-pill-bottom"
-                      transform={`translate(${width / 2 - 42}, ${height - 9})`}
-                      onClick={e => handleToggleUnlocks(node.id, e)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <rect
-                        width={84}
-                        height={18}
-                        rx={9}
-                        fill={hasHiddenUnlocks ? '#eff6ff' : '#f1f5f9'}
-                        stroke={hasHiddenUnlocks ? '#3b82f6' : '#94a3b8'}
-                        strokeWidth={1.2}
-                      />
-                      <text
-                        x={42}
-                        y={12.5}
-                        fontSize={9.5}
-                        fontWeight={650}
-                        textAnchor="middle"
-                        fill={hasHiddenUnlocks ? '#1d4ed8' : '#475569'}
-                      >
-                        {hasHiddenUnlocks ? `▼ +${hiddenUnlocks.length} Next` : `▼ Hide (${visibleUnlocks.length})`}
-                      </text>
-                    </g>
-                  ) : (
-                    /* Terminal Application Port Marker */
-                    <circle
-                      cx={width / 2}
-                      cy={height}
-                      r={3}
-                      fill="var(--line)"
-                      stroke="#fff"
-                      strokeWidth={1}
-                    />
-                  )}
+                  {/* Bottom Direct Port Marker */}
+                  <circle
+                    cx={width / 2}
+                    cy={height}
+                    r={3}
+                    fill={isDirectUnlock || isFocal ? '#3b82f6' : 'var(--line)'}
+                    stroke="#fff"
+                    strokeWidth={1}
+                  />
                 </g>
               );
             })}

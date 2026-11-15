@@ -111,7 +111,7 @@ export function LectureDagPanel({
 
       {/* Directly Unlocked */}
       {dagNode.unlockedLectures.length > 0 && (
-        <div style={{ marginBottom: dagNode.softLinks.length > 0 ? '12px' : 0 }}>
+        <div style={{ marginBottom: (dagNode.derivedUnlocked?.length || 0) > 0 || dagNode.softLinks.length > 0 ? '12px' : 0 }}>
           <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '6px' }}>
             DIRECTLY UNLOCKS ({dagNode.unlockedLectures.length}):
           </span>
@@ -143,6 +143,47 @@ export function LectureDagPanel({
             {dagNode.unlockedLectures.length > 6 && (
               <span style={{ fontSize: '10.5px', color: 'var(--muted)', alignSelf: 'center' }}>
                 +{dagNode.unlockedLectures.length - 6} more
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Derived Downstream Unlocks */}
+      {dagNode.derivedUnlocked && dagNode.derivedUnlocked.length > 0 && (
+        <div style={{ marginBottom: dagNode.softLinks.length > 0 ? '12px' : 0 }}>
+          <span style={{ fontSize: '10px', fontWeight: 600, color: '#b45309', display: 'block', marginBottom: '6px' }}>
+            DERIVED UNLOCKS (Transitive · {dagNode.derivedUnlocked.length}):
+          </span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {dagNode.derivedUnlocked.slice(0, 6).map((uId: string) => {
+              const uNode = dag.nodes.get(uId);
+              if (!uNode) return null;
+              return (
+                <Link
+                  key={uId}
+                  to={`/topics/${uNode.topicId}/${uNode.id}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    fontSize: '10.5px',
+                    background: '#fffbf0',
+                    border: '1px dashed #d97706',
+                    color: '#92400e',
+                    textDecoration: 'none'
+                  }}
+                  title="Indirectly enabled through intermediate lectures"
+                >
+                  <span>L{String(uNode.lectureNumber).padStart(2, '0')}: {uNode.title}</span>
+                </Link>
+              );
+            })}
+            {dagNode.derivedUnlocked.length > 6 && (
+              <span style={{ fontSize: '10.5px', color: 'var(--muted)', alignSelf: 'center' }}>
+                +{dagNode.derivedUnlocked.length - 6} more
               </span>
             )}
           </div>

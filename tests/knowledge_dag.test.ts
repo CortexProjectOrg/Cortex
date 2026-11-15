@@ -204,12 +204,19 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     expect(l02NowReady.missingPrereqs.length).toBe(0);
     expect(l02NowReady.percentReady).toBe(100);
 
-    // L03 requires both L01 and L02
+    // L03 requires L02 directly (and L01 derived via L02)
     const l03Partial = computeNodeReadiness('L03-finite-fields-gf2-gfp', completedAfterL01);
     expect(l03Partial.status).toBe('locked');
-    expect(l03Partial.completedPrereqs).toEqual(['L01-sets-maps-proofs']);
+    expect(l03Partial.completedPrereqs).toEqual([]);
     expect(l03Partial.missingPrereqs).toEqual(['L02-groups-modular-arithmetic']);
-    expect(l03Partial.percentReady).toBe(50);
+    expect(l03Partial.percentReady).toBe(0);
+
+    // Completing L02 unlocks L03
+    const completedAfterL02 = new Set(['L01-sets-maps-proofs', 'L02-groups-modular-arithmetic']);
+    const l03Ready = computeNodeReadiness('L03-finite-fields-gf2-gfp', completedAfterL02);
+    expect(l03Ready.status).toBe('ready');
+    expect(l03Ready.missingPrereqs.length).toBe(0);
+    expect(l03Ready.percentReady).toBe(100);
   });
 
   it('computes browsable topic-level ramifications (prerequisites, progression, and next topics)', () => {
@@ -235,7 +242,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     // Check L23: Symplectic-Clifford Isomorphism
     const l23Ramification = getLectureRamification('L23-symplectic-clifford-isomorphism', new Set(), dag);
     expect(l23Ramification).not.toBeNull();
-    expect(l23Ramification!.directPrerequisites.length).toBe(3); // L07, L18, L21
+    expect(l23Ramification!.directPrerequisites.length).toBe(2); // L07, L21 (L18 is derived via L21)
     expect(l23Ramification!.ancestorTiers.length).toBeGreaterThanOrEqual(2);
     expect(l23Ramification!.directUnlocked.length).toBeGreaterThanOrEqual(2); // L24, L26, etc.
     expect(l23Ramification!.softLinks.length).toBeGreaterThanOrEqual(1);
@@ -449,29 +456,33 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     });
 
     it('performs transitive reduction eliminating redundant bypass edges (A -> B -> C eliminates A -> C)', () => {
-      // In topic 1: L01 -> L02, L02 -> L03, and L01 is also direct prereq of L03
+      // In topic 1: L01 -> L02, L02 -> L03, and L01 was raw prereq of L03
       const l01 = dag.nodes.get('L01-sets-maps-proofs')!;
       const l02 = dag.nodes.get('L02-groups-modular-arithmetic')!;
       const l03 = dag.nodes.get('L03-finite-fields-gf2-gfp')!;
 
-      expect(l02.prerequisites).toContain('L01-sets-maps-proofs');
-      expect(l03.prerequisites).toContain('L01-sets-maps-proofs');
-      expect(l03.prerequisites).toContain('L02-groups-modular-arithmetic');
+      // Raw prerequisites contain both
+      expect(l03.rawPrerequisites).toContain('L01-sets-maps-proofs');
+      expect(l03.rawPrerequisites).toContain('L02-groups-modular-arithmetic');
+
+      // Direct prerequisites contain ONLY L02
+      expect(l03.prerequisites).toEqual(['L02-groups-modular-arithmetic']);
+
+      // Derived prerequisites contain L01
+      expect(l03.derivedPrerequisites).toEqual(['L01-sets-maps-proofs']);
+
+      // L01 direct unlocked contains ONLY L02
+      expect(l01.unlockedLectures).toEqual(['L02-groups-modular-arithmetic']);
+
+      // L01 derived unlocked contains L03, L04, L09
+      expect(l01.derivedUnlocked).toContain('L03-finite-fields-gf2-gfp');
+      expect(l01.derivedUnlocked).toContain('L04-vector-spaces-finite-fields');
+      expect(l01.derivedUnlocked).toContain('L09-complex-inner-products-hilbert');
 
       const visible = [l01, l02, l03];
       const tr = computeVisibleTransitiveReduction(visible, dag);
-
-      // L01 -> L03 must be detected as transitively redundant because L01 -> L02 -> L03 exists
-      expect(tr.redundantEdges.has('L01-sets-maps-proofs->L03-finite-fields-gf2-gfp')).toBe(true);
-
-      // Essential prerequisites for L03 should ONLY contain L02, NOT L01
-      const l03Essential = tr.essentialPrerequisites.get('L03-finite-fields-gf2-gfp')!;
-      expect(l03Essential).toContain('L02-groups-modular-arithmetic');
-      expect(l03Essential).not.toContain('L01-sets-maps-proofs');
-
-      // Essential prerequisites for L02 must contain L01
-      const l02Essential = tr.essentialPrerequisites.get('L02-groups-modular-arithmetic')!;
-      expect(l02Essential).toContain('L01-sets-maps-proofs');
+      expect(tr.essentialPrerequisites.get('L03-finite-fields-gf2-gfp')).toEqual(['L02-groups-modular-arithmetic']);
+      expect(tr.essentialPrerequisites.get('L02-groups-modular-arithmetic')).toEqual(['L01-sets-maps-proofs']);
     });
 
     it('prunes unrelated side branches to favour sparsity and clean linear spine', () => {

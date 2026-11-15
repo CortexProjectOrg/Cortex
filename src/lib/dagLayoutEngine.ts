@@ -605,13 +605,22 @@ export function pruneToActiveBranch(
 
 /**
  * Returns the 1-hop focal neighborhood: target + its direct prerequisites + direct unlocks.
+ * If includeDerived is true, also includes derived prerequisites and derived unlocks.
  */
-export function getOneHopNeighborhood(targetId: string, dag: KnowledgeDAG): Set<string> {
+export function getOneHopNeighborhood(
+  targetId: string,
+  dag: KnowledgeDAG,
+  includeDerived: boolean = false
+): Set<string> {
   const set = new Set<string>([targetId]);
   const node = dag.nodes.get(targetId);
   if (node) {
     node.prerequisites.forEach(p => set.add(p));
     node.unlockedLectures.forEach(u => set.add(u));
+    if (includeDerived) {
+      (node.derivedPrerequisites || []).forEach(p => set.add(p));
+      (node.derivedUnlocked || []).forEach(u => set.add(u));
+    }
   }
   return set;
 }

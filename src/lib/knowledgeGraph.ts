@@ -28,10 +28,13 @@ export interface GraphNode {
   packNumber: number;
   packSlot: number;
   question: string;
-  prerequisites: string[]; // Direct hard prerequisites
-  unlockedLectures: string[]; // Direct downstream lectures enabled by this
-  allPrerequisites: string[]; // Transitive ancestors (topological order)
-  allUnlocked: string[]; // Transitive descendants
+  prerequisites: string[]; // Direct hard prerequisites (structural predecessors)
+  unlockedLectures: string[]; // Direct downstream lectures (structural dependents)
+  derivedPrerequisites: string[]; // Derived prerequisites bypassed via intermediate lectures
+  derivedUnlocked: string[]; // Derived downstream unlocks bypassed via intermediate lectures
+  rawPrerequisites: string[]; // Raw declared prerequisites before reduction
+  allPrerequisites: string[]; // Complete transitive ancestors (topological order)
+  allUnlocked: string[]; // Complete transitive descendants
   softLinks: SoftLink[]; // Cross-field cross-contamination links
   inDegree: number;
   outDegree: number;
@@ -46,6 +49,8 @@ export interface KnowledgeDAG {
   isAcyclic: boolean;
   cycleNodes?: string[];
   totalPrerequisiteEdges: number;
+  totalDirectEdges: number;
+  totalDerivedEdges: number;
   totalSoftLinks: number;
 }
 
@@ -654,12 +659,18 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
 
   // Initialize nodes
   const nodeMap = new Map<string, GraphNode>();
-  const inDegreeMap = new Map<string, number>();
-  const adjacencyList = new Map<string, string[]>(); // u -> list of v (where u is prereq of v)
+  const rawPrereqsMap = new Map<string, string[]>();
+  const rawAdjacencyList = new Map<string, string[]>();
+  const rawInDegreeMap = new Map<string, number>();
+
+  let totalSoftLinks = 0;
 
   for (const lecture of lectures) {
     const topic = topicMap.get(lecture.topicId) || TOPICS[0];
     const depData = LECTURE_DEPENDENCIES[lecture.id] || { prereqs: [], softLinks: [] };
+    const rawPrereqs = [...depData.prereqs];
+    rawPrereqsMap.set(lecture.id, rawPrereqs);
+    totalSoftLinks += depData.softLinks.length;
 
     nodeMap.set(lecture.id, {
       id: lecture.id,
@@ -673,8 +684,11 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
       packNumber: lecture.packNumber || lecture.sundaySession || 1,
       packSlot: lecture.packSlot || lecture.sundaySlot || 1,
       question: lecture.question,
-      prerequisites: [...depData.prereqs],
-      unlockedLectures: [],
+      prerequisites: [], // populated with direct prerequisites below
+      unlockedLectures: [], // populated with direct unlocks below
+      derivedPrerequisites: [],
+      derivedUnlocked: [],
+      rawPrerequisites: rawPrereqs,
       allPrerequisites: [],
       allUnlocked: [],
       softLinks: [...depData.softLinks],
@@ -683,37 +697,24 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
       topologicalRank: 0
     });
 
-    inDegreeMap.set(lecture.id, 0);
-    adjacencyList.set(lecture.id, []);
+    rawInDegreeMap.set(lecture.id, 0);
+    rawAdjacencyList.set(lecture.id, []);
   }
 
-  // Populate edges & in-degrees
-  let totalPrerequisiteEdges = 0;
-  let totalSoftLinks = 0;
-
-  for (const [id, node] of nodeMap.entries()) {
-    totalSoftLinks += node.softLinks.length;
-    for (const prereqId of node.prerequisites) {
+  // Populate raw edges & in-degrees
+  for (const [id, rawPrereqs] of rawPrereqsMap.entries()) {
+    for (const prereqId of rawPrereqs) {
       if (nodeMap.has(prereqId)) {
-        adjacencyList.get(prereqId)!.push(id);
-        inDegreeMap.set(id, (inDegreeMap.get(id) || 0) + 1);
-        totalPrerequisiteEdges++;
+        rawAdjacencyList.get(prereqId)!.push(id);
+        rawInDegreeMap.set(id, (rawInDegreeMap.get(id) || 0) + 1);
       } else {
         console.warn(`Prerequisite '${prereqId}' not found in lectures for node '${id}'.`);
       }
     }
   }
 
-  // Populate direct unlockedLectures & inDegree/outDegree
-  for (const [id, node] of nodeMap.entries()) {
-    node.inDegree = inDegreeMap.get(id) || 0;
-    const directUnlocked = adjacencyList.get(id) || [];
-    node.unlockedLectures = [...directUnlocked];
-    node.outDegree = directUnlocked.length;
-  }
-
-  // Kahn's algorithm for topological sort and cycle detection
-  const currentInDegree = new Map<string, number>(inDegreeMap);
+  // Kahn's algorithm for topological sort and cycle detection on raw graph
+  const currentInDegree = new Map<string, number>(rawInDegreeMap);
   const queue: string[] = [];
 
   for (const [id, degree] of currentInDegree.entries()) {
@@ -728,7 +729,7 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
     const u = queue.shift()!;
     topologicalOrder.push(u);
 
-    for (const v of adjacencyList.get(u) || []) {
+    for (const v of rawAdjacencyList.get(u) || []) {
       const remainingDegree = (currentInDegree.get(v) || 0) - 1;
       currentInDegree.set(v, remainingDegree);
       if (remainingDegree === 0) {
@@ -742,7 +743,90 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
     ? undefined
     : lectures.map(l => l.id).filter(id => !topologicalOrder.includes(id));
 
-  // Compute topological rank (depth from root)
+  // Compute full transitive ancestors in topological order
+  const fullAncestorsMap = new Map<string, Set<string>>();
+  for (const id of topologicalOrder) {
+    const ancestors = new Set<string>();
+    const rawParents = rawPrereqsMap.get(id) || [];
+    for (const p of rawParents) {
+      ancestors.add(p);
+      const parentAncestors = fullAncestorsMap.get(p);
+      if (parentAncestors) {
+        parentAncestors.forEach(a => ancestors.add(a));
+      }
+    }
+    fullAncestorsMap.set(id, ancestors);
+  }
+
+  // Global Transitive Reduction: Classify raw dependencies as DIRECT or DERIVED
+  // A raw parent u of node v is DERIVED if there exists another raw parent w of v (w !== u)
+  // such that u is an ancestor of w (i.e. alternative path u -> ... -> w -> v exists).
+  // Otherwise, u is a strictly DIRECT prerequisite!
+  const directPrereqsMap = new Map<string, string[]>();
+  const derivedPrereqsMap = new Map<string, string[]>();
+
+  for (const id of topologicalOrder) {
+    const rawParents = rawPrereqsMap.get(id) || [];
+    const direct: string[] = [];
+    const derived: string[] = [];
+
+    for (const u of rawParents) {
+      let isDerived = false;
+      for (const w of rawParents) {
+        if (w !== u && fullAncestorsMap.get(w)?.has(u)) {
+          isDerived = true;
+          break;
+        }
+      }
+      if (isDerived) {
+        derived.push(u);
+      } else {
+        direct.push(u);
+      }
+    }
+
+    directPrereqsMap.set(id, direct);
+    derivedPrereqsMap.set(id, derived);
+  }
+
+  // Populate direct and derived unlocks across all nodes
+  const directUnlockedMap = new Map<string, string[]>();
+  const derivedUnlockedMap = new Map<string, string[]>();
+  for (const id of topologicalOrder) {
+    directUnlockedMap.set(id, []);
+    derivedUnlockedMap.set(id, []);
+  }
+
+  for (const id of topologicalOrder) {
+    for (const p of directPrereqsMap.get(id) || []) {
+      directUnlockedMap.get(p)?.push(id);
+    }
+    for (const p of derivedPrereqsMap.get(id) || []) {
+      derivedUnlockedMap.get(p)?.push(id);
+    }
+  }
+
+  let totalDirectEdges = 0;
+  let totalDerivedEdges = 0;
+
+  for (const [id, node] of nodeMap.entries()) {
+    const directPrereqs = directPrereqsMap.get(id) || [];
+    const derivedPrereqs = derivedPrereqsMap.get(id) || [];
+    const directUnlocked = directUnlockedMap.get(id) || [];
+    const derivedUnlocked = derivedUnlockedMap.get(id) || [];
+
+    node.prerequisites = directPrereqs;
+    node.derivedPrerequisites = derivedPrereqs;
+    node.unlockedLectures = directUnlocked;
+    node.derivedUnlocked = derivedUnlocked;
+    node.inDegree = directPrereqs.length;
+    node.outDegree = directUnlocked.length;
+
+    totalDirectEdges += directPrereqs.length;
+    totalDerivedEdges += derivedPrereqs.length;
+  }
+
+  // Compute topological rank (depth from root) based on direct prerequisites
   for (const id of topologicalOrder) {
     const node = nodeMap.get(id)!;
     if (node.prerequisites.length === 0) {
@@ -758,22 +842,13 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
   // Compute transitive ancestors (allPrerequisites) in topological order
   for (const id of topologicalOrder) {
     const node = nodeMap.get(id)!;
-    const ancestorSet = new Set<string>();
-
-    for (const p of node.prerequisites) {
-      ancestorSet.add(p);
-      const parentAncestors = nodeMap.get(p)?.allPrerequisites || [];
-      for (const a of parentAncestors) {
-        ancestorSet.add(a);
-      }
-    }
-    node.allPrerequisites = Array.from(ancestorSet).sort((a, b) => {
+    const ancestors = Array.from(fullAncestorsMap.get(id) || []);
+    node.allPrerequisites = ancestors.sort((a, b) => {
       return (nodeMap.get(a)?.topologicalRank ?? 0) - (nodeMap.get(b)?.topologicalRank ?? 0);
     });
   }
 
-  // Compute transitive descendants (allUnlocked)
-  // Traverse in reverse topological order
+  // Compute transitive descendants (allUnlocked) in reverse topological order
   for (let i = topologicalOrder.length - 1; i >= 0; i--) {
     const id = topologicalOrder[i];
     const node = nodeMap.get(id)!;
@@ -844,7 +919,9 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
     layers,
     isAcyclic,
     cycleNodes,
-    totalPrerequisiteEdges,
+    totalPrerequisiteEdges: totalDirectEdges,
+    totalDirectEdges,
+    totalDerivedEdges,
     totalSoftLinks
   };
 }
