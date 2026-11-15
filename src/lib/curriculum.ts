@@ -657,6 +657,8 @@ export const LECTURES_DATA: Record<string, Partial<Lecture>> = {
   }
 };
 
+import { FULL_LECTURES_RECORD } from './curriculumData';
+
 // Generates all 60 lectures systematically
 export function getAllLectures(): Lecture[] {
   const lectures: Lecture[] = [];
@@ -664,123 +666,58 @@ export function getAllLectures(): Lecture[] {
 
   for (const topic of TOPICS) {
     for (const lectureId of topic.lectureIds) {
-      const packNumber = Math.ceil(lectureCounter / 4);
-      const packSlot = ((lectureCounter - 1) % 4) + 1;
-      const custom = LECTURES_DATA[lectureId] || {};
+      const fullLecture = FULL_LECTURES_RECORD[lectureId];
+      if (fullLecture) {
+        lectures.push(fullLecture);
+      } else {
+        const packNumber = Math.ceil(lectureCounter / 4);
+        const packSlot = ((lectureCounter - 1) % 4) + 1;
+        const custom = LECTURES_DATA[lectureId] || {};
 
-      const title =
-        custom.title ||
-        lectureId
-          .replace(/^L\d+-/, '')
-          .replace(/-/g, ' ')
-          .replace(/\b\w/g, c => c.toUpperCase());
+        const title =
+          custom.title ||
+          lectureId
+            .replace(/^L\d+-/, '')
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase());
 
-      const subtitle = custom.subtitle || `Rigorous mathematical analysis and implementation of ${title.toLowerCase()}.`;
-      const question = custom.question || `What is the theoretical principle and implementation architecture of ${title}?`;
+        const subtitle = custom.subtitle || `Rigorous mathematical analysis and implementation of ${title.toLowerCase()}.`;
+        const question = custom.question || `What is the theoretical principle and implementation architecture of ${title}?`;
 
-      const defaultCitation: TheoreticalCitation = {
-        formulaName: `${title} Algebraic Form`,
-        expression: 'P_a P_b = (-1)^{\\omega(a, b)} P_b P_a, \\quad \\omega(a, b) = a_z \\cdot b_x - a_x \\cdot b_z \\pmod 2',
-        source: 'Hostens, Dehaene, De Moor, Phys. Rev. A 71, 042315 (2005)',
-        theoremOrEquation: 'Eq. (4) & Eq. (5): Symplectic product and Pauli commutation'
-      };
+        const defaultCitation: TheoreticalCitation = {
+          formulaName: `${title} Algebraic Form`,
+          expression: 'P_a P_b = (-1)^{\\omega(a, b)} P_b P_a, \\quad \\omega(a, b) = a_z \\cdot b_x - a_x \\cdot b_z \\pmod 2',
+          source: 'Hostens, Dehaene, De Moor, Phys. Rev. A 71, 042315 (2005)',
+          theoremOrEquation: 'Eq. (4) & Eq. (5): Symplectic product and Pauli commutation'
+        };
 
-      lectures.push({
-        id: lectureId,
-        topicId: topic.id,
-        lectureNumber: lectureCounter,
-        title,
-        subtitle,
-        durationMinutes: 60,
-        packNumber,
-        packSlot,
-        sundaySession: packNumber,
-        sundaySlot: packSlot,
-        question,
-        theoreticalCitations: custom.theoreticalCitations || [defaultCitation],
-        paperReferences: custom.paperReferences || [
-          {
-            title: 'Stabilizer states and Clifford operations for systems of arbitrary dimensions',
-            authors: 'E. Hostens, J. Dehaene, B. De Moor',
-            citation: 'Phys. Rev. A 71, 042315 (2005)',
-            arxivUrl: 'https://arxiv.org/abs/quant-ph/0408190',
-            relevantSections: 'Foundational framework for symplectic Clifford and Pauli algebra'
-          }
-        ],
-        codeReferences: custom.codeReferences || [
-          {
-            crate: 'quantum-core',
-            filePath: 'src/lib.rs',
-            symbols: ['quantum_core'],
-            purpose: 'Algebraic implementation'
-          }
-        ],
-        implementationChoices: custom.implementationChoices || [
-          'Zero-allocation memory layout in no_std systems',
-          'Bitwise vector representation for L1 cache locality and SIMD throughput'
-        ],
-        content: {
-          motivation: `Understanding **${title}** is fundamental for mastering how quantum programs, stabilizer codes, and many-body Hamiltonians are analyzed without exponential memory overhead.`,
-          theory: `### 1. Conceptual Foundation & Formula References
-
-In this lecture, we examine **${title}** from first principles.
-
-> **Theoretical Reference (Hostens et al., Phys. Rev. A 71, 042315 (2005), Eq. 2 & Eq. 4):**
-> Let $\\mathcal{H}$ be a finite-dimensional Hilbert space. When representing quantum operators $P \\in \\mathcal{P}_n$, the phase factor and the algebraic symplectic action decouple:
->
-> $$P = i^{\\tau} X^x Z^z, \\quad x, z \\in \\mathbb{F}_2^n, \\, \\tau \\in \\mathbb{Z}_4$$
-
-### 2. Symplectic Invariance & Commutation
-
-Two Pauli operators commute if and only if their standard alternating bilinear form (symplectic product) vanishes:
-
-> **Commutation Theorem (Aaronson & Gottesman, Phys. Rev. A 70, 052328 (2004), Lemma 1):**
-> $$\\omega(a, b) = a_z \\cdot b_x - a_x \\cdot b_z \\equiv 0 \\pmod 2$$
->
-> $$P_a P_b = (-1)^{\\omega(a, b)} P_b P_a$$
-
-This discrete geometric identity enables polynomial-time simulation of circuits that would otherwise demand $2^n \\times 2^n$ dense complex matrices.`,
-          workedExample: `#### Concrete Calculation Walkthrough
-
-Let $n = 2$ qubits. Consider $P_1 = X \\otimes Z$ and $P_2 = Z \\otimes X$.
-
-1. **Extract Symplectic Components:**
-   - For $P_1$: $x_1 = (1, 0)$, $z_1 = (0, 1)$
-   - For $P_2$: $x_2 = (0, 1)$, $z_2 = (1, 0)$
-
-2. **Compute the Symplectic Product $\\omega(P_1, P_2)$:**
-   $$\\omega(P_1, P_2) = (z_1 \\cdot x_2) - (x_1 \\cdot z_2) = (0\\cdot 0 + 1\\cdot 1) - (1\\cdot 1 + 0\\cdot 0) = 1 - 1 = 0 \\pmod 2$$
-
-3. **Conclusion:**
-   Because $\\omega(P_1, P_2) = 0$, $P_1$ and $P_2$ commute, sharing a simultaneous eigenbasis.`,
-          codeWalkthrough: `#### Production Systems Architecture
-
-Consider how this is implemented in high-performance computational systems:
-
-\`\`\`rust
-// Fast, branchless commutation check over 64-qubit packed bitboards
-#[inline(always)]
-pub fn commutes_with(&self, other: &Self) -> bool {
-    let cross1 = (self.z & other.x).count_ones();
-    let cross2 = (self.x & other.z).count_ones();
-    ((cross1 ^ cross2) & 1) == 0
-}
-\`\`\`
-
-Notice that floating-point operations and matrix allocations are replaced by integer bitwise XOR and hardware popcount instructions executing in a single CPU cycle.`,
-          exercise: `**Paper & Pencil Exercise:**
-1. Compute the symplectic product for $P_A = Y \\otimes I$ and $P_B = Z \\otimes Z$ by hand using $\\omega(a, b)$.
-2. Predict whether they commute or anticommute.
-3. Verify your result in the notes scratchpad on the right!`,
-          reflectionPrompts: [
-            'What is the core intuition in my own words?',
-            'Where does the phase factor belong in the binary tableau?',
-            'What computational bottleneck does this representation avoid?'
-          ]
-        },
-        prerequisites: lectureCounter > 1 ? [`L${String(lectureCounter - 1).padStart(2, '0')}`] : []
-      });
-
+        lectures.push({
+          id: lectureId,
+          topicId: topic.id,
+          lectureNumber: lectureCounter,
+          title,
+          subtitle,
+          durationMinutes: 60,
+          packNumber,
+          packSlot,
+          sundaySession: packNumber,
+          sundaySlot: packSlot,
+          question,
+          theoreticalCitations: custom.theoreticalCitations || [defaultCitation],
+          paperReferences: custom.paperReferences || [],
+          codeReferences: custom.codeReferences || [],
+          implementationChoices: custom.implementationChoices || [],
+          content: custom.content || {
+            motivation: `Understanding **${title}** is fundamental for mastering quantum computational systems.`,
+            theory: `### Theoretical Foundations of ${title}\n\nDetailed mathematical explanation of ${title}.`,
+            workedExample: `#### Worked Calculation\n\nStep-by-step example for ${title}.`,
+            codeWalkthrough: `#### Production Architecture\n\nHigh-performance implementation details for ${title}.`,
+            exercise: `**Exercise:**\n1. Analyze the core principles of ${title}.`,
+            reflectionPrompts: ['What is the core intuition in my own words?']
+          },
+          prerequisites: lectureCounter > 1 ? [`L${String(lectureCounter - 1).padStart(2, '0')}`] : []
+        });
+      }
       lectureCounter++;
     }
   }

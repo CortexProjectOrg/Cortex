@@ -38,7 +38,7 @@ export function LectureReader() {
   const lecture = (lectureId && LECTURE_MAP.get(lectureId)) || ALL_LECTURES[0];
   const topic = TOPICS.find(t => t.id === lecture.topicId) || TOPICS[0];
 
-  const [notesOpen, setNotesOpen] = useState(true); // Open by default for easy note-taking
+  const [notesOpen, setNotesOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth > 900);
   const [previewNotes, setPreviewNotes] = useState(false);
   const articleRef = useRef<HTMLElement>(null);
 
@@ -516,7 +516,13 @@ export function LectureReader() {
 
       {/* EASY-TO-TOGGLE STYLUS & PEN NOTE TAKER */}
       {notesOpen && (
-        <aside className="reading-notes" style={{ width: '450px', maxWidth: '92vw' }}>
+        <>
+          <div
+            className="sidebar-scrim notes-scrim"
+            onClick={() => setNotesOpen(false)}
+            aria-hidden="true"
+          />
+          <aside className="reading-notes" style={{ width: '450px', maxWidth: '92vw' }}>
           <div className="notes-panel-heading">
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -682,7 +688,8 @@ export function LectureReader() {
             </div>
           </div>
         </aside>
-      )}
-    </div>
-  );
+      </>
+    )}
+  </div>
+);
 }

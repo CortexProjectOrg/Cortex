@@ -52,7 +52,9 @@ export function DocumentInkOverlay({
 }: DocumentInkOverlayProps) {
   const [strokes, setStrokes] = useState<InkStroke[]>(() => deserializeInk(initialData));
   const [redoStack, setRedoStack] = useState<InkStroke[][]>([]);
-  const [tool, setTool] = useState<ToolMode>('pen');
+  const [tool, setTool] = useState<ToolMode>(() =>
+    typeof window !== 'undefined' && window.innerWidth <= 768 ? 'browse' : 'pen'
+  );
   const [penColor, setPenColor] = useState('#1e2822');
   const [highlighterColor, setHighlighterColor] = useState('#e0b200');
   const [penSize, setPenSize] = useState(3);
