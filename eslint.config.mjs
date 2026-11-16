@@ -1,0 +1,11 @@
+import parser from '@typescript-eslint/parser';
+import hooks from 'eslint-plugin-react-hooks';
+export default [
+  { ignores: ['dist/**', 'node_modules/**', 'src/generated/**'] },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    languageOptions: { parser },
+    plugins: { 'react-hooks': hooks },
+    rules: { 'react-hooks/rules-of-hooks': 'error', 'react-hooks/exhaustive-deps': 'error' }
+  }
+];

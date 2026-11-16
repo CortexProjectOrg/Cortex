@@ -1,178 +1,89 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { extractBearerToken, verifyGoogleToken } from '../api/lib/auth';
-import { emptyWorkspace, mergeWorkspace, type Note, type Workspace } from '../src/lib/model';
-
-describe('Security & Multi-Tenant Isolation', () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    vi.resetModules();
-    process.env = { ...originalEnv };
+import { emptyWorkspace, parseWorkspace } from '../shared/workspace';
+import { inkToSvgString } from '../src/lib/ink';
+const audience = 'ainotes.apps.googleusercontent.com';
+let pair: Awaited<ReturnType<typeof generateKeyPair>>;
+let keys: ReturnType<typeof createLocalJWKSet>;
+beforeAll(async () => {
+  pair = await generateKeyPair('RS256');
+  keys = createLocalJWKSet({ keys: [{ ...(await exportJWK(pair.publicKey)), kid: 'test' }] });
+});
+afterEach(() => vi.unstubAllEnvs());
+async function sign(overrides: Record<string, unknown> = {}) {
+  return new SignJWT({
+    sub: 'user-a',
+    aud: audience,
+    iss: 'https://accounts.google.com',
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iat: Math.floor(Date.now() / 1000),
+    email: 'a@example.com',
+    email_verified: true,
+    ...overrides
+  })
+    .setProtectedHeader({ alg: 'RS256', kid: 'test' })
+    .sign(pair.privateKey);
+}
+describe('Google signature and claim verification', () => {
+  it('verifies a signed token using trusted keys', async () => {
+    vi.stubEnv('GOOGLE_CLIENT_ID', audience);
+    expect((await verifyGoogleToken(await sign(), keys))?.uid).toBe('user-a');
   });
-
-  afterEach(() => {
-    process.env = originalEnv;
-    vi.restoreAllMocks();
+  it('fails closed without configured audience', async () => {
+    for (const key of ['GOOGLE_CLIENT_ID', 'GOOGLE_AUTH_CLIENT_API_KEY', 'VITE_GOOGLE_CLIENT_ID'])
+      vi.stubEnv(key, '');
+    expect(await verifyGoogleToken(await sign(), keys)).toBeNull();
   });
-
-  describe('Bearer Token Extraction & Header Sanitization', () => {
-    it('correctly extracts bearer tokens from Authorization header string', () => {
-      expect(extractBearerToken('Bearer abc.def.ghi')).toBe('abc.def.ghi');
-      expect(extractBearerToken('bearer abc.def.ghi')).toBe('abc.def.ghi');
-      expect(extractBearerToken('  Bearer   token123  ')).toBe('token123');
-    });
-
-    it('correctly extracts bearer tokens from header array', () => {
-      expect(extractBearerToken(['Bearer array.token.123'])).toBe('array.token.123');
-    });
-
-    it('rejects missing or malformed headers', () => {
-      expect(extractBearerToken(undefined)).toBeNull();
-      expect(extractBearerToken('')).toBeNull();
-      expect(extractBearerToken('Basic dXNlcjpwYXNz')).toBeNull();
-      expect(extractBearerToken('Token xyz')).toBeNull();
-      expect(extractBearerToken('Bearer')).toBeNull();
-    });
+  it.each([
+    { aud: 'another.apps.googleusercontent.com', azp: audience },
+    { iss: 'https://evil.example' },
+    { exp: 1 },
+    { exp: undefined },
+    { sub: '' },
+    { email_verified: false }
+  ])('rejects invalid claims %j', async (claims) => {
+    vi.stubEnv('GOOGLE_CLIENT_ID', audience);
+    expect(await verifyGoogleToken(await sign(claims), keys)).toBeNull();
   });
-
-  describe('Google Token Cryptographic Verification & Audience Enforcement', () => {
-    it('rejects empty or non-string tokens immediately without network requests', async () => {
-      expect(await verifyGoogleToken('')).toBeNull();
-      expect(await verifyGoogleToken(undefined as any)).toBeNull();
-    });
-
-    it('rejects tokens issued by untrusted issuers', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          iss: 'https://evil-hacker.com',
-          sub: 'attacker-123',
-          email: 'attacker@evil.com'
-        })
-      } as any);
-
-      const user = await verifyGoogleToken('fake.jwt.token');
-      expect(user).toBeNull();
-    });
-
-    it('rejects tokens with audience mismatch (preventing cross-client token reuse)', async () => {
-      process.env.GOOGLE_AUTH_CLIENT_API_KEY = 'official-ainotes-client-id.apps.googleusercontent.com';
-
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          iss: 'https://accounts.google.com',
-          aud: 'some-other-app-client-id.apps.googleusercontent.com',
-          azp: 'some-other-app-client-id.apps.googleusercontent.com',
-          sub: 'google-user-789',
-          email: 'scholar@gmail.com',
-          email_verified: 'true'
-        })
-      } as any);
-
-      const user = await verifyGoogleToken('stolen.from.another.app');
-      expect(user).toBeNull();
-    });
-
-    it('rejects expired tokens', async () => {
-      process.env.GOOGLE_AUTH_CLIENT_API_KEY = 'official-ainotes-client-id.apps.googleusercontent.com';
-
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          iss: 'accounts.google.com',
-          aud: 'official-ainotes-client-id.apps.googleusercontent.com',
-          sub: 'google-user-expired',
-          email: 'scholar@gmail.com',
-          email_verified: 'true',
-          exp: String(Math.floor(Date.now() / 1000) - 3600) // 1 hour ago
-        })
-      } as any);
-
-      const user = await verifyGoogleToken('expired.jwt.token');
-      expect(user).toBeNull();
-    });
-
-    it('rejects tokens without a verified email address', async () => {
-      process.env.GOOGLE_AUTH_CLIENT_API_KEY = 'official-ainotes-client-id.apps.googleusercontent.com';
-
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          iss: 'https://accounts.google.com',
-          aud: 'official-ainotes-client-id.apps.googleusercontent.com',
-          sub: 'unverified-user',
-          email: 'fake@spammer.com',
-          email_verified: 'false'
-        })
-      } as any);
-
-      const user = await verifyGoogleToken('unverified.jwt.token');
-      expect(user).toBeNull();
-    });
-
-    it('accepts authentic Google tokens with matching audience and verified claims', async () => {
-      process.env.GOOGLE_AUTH_CLIENT_API_KEY = 'official-ainotes-client-id.apps.googleusercontent.com';
-
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          iss: 'https://accounts.google.com',
-          aud: 'official-ainotes-client-id.apps.googleusercontent.com',
-          sub: '1098237461928374',
-          email: 'einstein@princeton.edu',
-          email_verified: 'true',
-          name: 'Albert Einstein',
-          picture: 'https://lh3.googleusercontent.com/photo.jpg',
-          exp: String(Math.floor(Date.now() / 1000) + 3600)
-        })
-      } as any);
-
-      const user = await verifyGoogleToken('valid.jwt.token');
-      expect(user).toBeDefined();
-      expect(user?.uid).toBe('1098237461928374');
-      expect(user?.email).toBe('einstein@princeton.edu');
-      expect(user?.name).toBe('Albert Einstein');
-    });
+  it('rejects a modified signature', async () => {
+    vi.stubEnv('GOOGLE_CLIENT_ID', audience);
+    const token = await sign();
+    const parts = token.split('.');
+    parts[2] = 'X' + parts[2].slice(1);
+    expect(await verifyGoogleToken(parts.join('.'), keys)).toBeNull();
   });
-
-  describe('Multi-Tenant Data Boundaries', () => {
-    it('ensures distinct user workspaces never leak data across tenants', () => {
-      const userA_Workspace: Workspace = {
-        ...emptyWorkspace(),
-        notes: [
-          {
-            id: 'secret-note-a',
-            title: "User A's Proprietary Derivation",
-            body: 'Confidential symplectic proof',
-            createdAt: '2026-11-15T12:00:00.000Z',
-            updatedAt: '2026-11-15T12:00:00.000Z'
-          }
-        ]
-      };
-
-      const userB_Workspace: Workspace = {
-        ...emptyWorkspace(),
-        notes: [
-          {
-            id: 'note-b',
-            title: "User B's Note",
-            body: 'Public exercise notes',
-            createdAt: '2026-11-15T13:00:00.000Z',
-            updatedAt: '2026-11-15T13:00:00.000Z'
-          }
-        ]
-      };
-
-      // Ensure that fresh workspace for User B contains zero information from User A
-      expect(userB_Workspace.notes.some(n => n.id === 'secret-note-a')).toBe(false);
-      expect(userB_Workspace.notes.some(n => n.title.includes('User A'))).toBe(false);
-
-      // Verify that logout resets state completely
-      const loggedOutWorkspace = emptyWorkspace();
-      expect(loggedOutWorkspace.notes).toEqual([]);
-      expect(loggedOutWorkspace.completedLectures).toEqual([]);
-      expect(loggedOutWorkspace.lectureProgress).toEqual({});
-    });
+  it('extracts only bearer credentials', () => {
+    expect(extractBearerToken('  Bearer token  ')).toBe('token');
+    expect(extractBearerToken(['bearer abc'])).toBe('abc');
+    for (const input of [undefined, '', 'Basic abc', 'Bearer', 'Bearer a b'])
+      expect(extractBearerToken(input)).toBeNull();
+  });
+});
+describe('untrusted workspace and drawing boundaries', () => {
+  it('rejects invalid dates, duplicate IDs, enums and malformed ink', () => {
+    const note = {
+      id: 'n',
+      title: 'Title',
+      body: '',
+      createdAt: '2026-11-16T10:00:00.000Z',
+      updatedAt: '2026-11-16T10:00:00.000Z'
+    };
+    expect(() =>
+      parseWorkspace({ ...emptyWorkspace(), notes: [{ ...note, updatedAt: 'broken' }] })
+    ).toThrow();
+    expect(() => parseWorkspace({ ...emptyWorkspace(), notes: [note, note] })).toThrow();
+    expect(() =>
+      parseWorkspace({ ...emptyWorkspace(), notes: [{ ...note, inkData: '{"strokes":[{"id":"s"}]}' }] })
+    ).toThrow();
+    expect(() =>
+      parseWorkspace({ ...emptyWorkspace(), lectureProgress: { n: { status: 'mastered' } } })
+    ).toThrow();
+  });
+  it('rejects SVG attribute injection before exporting', () => {
+    expect(() =>
+      inkToSvgString([{ id: 's', points: [[0, 0, 0.5]], size: 2, color: 'red" onload="alert(1)' }])
+    ).toThrow();
+    expect(() => inkToSvgString([], Infinity)).toThrow();
   });
 });

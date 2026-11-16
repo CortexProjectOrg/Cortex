@@ -1,32 +1,30 @@
-import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
+  ArrowLeft,
+  ArrowUpRight,
+  BookOpen,
+  Download,
+  Edit3,
+  Eye,
+  FileText,
+  PenTool,
   Plus,
   Search,
-  BookOpen,
-  Trash2,
-  Download,
-  PenTool,
-  Check,
-  LoaderCircle,
-  Eye,
-  Edit3,
-  Cloud,
-  FileText,
-  ArrowRight,
-  ArrowUpRight
+  Trash2
 } from 'lucide-react';
-import { useWorkspace } from '../lib/workspace';
-import { makeNote, noteMarkdown, notePrompt, lectureRoute } from '../lib/model';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { LECTURE_MAP } from '../lib/curriculumCatalog';
 import type { Note } from '../lib/model';
+import { lectureRoute, makeNote, noteMarkdown, notePrompt } from '../lib/model';
+import { useWorkspace } from '../lib/workspace';
 import { InkCanvas } from './InkCanvas';
 import { MarkdownView } from './MarkdownView';
-import { LECTURE_MAP } from '../lib/curriculum';
+import { SaveStatus } from './ui/SaveStatus';
 
 export function NotebookView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data, update, saving, syncState } = useWorkspace();
+  const { data, update, syncState } = useWorkspace();
   const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'lectures' | 'scratchpad'>('all');
   const [activeTab, setActiveTab] = useState<'both' | 'ink' | 'text'>('both');
@@ -34,7 +32,7 @@ export function NotebookView() {
 
   const notes = [...data.notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
-  const filtered = notes.filter(n => {
+  const filtered = notes.filter((n) => {
     const matchesQuery = `${n.title} ${n.body}`.toLowerCase().includes(query.toLowerCase());
     if (!matchesQuery) return false;
     if (filterMode === 'lectures') return Boolean(n.lectureId);
@@ -42,12 +40,12 @@ export function NotebookView() {
     return true;
   });
 
-  const selectedNote = notes.find(n => n.id === id) || (!id ? filtered[0] : undefined);
+  const selectedNote = notes.find((n) => n.id === id) || (!id ? filtered[0] : undefined);
   const selectedLecture = selectedNote?.lectureId ? LECTURE_MAP.get(selectedNote.lectureId) : null;
 
   const createNewNote = () => {
-    const note = makeNote('General Scratchpad Note');
-    update(cur => ({
+    const note = makeNote('Untitled note');
+    update((cur) => ({
       ...cur,
       notes: [note, ...cur.notes]
     }));
@@ -56,9 +54,9 @@ export function NotebookView() {
 
   const editActiveNote = (patch: Partial<Note>) => {
     if (!selectedNote) return;
-    update(cur => ({
+    update((cur) => ({
       ...cur,
-      notes: cur.notes.map(n =>
+      notes: cur.notes.map((n) =>
         n.id === selectedNote.id ? { ...n, ...patch, updatedAt: new Date().toISOString() } : n
       )
     }));
@@ -67,9 +65,9 @@ export function NotebookView() {
   const deleteActiveNote = () => {
     if (!selectedNote) return;
     if (window.confirm(`Delete “${selectedNote.title || 'Untitled note'}”?`)) {
-      update(cur => ({
+      update((cur) => ({
         ...cur,
-        notes: cur.notes.filter(n => n.id !== selectedNote.id)
+        notes: cur.notes.filter((n) => n.id !== selectedNote.id)
       }));
       navigate('/notes');
     }
@@ -91,14 +89,10 @@ export function NotebookView() {
     <div className="page notebook">
       <div className="page-title-row">
         <div>
-          <span className="eyebrow">NOTES & DERIVATIONS</span>
           <h1>Notebook</h1>
-          <p>
-            Stylus sketches, equations, and reflections from lectures and scratchpad.
-          </p>
         </div>
         <button type="button" className="button primary" onClick={createNewNote}>
-          <Plus size={17} /> New Scratchpad Note
+          <Plus size={17} /> New note
         </button>
       </div>
 
@@ -107,14 +101,8 @@ export function NotebookView() {
         <div className="filter-tabs">
           {[
             ['all', `All Notes (${notes.length})`],
-            [
-              'lectures',
-              `Lecture Notes (${notes.filter(n => n.lectureId).length})`
-            ],
-            [
-              'scratchpad',
-              `General Notes (${notes.filter(n => !n.lectureId).length})`
-            ]
+            ['lectures', `Lecture Notes (${notes.filter((n) => n.lectureId).length})`],
+            ['scratchpad', `General Notes (${notes.filter((n) => !n.lectureId).length})`]
           ].map(([val, label]) => (
             <button
               key={val}
@@ -128,21 +116,24 @@ export function NotebookView() {
         </div>
       </div>
 
-      <div className="notebook-layout">
+      <div className={`notebook-layout ${id ? 'show-editor' : 'show-list'}`}>
         {/* Sidebar Notes List */}
         <aside className="note-list">
           <label className="search-field small" style={{ marginBottom: '12px' }}>
             <Search size={16} />
             <input
               aria-label="Search notes"
-              placeholder="Search derivations & formulas..."
+              placeholder="Search notes"
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
             />
           </label>
 
           <div className="note-list-items">
-            {filtered.map(note => {
+            {filtered.length === 0 && (
+              <p className="subtle">{notes.length ? 'No notes match these filters.' : 'No notes yet.'}</p>
+            )}
+            {filtered.map((note) => {
               const lec = note.lectureId ? LECTURE_MAP.get(note.lectureId) : null;
               const isSelected = selectedNote?.id === note.id;
 
@@ -168,7 +159,7 @@ export function NotebookView() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       {note.lectureInk && (
                         <span
-                          title="Contains direct fluid annotations on lecture text"
+                          title="Contains lecture annotations"
                           style={{
                             fontSize: '9px',
                             background: 'var(--soft)',
@@ -178,7 +169,7 @@ export function NotebookView() {
                             fontWeight: 600
                           }}
                         >
-                          Doc Ink
+                          Annotated
                         </span>
                       )}
                       {note.inkData && <PenTool size={11} style={{ color: 'var(--accent)' }} />}
@@ -201,31 +192,28 @@ export function NotebookView() {
                       <BookOpen size={10} /> {lec.title}
                     </div>
                   )}
-                  <p>{note.body.replace(/[#*`]/g, '').slice(0, 75) || 'Stylus drawing & notes...'}</p>
+                  <p>{note.body.replace(/[#*`]/g, '').slice(0, 75) || 'Empty note'}</p>
                 </Link>
               );
             })}
-            {filtered.length === 0 && (
-              <p className="subtle" style={{ padding: '16px', textAlign: 'center' }}>
-                No matching notes found.
-              </p>
-            )}
           </div>
         </aside>
 
         {/* Note Editor Area */}
         <div className="notebook-editor">
+          <Link className="text-link notebook-back" to="/notes">
+            <ArrowLeft size={16} /> All notes
+          </Link>
           {selectedNote ? (
             <div
+              className="note-editor-content"
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '16px',
                 height: '100%',
                 background: 'var(--surface)',
-                border: '1px solid var(--line)',
-                borderRadius: '9px',
-                padding: '24px'
+                borderRadius: '9px'
               }}
             >
               {/* Header / Toolbar */}
@@ -240,7 +228,7 @@ export function NotebookView() {
                   gap: '10px'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="note-editor-actions">
                   <div className="segmented">
                     <button
                       type="button"
@@ -255,7 +243,7 @@ export function NotebookView() {
                       onClick={() => setActiveTab('ink')}
                     >
                       <PenTool size={13} style={{ marginRight: '4px' }} />
-                      Pen Canvas
+                      Drawing
                     </button>
                     <button
                       type="button"
@@ -279,7 +267,7 @@ export function NotebookView() {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="note-editor-actions">
                   <span
                     style={{
                       fontSize: '11px',
@@ -289,19 +277,7 @@ export function NotebookView() {
                       color: syncState === 'synced' ? 'var(--accent)' : 'var(--muted)'
                     }}
                   >
-                    {saving ? (
-                      <>
-                        <LoaderCircle size={12} className="spin" /> Saving locally
-                      </>
-                    ) : syncState === 'synced' ? (
-                      <>
-                        <Cloud size={13} /> Synced to cloud
-                      </>
-                    ) : (
-                      <>
-                        <Check size={12} /> Saved locally
-                      </>
-                    )}
+                    <SaveStatus />
                   </span>
                   <button
                     type="button"
@@ -334,67 +310,17 @@ export function NotebookView() {
                   padding: '4px 0'
                 }}
                 value={selectedNote.title}
-                onChange={e => editActiveNote({ title: e.target.value })}
-                placeholder="Give this thought or derivation a title"
+                onChange={(e) => editActiveNote({ title: e.target.value })}
+                placeholder="Note title"
+                aria-label="Note title"
               />
 
-              {/* Associated Lecture Callout */}
               {selectedLecture && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    background: 'var(--soft)',
-                    border: '1px solid #dce2d2'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                    <BookOpen size={14} style={{ color: 'var(--accent)' }} />
-                    <span>
-                      Associated with Lecture:{' '}
-                      <strong>{selectedLecture.title}</strong> (Pack {selectedLecture.packNumber}, Slot {selectedLecture.packSlot})
-                    </span>
-                  </div>
-                  <Link
-                    to={lectureRoute(selectedLecture.topicId, selectedLecture.id)}
-                    className="text-link"
-                    style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}
-                  >
-                    Go to Lecture <ArrowUpRight size={12} />
-                  </Link>
-                </div>
-              )}
-
-              {/* Direct Lecture Inking Callout */}
-              {selectedNote.lectureInk && selectedLecture && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    background: '#f4f6ef',
-                    border: '1px solid #d5dfc9'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                    <PenTool size={14} style={{ color: 'var(--accent)' }} />
-                    <span>
-                      Fluid pen and highlighter annotations are active on this lecture.
-                    </span>
-                  </div>
-                  <Link
-                    to={lectureRoute(selectedLecture.topicId, selectedLecture.id)}
-                    className="button small primary"
-                    style={{ fontSize: '11px', padding: '4px 10px', minHeight: '28px', textDecoration: 'none' }}
-                  >
-                    View Annotated Lecture <ArrowRight size={12} />
-                  </Link>
-                </div>
+                <Link className="text-link" to={lectureRoute(selectedLecture.topicId, selectedLecture.id)}>
+                  {selectedLecture.title}
+                  {selectedNote.lectureInk ? ' · Annotated' : ''}
+                  <ArrowUpRight size={14} />
+                </Link>
               )}
 
               {/* Tablet Pen Drawing Canvas */}
@@ -408,11 +334,12 @@ export function NotebookView() {
                       letterSpacing: '0.8px'
                     }}
                   >
-                    PEN / STYLUS DRAWING SURFACE:
+                    Drawing
                   </div>
                   <InkCanvas
+                    key={selectedNote.id}
                     initialData={selectedNote.inkData}
-                    onChange={inkData => editActiveNote({ inkData })}
+                    onChange={(inkData) => editActiveNote({ inkData })}
                     minHeight={activeTab === 'ink' ? 520 : 340}
                   />
                 </div>
@@ -439,20 +366,18 @@ export function NotebookView() {
                       justifyContent: 'space-between'
                     }}
                   >
-                    <span>TYPED REFLECTIONS & LATEX EQUATIONS:</span>
+                    <span>Notes</span>
                     <button
                       type="button"
                       className="text-button"
                       style={{ fontSize: '11px' }}
                       onClick={() =>
                         editActiveNote({
-                          body: selectedNote.body
-                            ? `${selectedNote.body}\n\n${notePrompt}`
-                            : notePrompt
+                          body: selectedNote.body ? `${selectedNote.body}\n\n${notePrompt}` : notePrompt
                         })
                       }
                     >
-                      + Add Reflection Template
+                      Insert template
                     </button>
                   </div>
 
@@ -463,12 +388,10 @@ export function NotebookView() {
                         border: '1px solid var(--line)',
                         borderRadius: '6px',
                         minHeight: '180px',
-                        background: '#fff'
+                        background: 'var(--surface)'
                       }}
                     >
-                      <MarkdownView
-                        source={selectedNote.body || '_No written reflections yet._'}
-                      />
+                      <MarkdownView source={selectedNote.body || '_No written reflections yet._'} />
                     </div>
                   ) : (
                     <textarea
@@ -485,8 +408,9 @@ export function NotebookView() {
                         resize: 'vertical'
                       }}
                       value={selectedNote.body}
-                      onChange={e => editActiveNote({ body: e.target.value })}
-                      placeholder="Type formulas ($...$), notes, or open questions here..."
+                      onChange={(e) => editActiveNote({ body: e.target.value })}
+                      placeholder="Write a note…"
+                      aria-label="Note body"
                     />
                   )}
                 </div>
@@ -498,12 +422,12 @@ export function NotebookView() {
                 size={34}
                 style={{ color: 'var(--muted)', display: 'block', margin: '0 auto 12px' }}
               />
-              <h3>No note selected</h3>
+              <h3>{id ? 'Note not found' : 'No note selected'}</h3>
               <p style={{ color: 'var(--muted)', fontSize: '14px', margin: '8px 0 20px' }}>
-                Select a lecture note from the list or create a general scratchpad note.
+                Choose a note or create one to get started.
               </p>
               <button type="button" className="button primary" onClick={createNewNote}>
-                <Plus size={16} /> Create Scratchpad Note
+                <Plus size={16} /> New note
               </button>
             </div>
           )}

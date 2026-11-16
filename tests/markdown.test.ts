@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
 import { MarkdownView } from '../src/components/MarkdownView';
 import { MathFormula } from '../src/components/MathFormula';
 

@@ -1,14 +1,15 @@
-import React from 'react';
-import { FileText, ExternalLink } from 'lucide-react';
-import { resolvePaperUrls, type ResolvedPaper } from '../../lib/paperUtils';
+import { ExternalLink, FileText } from 'lucide-react';
 import type { PaperReference } from '../../lib/curriculum';
+import { resolvePaperUrls, type ResolvedPaper } from '../../lib/paperUtils';
 
 interface PrimaryLiteraturePanelProps {
+  legacyLayout?: boolean;
   paperReferences: PaperReference[];
   onOpenPaper: (paper: ResolvedPaper) => void;
 }
 
 export function PrimaryLiteraturePanel({
+  legacyLayout = false,
   paperReferences,
   onOpenPaper
 }: PrimaryLiteraturePanelProps) {
@@ -17,7 +18,7 @@ export function PrimaryLiteraturePanel({
   return (
     <section style={{ marginBottom: '36px' }}>
       <h2 style={{ fontFamily: 'var(--serif)', fontSize: '24px', marginBottom: '14px' }}>
-        5. Primary Literature & Research Papers
+        {legacyLayout ? '5. Primary Literature & Research Papers' : 'Reading'}
       </h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {paperReferences.map((p, i) => {
@@ -42,9 +43,7 @@ export function PrimaryLiteraturePanel({
                 }}
               >
                 <div style={{ flex: 1, minWidth: '240px' }}>
-                  <h4 style={{ fontSize: '15px', margin: '0 0 4px', fontWeight: 650 }}>
-                    {p.title}
-                  </h4>
+                  <h4 style={{ fontSize: '15px', margin: '0 0 4px', fontWeight: 650 }}>{p.title}</h4>
                   <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>
                     {p.authors} · <em>{p.citation}</em>
                   </div>

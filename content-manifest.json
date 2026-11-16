@@ -1,0 +1,22 @@
+[
+  "CODEBASE_MAP.md",
+  "GLOSSARY.md",
+  "PLAN.md",
+  "SOURCES.md",
+  "sessions/01-foundations/README.md",
+  "sessions/01-foundations/code-tour.md",
+  "sessions/01-foundations/exercises.md",
+  "sessions/01-foundations/theory.md",
+  "sessions/02-quantum-paulis/README.md",
+  "sessions/02-quantum-paulis/code-tour.md",
+  "sessions/02-quantum-paulis/exercises.md",
+  "sessions/02-quantum-paulis/theory.md",
+  "sessions/03-cliffords-stabilizers/README.md",
+  "sessions/03-cliffords-stabilizers/code-tour.md",
+  "sessions/03-cliffords-stabilizers/exercises.md",
+  "sessions/03-cliffords-stabilizers/theory.md",
+  "sessions/04-measurement-performance/README.md",
+  "sessions/04-measurement-performance/code-tour.md",
+  "sessions/04-measurement-performance/exercises.md",
+  "sessions/04-measurement-performance/theory.md"
+]

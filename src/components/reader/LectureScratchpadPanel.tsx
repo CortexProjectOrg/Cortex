@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import { ArrowRight, Edit3, Eye } from 'lucide-react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Edit3, Eye, Link2 } from 'lucide-react';
+import type { Note } from '../../lib/model';
 import { InkCanvas } from '../InkCanvas';
 import { MarkdownView } from '../MarkdownView';
-import type { Note } from '../../lib/model';
+import { SaveStatus } from '../ui/SaveStatus';
+import { useMediaQuery } from '../ui/useMediaQuery';
+import { useDrawerFocus } from '../ui/useDrawerFocus';
 
 interface LectureScratchpadPanelProps {
   notesOpen: boolean;
@@ -25,17 +28,17 @@ export function LectureScratchpadPanel({
   onUpdateActiveNote
 }: LectureScratchpadPanelProps) {
   const [previewNotes, setPreviewNotes] = useState(false);
+  const ref = useRef<HTMLElement>(null);
+  const overlay = useMediaQuery('(max-width: 1200px)');
+  useDrawerFocus(ref, notesOpen && overlay, onClose);
 
   if (!notesOpen) return null;
 
   return (
     <>
-      <div
-        className="sidebar-scrim notes-scrim"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="sidebar-scrim notes-scrim" onClick={onClose} aria-hidden="true" />
       <aside
+        ref={ref}
         className={`reading-notes ${isResizingNotes ? 'is-resizing' : ''}`}
         style={{ width: `${notesWidth}px`, maxWidth: '92vw', position: 'relative' }}
       >
@@ -47,27 +50,7 @@ export function LectureScratchpadPanel({
           aria-label="Resize notes panel"
         />
         <div className="notes-panel-heading">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="eyebrow">STYLUS & PEN SCRATCHPAD</span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  color: 'var(--accent)',
-                  background: 'var(--soft)',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px'
-                }}
-                title="This note is automatically associated with this lecture and saved in your Notebook"
-              >
-                <Link2 size={10} /> Auto-collected
-              </span>
-            </div>
-            <h3 style={{ fontSize: '18px', marginTop: '2px' }}>Test Your Understanding</h3>
-          </div>
+          <h3>Notes</h3>
           <button
             type="button"
             className="icon-button"
@@ -102,14 +85,13 @@ export function LectureScratchpadPanel({
                 alignItems: 'center'
               }}
             >
-              <span>PEN & STYLUS SURFACE:</span>
-              <span style={{ fontSize: '10px', color: 'var(--muted)' }}>
-                Pressure-sensitive ink
-              </span>
+              <span>Drawing</span>
+              <span style={{ fontSize: '10px', color: 'var(--muted)' }}></span>
             </div>
             <InkCanvas
+              key={activeNote.id}
               initialData={activeNote.inkData}
-              onChange={inkData => onUpdateActiveNote({ inkData })}
+              onChange={(inkData) => onUpdateActiveNote({ inkData })}
               minHeight={290}
             />
           </div>
@@ -128,7 +110,7 @@ export function LectureScratchpadPanel({
                 alignItems: 'center'
               }}
             >
-              <span>TYPED DERIVATIONS & REFLECTIONS:</span>
+              <span>Notes</span>
               <button
                 type="button"
                 onClick={() => setPreviewNotes(!previewNotes)}
@@ -148,7 +130,7 @@ export function LectureScratchpadPanel({
                 title="Toggle Math & Markdown Preview"
               >
                 {previewNotes ? <Edit3 size={11} /> : <Eye size={11} />}
-                <span>{previewNotes ? 'Edit' : 'Preview Math'}</span>
+                <span>{previewNotes ? 'Edit' : 'Preview'}</span>
               </button>
             </div>
 
@@ -166,14 +148,17 @@ export function LectureScratchpadPanel({
                   overflowX: 'auto'
                 }}
               >
-                <MarkdownView source={activeNote.body || '_No typed notes yet. Type LaTeX math using $...$._'} />
+                <MarkdownView
+                  source={activeNote.body || '_No typed notes yet. Type LaTeX math using $...$._'}
+                />
               </div>
             ) : (
               <textarea
                 className="note-body"
                 value={activeNote.body}
-                onChange={e => onUpdateActiveNote({ body: e.target.value })}
-                placeholder="Test your derivations, write notes ($...$), or record questions..."
+                onChange={(e) => onUpdateActiveNote({ body: e.target.value })}
+                placeholder="Write a note…"
+                aria-label="Lecture notes"
                 rows={5}
                 style={{
                   width: '100%',
@@ -199,14 +184,14 @@ export function LectureScratchpadPanel({
             }}
           >
             <Link
-              to={`/notes/${activeNote.id}`}
+              to={activeNote.id.startsWith('auto-') ? '/notes' : `/notes/${activeNote.id}`}
               className="text-link"
               style={{ fontSize: '11px' }}
             >
-              Open in Full Notebook <ArrowRight size={12} />
+              Notebook <ArrowRight size={12} />
             </Link>
             <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
-              Auto-saved & synced across devices
+              <SaveStatus />
             </span>
           </div>
         </div>

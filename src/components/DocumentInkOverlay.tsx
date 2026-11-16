@@ -1,16 +1,13 @@
-import React, { useRef, useState, useEffect } from 'react';
-import {
-  type InkStroke,
-  renderStrokeToPath,
-  CANONICAL_PAGE_GEOMETRY
-} from '../lib/ink';
-import { useInkState } from './ink/useInkState';
+import React, { useEffect, useRef, useState } from 'react';
+import { CANONICAL_PAGE_GEOMETRY, type InkStroke, renderStrokeToPath } from '../lib/ink';
 import { AnnotationToolbar } from './ink/AnnotationToolbar';
-import { TextAnnotationLayer } from './ink/TextAnnotationLayer';
 import { CanvasScrollControls } from './ink/CanvasScrollControls';
+import { TextAnnotationLayer } from './ink/TextAnnotationLayer';
+import { useInkState } from './ink/useInkState';
 
 interface DocumentInkOverlayProps {
   initialData?: string;
+  legacyLayout?: boolean;
   onChange?: (data: string) => void;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   onToggleSideNotes?: () => void;
@@ -21,6 +18,7 @@ interface DocumentInkOverlayProps {
 
 export function DocumentInkOverlay({
   initialData,
+  legacyLayout = false,
   onChange,
   containerRef,
   onToggleSideNotes,
@@ -28,6 +26,22 @@ export function DocumentInkOverlay({
   sideNotesWidth = 450,
   children
 }: DocumentInkOverlayProps) {
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [fitPage, setFitPage] = useState(true);
+  const [pageScale, setPageScale] = useState(1);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const resize = () =>
+      setPageScale(
+        Math.min(1, Math.max(0.1, (el.clientWidth - 32) / CANONICAL_PAGE_GEOMETRY.canonicalWidth))
+      );
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const internalSheetRef = useRef<HTMLDivElement>(null);
   const activeSheetRef = containerRef || internalSheetRef;
 
@@ -39,7 +53,8 @@ export function DocumentInkOverlay({
   const {
     strokes,
     textAnnotations,
-    redoStack,
+    canUndo,
+    canRedo,
     tool,
     setTool,
     penColor,
@@ -69,8 +84,14 @@ export function DocumentInkOverlay({
     onChange,
     canonicalWidth: CANONICAL_PAGE_GEOMETRY.canonicalWidth,
     height: dimensions.height,
-    visualization: CANONICAL_PAGE_GEOMETRY
+    visualization: legacyLayout ? CANONICAL_PAGE_GEOMETRY : { ...CANONICAL_PAGE_GEOMETRY, version: 3 }
   });
+
+  useEffect(() => {
+    const sheet = activeSheetRef.current;
+    if (!sheet) return;
+    for (const detail of sheet.querySelectorAll('details')) detail.open = annotationMode;
+  }, [annotationMode, activeSheetRef]);
 
   // Track sheet height while preserving invariant canonical 960px width
   useEffect(() => {
@@ -100,31 +121,6 @@ export function DocumentInkOverlay({
     };
   }, [activeSheetRef]);
 
-  // FREEZE PAGE SCROLLING IN DRAWING MODE:
-  // When in Pen / Highlighter / Text / Eraser mode, prevent touchpad two-finger scroll and touchmove gestures
-  // so the page stays completely stable and precise while drawing.
-  useEffect(() => {
-    if (tool === 'browse') return;
-
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.cancelable) {
-        e.preventDefault();
-      }
-    };
-
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-
-    return () => {
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, [tool]);
-
   const handleScrollStep = (direction: 'up' | 'down') => {
     const step = Math.round(window.innerHeight * 0.65);
     window.scrollBy({
@@ -134,7 +130,14 @@ export function DocumentInkOverlay({
   };
 
   // Stylus, Pen & Touch pointer handlers mapped to canonical 960px coordinate space
+  const activePointer = useRef<number | null>(null);
+  const cancelPointer = () => {
+    activePointer.current = null;
+    setIsDrawing(false);
+    setCurrentStroke(null);
+  };
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (activePointer.current !== null) return;
     if (tool === 'browse' || tool === 'text' || !visible) return;
 
     if (palmRejection && e.pointerType === 'touch' && (e.nativeEvent as any).pointerType === 'touch') {
@@ -149,6 +152,7 @@ export function DocumentInkOverlay({
     const y = (e.clientY - rect.top) * scaleY;
     const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
 
+    activePointer.current = e.pointerId;
     svg.setPointerCapture(e.pointerId);
     setIsDrawing(true);
 
@@ -170,7 +174,7 @@ export function DocumentInkOverlay({
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!isDrawing) return;
+    if (!isDrawing || activePointer.current !== e.pointerId) return;
 
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
@@ -186,7 +190,7 @@ export function DocumentInkOverlay({
     }
 
     if (currentStroke) {
-      setCurrentStroke(prev =>
+      setCurrentStroke((prev) =>
         prev
           ? {
               ...prev,
@@ -198,14 +202,15 @@ export function DocumentInkOverlay({
   };
 
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!isDrawing) return;
+    if (!isDrawing || activePointer.current !== e.pointerId) return;
+    activePointer.current = null;
     setIsDrawing(false);
 
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
 
-    if (currentStroke && currentStroke.points.length > 1) {
+    if (currentStroke && currentStroke.points.length > 0) {
       addStroke(currentStroke);
     }
     setCurrentStroke(null);
@@ -225,19 +230,16 @@ export function DocumentInkOverlay({
           height: '100%',
           zIndex: 10,
           pointerEvents: tool === 'browse' || tool === 'text' ? 'none' : 'auto',
-          touchAction: tool === 'browse' || tool === 'text' ? 'auto' : 'none',
-          cursor:
-            tool === 'browse' || tool === 'text'
-              ? 'default'
-              : tool === 'eraser'
-                ? 'cell'
-                : 'crosshair'
+          touchAction: palmRejection || tool === 'browse' || tool === 'text' ? 'pan-y' : 'none',
+          cursor: tool === 'browse' || tool === 'text' ? 'default' : tool === 'eraser' ? 'cell' : 'crosshair'
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={cancelPointer}
+        onLostPointerCapture={cancelPointer}
       >
-        {strokes.map(stroke => {
+        {strokes.map((stroke) => {
           const d = renderStrokeToPath(stroke);
           const isHigh = stroke.isHighlighter;
           return (
@@ -269,9 +271,29 @@ export function DocumentInkOverlay({
 
   if (children) {
     return (
-      <div className="document-ink-container">
+      <div
+        className={`document-ink-container ${annotationMode ? 'annotation-mode' : 'reading-mode'} ${legacyLayout ? 'legacy-layout' : 'current-layout'}`}
+      >
+        <div className="reader-mode-control">
+          <button
+            type="button"
+            className="button small secondary"
+            aria-pressed={annotationMode}
+            onClick={() => {
+              setAnnotationMode((v) => !v);
+              setTool('browse');
+            }}
+          >
+            {annotationMode ? 'Read' : 'Annotate'}
+          </button>
+          {annotationMode && (
+            <button className="text-button" onClick={() => setFitPage((v) => !v)}>
+              {fitPage ? 'Actual size' : 'Fit page'}
+            </button>
+          )}
+        </div>
         {/* Sticky HUD decoupled from reading sheet */}
-        <div className="document-annotation-hud">
+        <div className="document-annotation-hud" hidden={!annotationMode}>
           <AnnotationToolbar
             tool={tool}
             setTool={setTool}
@@ -285,9 +307,9 @@ export function DocumentInkOverlay({
             setPalmRejection={setPalmRejection}
             visible={visible}
             setVisible={setVisible}
-            canUndo={strokes.length > 0}
+            canUndo={canUndo}
             onUndo={handleUndo}
-            canRedo={redoStack.length > 0}
+            canRedo={canRedo}
             onRedo={handleRedo}
             hasContent={strokes.length > 0 || textAnnotations.length > 0}
             onClear={handleClear}
@@ -297,12 +319,16 @@ export function DocumentInkOverlay({
         </div>
 
         {/* Canonical Academic Reading Sheet container: preserves 960px geometry and margin notes */}
-        <div className="reading-sheet-scroll-container">
-          <div className="reading-sheet" ref={activeSheetRef}>
+        <div className="reading-sheet-scroll-container" ref={scrollRef}>
+          <div
+            className="reading-sheet"
+            ref={activeSheetRef}
+            style={annotationMode && fitPage ? { zoom: pageScale } : undefined}
+          >
             {children}
 
             {/* Typed Text Annotations Layer (Page & Margin Notes) */}
-            {visible && (
+            {visible && annotationMode && (
               <TextAnnotationLayer
                 annotations={textAnnotations}
                 tool={tool}
@@ -315,11 +341,11 @@ export function DocumentInkOverlay({
             )}
 
             {/* Vector Ink Strokes SVG Layer */}
-            {renderSvgOverlay()}
+            {annotationMode && renderSvgOverlay()}
           </div>
         </div>
 
-        {tool !== 'browse' && (
+        {annotationMode && tool !== 'browse' && (
           <CanvasScrollControls
             sideNotesOpen={sideNotesOpen}
             sideNotesWidth={sideNotesWidth}
@@ -333,7 +359,7 @@ export function DocumentInkOverlay({
   // Standalone fallback
   return (
     <>
-      <div className="document-annotation-hud">
+      <div className="document-annotation-hud" hidden={!annotationMode}>
         <AnnotationToolbar
           tool={tool}
           setTool={setTool}
@@ -347,9 +373,9 @@ export function DocumentInkOverlay({
           setPalmRejection={setPalmRejection}
           visible={visible}
           setVisible={setVisible}
-          canUndo={strokes.length > 0}
+          canUndo={canUndo}
           onUndo={handleUndo}
-          canRedo={redoStack.length > 0}
+          canRedo={canRedo}
           onRedo={handleRedo}
           hasContent={strokes.length > 0 || textAnnotations.length > 0}
           onClear={handleClear}
@@ -358,7 +384,7 @@ export function DocumentInkOverlay({
         />
       </div>
       {renderSvgOverlay()}
-      {tool !== 'browse' && (
+      {annotationMode && tool !== 'browse' && (
         <CanvasScrollControls
           sideNotesOpen={sideNotesOpen}
           sideNotesWidth={sideNotesWidth}

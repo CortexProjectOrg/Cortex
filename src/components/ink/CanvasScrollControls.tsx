@@ -1,5 +1,4 @@
-import React from 'react';
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 
 interface CanvasScrollControlsProps {
   sideNotesOpen?: boolean;

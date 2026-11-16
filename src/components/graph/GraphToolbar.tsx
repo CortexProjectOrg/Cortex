@@ -1,6 +1,5 @@
-import React from 'react';
-import { Search, X, Layers, Network, Workflow, GitFork } from 'lucide-react';
-import { TOPICS } from '../../lib/curriculum';
+import { GitFork, Layers, Network, Search, Workflow, X } from 'lucide-react';
+import { TOPICS } from '../../lib/curriculumCatalog';
 
 export type ViewMode = 'hierarchical' | 'canvas' | 'ramifications' | 'stratified';
 export type StatusFilter = 'all' | 'ready' | 'completed' | 'locked';
@@ -36,6 +35,7 @@ export function GraphToolbar({
 }: GraphToolbarProps) {
   return (
     <div
+      className="graph-toolbar"
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--line)',
@@ -49,21 +49,29 @@ export function GraphToolbar({
         justifyContent: 'space-between'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 320px' }}>
+      <div className="graph-query">
         {/* Search Field */}
-        <div className="search-field small" style={{ flex: 1, minWidth: '220px' }}>
+        <div className="search-field small" style={{ flex: 1, minWidth: 0 }}>
           <Search size={15} />
           <input
             type="text"
-            placeholder="Search concepts, questions, or lecture titles..."
+            placeholder="Search lectures"
+            aria-label="Search knowledge map"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
           {searchQuery && (
             <button
               type="button"
+              aria-label="Clear search"
               onClick={() => setSearchQuery('')}
-              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--muted)', cursor: 'pointer' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: 'var(--muted)',
+                cursor: 'pointer'
+              }}
             >
               <X size={14} />
             </button>
@@ -72,8 +80,9 @@ export function GraphToolbar({
 
         {/* Topic Select */}
         <select
+          aria-label="Topic"
           value={topicFilter}
-          onChange={e => setTopicFilter(e.target.value)}
+          onChange={(e) => setTopicFilter(e.target.value)}
           style={{
             border: '1px solid var(--line)',
             background: 'var(--bg)',
@@ -83,8 +92,8 @@ export function GraphToolbar({
             color: 'var(--ink)'
           }}
         >
-          <option value="all">All 10 Topics</option>
-          {TOPICS.map(t => (
+          <option value="all">All topics</option>
+          {TOPICS.map((t) => (
             <option key={t.id} value={t.id}>
               Topic {t.number}: {t.title}
             </option>
@@ -99,10 +108,10 @@ export function GraphToolbar({
           [
             { key: 'all', label: `All (${totalNodes})` },
             { key: 'ready', label: `Ready (${stats.ready})` },
-            { key: 'completed', label: `Mastered (${stats.completed})` },
+            { key: 'completed', label: `Done (${stats.completed})` },
             { key: 'locked', label: `Locked (${stats.locked})` }
           ] as const
-        ).map(tab => (
+        ).map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -113,6 +122,7 @@ export function GraphToolbar({
               fontSize: '11px',
               borderRadius: '6px'
             }}
+            aria-pressed={statusFilter === tab.key}
             onClick={() => setStatusFilter(tab.key)}
           >
             {tab.label}
@@ -125,34 +135,38 @@ export function GraphToolbar({
         <button
           type="button"
           className={viewMode === 'hierarchical' ? 'selected' : ''}
+          aria-pressed={viewMode === 'hierarchical'}
           onClick={() => setViewMode('hierarchical')}
-          title="Scalable Topic DAG with Entering & Outgoing Connections and Expandable Nodes"
+          title="Browse by topic"
         >
-          <Layers size={14} /> Topic DAG (Expandable)
+          <Layers size={14} /> Topics
         </button>
         <button
           type="button"
           className={viewMode === 'canvas' ? 'selected' : ''}
+          aria-pressed={viewMode === 'canvas'}
           onClick={() => setViewMode('canvas')}
-          title="Real Interactive 2D DAG Graph Canvas"
+          title="Explore prerequisite connections"
         >
-          <Network size={14} /> 2D Graph Canvas
+          <Network size={14} /> Graph
         </button>
         <button
           type="button"
           className={viewMode === 'ramifications' ? 'selected' : ''}
+          aria-pressed={viewMode === 'ramifications'}
           onClick={() => setViewMode('ramifications')}
-          title="Topic & Lecture Ramification Explorer"
+          title="Prerequisites and next lectures"
         >
-          <Workflow size={14} /> Ramifications
+          <Workflow size={14} /> Connections
         </button>
         <button
           type="button"
           className={viewMode === 'stratified' ? 'selected' : ''}
+          aria-pressed={viewMode === 'stratified'}
           onClick={() => setViewMode('stratified')}
-          title="Stratified Layered DAG Tree"
+          title="Browse by prerequisite level"
         >
-          <GitFork size={14} /> Stratified Tiers
+          <GitFork size={14} /> Levels
         </button>
       </div>
     </div>

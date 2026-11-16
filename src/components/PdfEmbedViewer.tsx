@@ -1,18 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import {
-  FileText,
-  ExternalLink,
-  Download,
-  X,
-  Maximize2,
-  Minimize2,
-  RefreshCw,
-  Layers,
-  Globe,
-  AlertCircle
-} from 'lucide-react';
+import { ExternalLink, FileText, Globe, Maximize2, Minimize2, X } from 'lucide-react';
+import { useState } from 'react';
 import type { ResolvedPaper } from '../lib/paperUtils';
 import { getGoogleDocsViewerUrl } from '../lib/paperUtils';
+import { Modal } from './ui/Modal';
 
 interface PdfEmbedViewerProps {
   paper: ResolvedPaper;
@@ -20,25 +10,10 @@ interface PdfEmbedViewerProps {
   initialEngine?: 'native' | 'google';
 }
 
-export function PdfEmbedViewer({
-  paper,
-  onClose,
-  initialEngine = 'native'
-}: PdfEmbedViewerProps) {
+export function PdfEmbedViewer({ paper, onClose, initialEngine = 'native' }: PdfEmbedViewerProps) {
   const [engine, setEngine] = useState<'native' | 'google'>(initialEngine);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hasError, setHasError] = useState(false);
-
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   if (!paper.pdfUrl) return null;
 
@@ -48,29 +23,7 @@ export function PdfEmbedViewer({
       : getGoogleDocsViewerUrl(paper.pdfUrl);
 
   return (
-    <div
-      className="pdf-viewer-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="pdf-paper-title"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 500,
-        background: 'rgba(25, 35, 30, 0.72)',
-        backdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: isFullscreen ? '0' : '16px'
-      }}
-      onClick={e => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <Modal onClose={onClose} label={paper.title} className="pdf-modal">
       <div
         className="pdf-viewer-container"
         style={{
@@ -140,7 +93,7 @@ export function PdfEmbedViewer({
                     style={{
                       fontSize: '10px',
                       fontWeight: 700,
-                      background: '#e0e7d7',
+                      background: 'var(--soft)',
                       color: 'var(--accent, #3a5d49)',
                       padding: '2px 6px',
                       borderRadius: '4px',
@@ -274,7 +227,7 @@ export function PdfEmbedViewer({
           />
 
           {/* Discrete Fallback Helper Banner */}
-          {engine === 'native' && (
+          {hasError && (
             <div
               style={{
                 position: 'absolute',
@@ -295,28 +248,34 @@ export function PdfEmbedViewer({
                 pointerEvents: 'auto'
               }}
             >
-              <span>If your browser restricts embedding:</span>
+              <span>Could not load this PDF.</span>
               <button
                 type="button"
                 className="text-button"
                 onClick={() => setEngine('google')}
                 style={{ fontSize: '11px', color: 'var(--accent, #3a5d49)', fontWeight: 650 }}
               >
-                Switch to Google Viewer
+                Try another viewer
               </button>
               <span>·</span>
               <a
                 href={paper.pdfUrl}
                 target="_blank"
                 rel="noreferrer"
-                style={{ color: 'var(--accent, #3a5d49)', fontWeight: 650, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                style={{
+                  color: 'var(--accent, #3a5d49)',
+                  fontWeight: 650,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px'
+                }}
               >
-                Open Tab <ExternalLink size={10} />
+                Open in new tab <ExternalLink size={10} />
               </a>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

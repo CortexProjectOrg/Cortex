@@ -6,7 +6,7 @@ export interface NodeLayout {
   y: number;
   width: number;
   height: number;
-  inX: number;  // Top-center port (entering prerequisites)
+  inX: number; // Top-center port (entering prerequisites)
   inY: number;
   outX: number; // Bottom-center port (outgoing unlocks)
   outY: number;
@@ -66,22 +66,22 @@ export function computeVisibleTransitiveReduction(
   visibleNodes: GraphNode[],
   dag: KnowledgeDAG
 ): TransitiveReductionResult {
-  const visibleSet = new Set(visibleNodes.map(n => n.id));
+  const visibleSet = new Set(visibleNodes.map((n) => n.id));
   const essentialPrerequisites = new Map<string, string[]>();
   const redundantEdges = new Set<string>();
 
   // Map of direct visible prerequisites for each visible node
   const directVisiblePrereqs = new Map<string, string[]>();
-  visibleNodes.forEach(node => {
+  visibleNodes.forEach((node) => {
     directVisiblePrereqs.set(
       node.id,
-      node.prerequisites.filter(pId => visibleSet.has(pId))
+      node.prerequisites.filter((pId) => visibleSet.has(pId))
     );
   });
 
   // For each node v, check which of its parents u have an alternative path
   // to v through other visible nodes (i.e. u can reach some other parent w of v).
-  visibleNodes.forEach(targetNode => {
+  visibleNodes.forEach((targetNode) => {
     const parents = directVisiblePrereqs.get(targetNode.id) || [];
     if (parents.length <= 1) {
       essentialPrerequisites.set(targetNode.id, [...parents]);
@@ -91,7 +91,7 @@ export function computeVisibleTransitiveReduction(
     const parentsSet = new Set(parents);
     const essential: string[] = [];
 
-    parents.forEach(u => {
+    parents.forEach((u) => {
       let isRedundant = false;
       const visited = new Set<string>([u]);
       const queue = [u];
@@ -158,7 +158,7 @@ export function computeTopDownDagLayout(
     };
   }
 
-  const visibleSet = new Set(visibleNodes.map(n => n.id));
+  const visibleSet = new Set(visibleNodes.map((n) => n.id));
 
   // 1. Compute Transitive Reduction on visible nodes
   const tr = computeVisibleTransitiveReduction(visibleNodes, dag);
@@ -176,7 +176,7 @@ export function computeTopDownDagLayout(
 
     const node = dag.nodes.get(nodeId);
     // Use all visible prerequisites to guarantee strict monotonicity
-    const parents = node ? node.prerequisites.filter(pId => visibleSet.has(pId)) : [];
+    const parents = node ? node.prerequisites.filter((pId) => visibleSet.has(pId)) : [];
 
     let maxParentLvl = -1;
     for (const pId of parents) {
@@ -190,7 +190,7 @@ export function computeTopDownDagLayout(
   }
 
   const visitingSet = new Set<string>();
-  visibleNodes.forEach(node => {
+  visibleNodes.forEach((node) => {
     getNodeLevel(node.id, visitingSet);
   });
 
@@ -201,7 +201,7 @@ export function computeTopDownDagLayout(
     levelBuckets.set(i, []);
   }
 
-  visibleNodes.forEach(node => {
+  visibleNodes.forEach((node) => {
     const lvl = levelMap.get(node.id) ?? 0;
     levelBuckets.get(lvl)!.push(node);
   });
@@ -229,12 +229,12 @@ export function computeTopDownDagLayout(
       for (const node of nodes) {
         // Prefer essential structural parents for direct alignment
         const parents = essentialPrerequisites.get(node.id) || [];
-        const visibleParents = parents.length > 0
-          ? parents
-          : node.prerequisites.filter(pId => visibleSet.has(pId));
+        const visibleParents =
+          parents.length > 0 ? parents : node.prerequisites.filter((pId) => visibleSet.has(pId));
 
         if (visibleParents.length > 0) {
-          const avgX = visibleParents.reduce((sum, pId) => sum + (posX.get(pId) ?? 0), 0) / visibleParents.length;
+          const avgX =
+            visibleParents.reduce((sum, pId) => sum + (posX.get(pId) ?? 0), 0) / visibleParents.length;
           preferred.set(node.id, avgX);
         } else {
           preferred.set(node.id, 0);
@@ -264,9 +264,10 @@ export function computeTopDownDagLayout(
 
     const preferred = new Map<string, number>();
     for (const node of nodes) {
-      const visibleChildren = node.unlockedLectures.filter(cId => visibleSet.has(cId));
+      const visibleChildren = node.unlockedLectures.filter((cId) => visibleSet.has(cId));
       if (visibleChildren.length > 0) {
-        const childAvgX = visibleChildren.reduce((sum, cId) => sum + (posX.get(cId) ?? 0), 0) / visibleChildren.length;
+        const childAvgX =
+          visibleChildren.reduce((sum, cId) => sum + (posX.get(cId) ?? 0), 0) / visibleChildren.length;
         preferred.set(node.id, (posX.get(node.id)! + childAvgX) / 2);
       } else {
         preferred.set(node.id, posX.get(node.id)!);
@@ -293,12 +294,12 @@ export function computeTopDownDagLayout(
     const preferred = new Map<string, number>();
     for (const node of nodes) {
       const parents = essentialPrerequisites.get(node.id) || [];
-      const visibleParents = parents.length > 0
-        ? parents
-        : node.prerequisites.filter(pId => visibleSet.has(pId));
+      const visibleParents =
+        parents.length > 0 ? parents : node.prerequisites.filter((pId) => visibleSet.has(pId));
 
       if (visibleParents.length > 0) {
-        const parentAvgX = visibleParents.reduce((sum, pId) => sum + (posX.get(pId) ?? 0), 0) / visibleParents.length;
+        const parentAvgX =
+          visibleParents.reduce((sum, pId) => sum + (posX.get(pId) ?? 0), 0) / visibleParents.length;
         preferred.set(node.id, (posX.get(node.id)! + parentAvgX) / 2);
       } else {
         preferred.set(node.id, posX.get(node.id)!);
@@ -320,7 +321,7 @@ export function computeTopDownDagLayout(
   // 6. Centering of all levels
   let overallMinX = Infinity;
   let overallMaxX = -Infinity;
-  posX.forEach(x => {
+  posX.forEach((x) => {
     overallMinX = Math.min(overallMinX, x);
     overallMaxX = Math.max(overallMaxX, x + opts.nodeWidth);
   });
@@ -393,7 +394,7 @@ function placeAndResolveOverlaps(
   const currentX: number[] = [];
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    let targetX = preferred.get(node.id) ?? (posX.get(node.id) ?? 0);
+    let targetX = preferred.get(node.id) ?? posX.get(node.id) ?? 0;
     if (i > 0) {
       const prevX = currentX[i - 1];
       const prevNode = nodes[i - 1];
@@ -403,7 +404,7 @@ function placeAndResolveOverlaps(
       if (essentialPrereqs) {
         const currParents = new Set(essentialPrereqs.get(node.id) || []);
         const prevParents = essentialPrereqs.get(prevNode.id) || [];
-        shareParent = prevParents.some(p => currParents.has(p));
+        shareParent = prevParents.some((p) => currParents.has(p));
       }
 
       // Add extra branch gap between unrelated branches for visual sparsity
@@ -436,7 +437,7 @@ export function expandNodePrerequisites(
   const next = new Set(currentVisible);
   const target = dag.nodes.get(targetId);
   if (target) {
-    target.prerequisites.forEach(pId => next.add(pId));
+    target.prerequisites.forEach((pId) => next.add(pId));
   }
   return next;
 }
@@ -458,21 +459,19 @@ export function collapseNodePrerequisites(
   const targetPrereqsSet = new Set(target.prerequisites);
   const toRemove = new Set<string>();
 
-  target.prerequisites.forEach(pId => {
+  target.prerequisites.forEach((pId) => {
     if (protectedIds?.has(pId)) return;
     // Another dependent is visible if it is in `next`, not the target, and not one of the prereqs being collapsed
-    const otherVisibleDependent = dag.nodeList.some(n =>
-      n.id !== targetId &&
-      !targetPrereqsSet.has(n.id) &&
-      next.has(n.id) &&
-      n.prerequisites.includes(pId)
+    const otherVisibleDependent = dag.nodeList.some(
+      (n) =>
+        n.id !== targetId && !targetPrereqsSet.has(n.id) && next.has(n.id) && n.prerequisites.includes(pId)
     );
     if (!otherVisibleDependent) {
       toRemove.add(pId);
     }
   });
 
-  toRemove.forEach(id => next.delete(id));
+  toRemove.forEach((id) => next.delete(id));
   return next;
 }
 
@@ -487,7 +486,7 @@ export function expandNodeUnlocks(
   const next = new Set(currentVisible);
   const target = dag.nodes.get(targetId);
   if (target) {
-    target.unlockedLectures.forEach(uId => next.add(uId));
+    target.unlockedLectures.forEach((uId) => next.add(uId));
   }
   return next;
 }
@@ -509,21 +508,19 @@ export function collapseNodeUnlocks(
   const targetUnlocksSet = new Set(target.unlockedLectures);
   const toRemove = new Set<string>();
 
-  target.unlockedLectures.forEach(uId => {
+  target.unlockedLectures.forEach((uId) => {
     if (protectedIds?.has(uId)) return;
     // Another parent is visible if it is in `next`, not the target, and not one of the unlocks being collapsed
-    const otherVisibleParent = dag.nodeList.some(n =>
-      n.id !== targetId &&
-      !targetUnlocksSet.has(n.id) &&
-      next.has(n.id) &&
-      n.unlockedLectures.includes(uId)
+    const otherVisibleParent = dag.nodeList.some(
+      (n) =>
+        n.id !== targetId && !targetUnlocksSet.has(n.id) && next.has(n.id) && n.unlockedLectures.includes(uId)
     );
     if (!otherVisibleParent) {
       toRemove.add(uId);
     }
   });
 
-  toRemove.forEach(id => next.delete(id));
+  toRemove.forEach((id) => next.delete(id));
   return next;
 }
 
@@ -541,7 +538,7 @@ export function expandAllAncestors(
     const curId = queue.shift()!;
     const cur = dag.nodes.get(curId);
     if (!cur) continue;
-    cur.prerequisites.forEach(pId => {
+    cur.prerequisites.forEach((pId) => {
       if (!next.has(pId)) {
         next.add(pId);
         queue.push(pId);
@@ -565,7 +562,7 @@ export function expandAllDescendants(
     const curId = queue.shift()!;
     const cur = dag.nodes.get(curId);
     if (!cur) continue;
-    cur.unlockedLectures.forEach(uId => {
+    cur.unlockedLectures.forEach((uId) => {
       if (!next.has(uId)) {
         next.add(uId);
         queue.push(uId);
@@ -591,12 +588,12 @@ export function pruneToActiveBranch(
   const activeBranch = new Set<string>([targetId]);
 
   // Direct and transitive ancestors
-  targetNode.allPrerequisites.forEach(pId => {
+  targetNode.allPrerequisites.forEach((pId) => {
     if (currentVisible.has(pId)) activeBranch.add(pId);
   });
 
   // Direct and transitive descendants
-  targetNode.allUnlocked.forEach(uId => {
+  targetNode.allUnlocked.forEach((uId) => {
     if (currentVisible.has(uId)) activeBranch.add(uId);
   });
 
@@ -615,11 +612,11 @@ export function getOneHopNeighborhood(
   const set = new Set<string>([targetId]);
   const node = dag.nodes.get(targetId);
   if (node) {
-    node.prerequisites.forEach(p => set.add(p));
-    node.unlockedLectures.forEach(u => set.add(u));
+    node.prerequisites.forEach((p) => set.add(p));
+    node.unlockedLectures.forEach((u) => set.add(u));
     if (includeDerived) {
-      (node.derivedPrerequisites || []).forEach(p => set.add(p));
-      (node.derivedUnlocked || []).forEach(u => set.add(u));
+      (node.derivedPrerequisites || []).forEach((p) => set.add(p));
+      (node.derivedUnlocked || []).forEach((u) => set.add(u));
     }
   }
   return set;
@@ -630,7 +627,7 @@ export function getOneHopNeighborhood(
  */
 export function getBedrockRootNodeIds(dag: KnowledgeDAG): Set<string> {
   const set = new Set<string>();
-  dag.nodeList.forEach(node => {
+  dag.nodeList.forEach((node) => {
     if (node.prerequisites.length === 0) {
       set.add(node.id);
     }

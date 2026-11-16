@@ -6,3 +6,8 @@ public/apple-touch-icon.png
 public/pwa-192.png
 public/pwa-512.png
 *.local
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+coverage/

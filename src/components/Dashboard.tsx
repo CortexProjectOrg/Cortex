@@ -1,438 +1,75 @@
-import React from 'react';
+import { ArrowRight, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import {
-  Clock3,
-  BookOpen,
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  Calendar,
-  Compass,
-  PencilLine,
-  FolderOpen,
-  ChevronRight,
-  Sparkles,
-  Cloud,
-  Layers,
-  Package
-} from 'lucide-react';
+import { ALL_LECTURES, FOUR_HOUR_MASTERY_PATH, LECTURE_MAP } from '../lib/curriculumCatalog';
+import { lectureRoute } from '../lib/model';
+import { resumeLecture } from '../lib/progress';
 import { useWorkspace } from '../lib/workspace';
-import { useAuth } from '../lib/auth';
-import { TOPICS, FOUR_HOUR_MASTERY_PATH, ALL_LECTURES, LECTURE_MAP } from '../lib/curriculum';
-import { docRoute, lectureRoute } from '../lib/model';
-
 export function Dashboard() {
-  const { data, syncState } = useWorkspace();
-  const { user, loginWithGoogle } = useAuth();
-
-  const completedCount = data.completedLectures?.length || 0;
-  const totalLectures = ALL_LECTURES.length;
-  const currentPackNum = data.studyPlan?.currentWeek || 1;
-  const currentPack =
-    FOUR_HOUR_MASTERY_PATH.packs[currentPackNum - 1] || FOUR_HOUR_MASTERY_PATH.packs[0];
-
-  // Find next uncompleted lecture
-  const nextLectureId =
-    currentPack.lectureIds.find(id => !data.completedLectures?.includes(id)) ||
-    currentPack.lectureIds[0];
-  const nextLecture = LECTURE_MAP.get(nextLectureId) || ALL_LECTURES[0];
-
-  const recentNotes = [...data.notes]
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 3);
-
+  const { data } = useWorkspace();
+  const next = resumeLecture(data);
+  const pack =
+    FOUR_HOUR_MASTERY_PATH.packs[data.studyPlan.currentWeek - 1] || FOUR_HOUR_MASTERY_PATH.packs[0];
+  const recent = [...data.notes].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4);
+  const complete = data.completedLectures.length === ALL_LECTURES.length;
   return (
     <div className="page dashboard">
-      {/* Top Welcome / Auth Banner if not signed in */}
-      {!user && (
-        <div
-          style={{
-            background: 'var(--soft, #e9eee3)',
-            border: '1px solid var(--line, #e2e4da)',
-            borderRadius: '9px',
-            padding: '14px 20px',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            flexWrap: 'wrap'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Cloud size={18} style={{ color: 'var(--accent, #3a5d49)' }} />
-            <span style={{ fontSize: '13px', color: 'var(--ink, #28372e)' }}>
-              <strong>Sync across devices:</strong> Sign in with Google to synchronize your tablet
-              pen sketches, notes, and study progress with your PC.
-            </span>
-          </div>
-          <button
-            type="button"
-            className="button small primary"
-            onClick={loginWithGoogle}
-            style={{ fontSize: '11px', padding: '6px 14px', minHeight: '34px' }}
-          >
-            Sign in with Google
-          </button>
-        </div>
-      )}
-
-      {/* Hero Section */}
-      <section className="hero">
-        <div className="hero-copy">
-          <span className="eyebrow">SYMPLECTIC QUANTUM COMPUTING</span>
-          <h1>
-            Discrete Mathematics
-            <br />
-            <em>to Quantum Simulation</em>
-          </h1>
-          <p>
-            15 four-hour study packs covering finite fields, symplectic geometry, Clifford groups,
-            stabilizers, Lanczos eigensolvers, and Bayesian observable estimation.
-          </p>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <Link
-              className="button primary"
-              to={lectureRoute(nextLecture.topicId, nextLecture.id)}
-            >
-              Resume Pack {currentPackNum}: {nextLecture.title}
-              <ArrowRight size={17} />
-            </Link>
-            <Link className="button secondary" to="/path">
-              <Calendar size={15} />
-              15-Pack Syllabus
-            </Link>
-          </div>
-          <div className="hero-meta">
-            <span>
-              <Clock3 size={14} /> 4h per pack
-            </span>
-            <span>
-              <Layers size={14} /> 60 lectures
-            </span>
-            <span>
-              <BookOpen size={14} />
-              {completedCount} / {totalLectures} completed
-            </span>
-          </div>
-        </div>
-
-        {/* Matrix Art */}
-        <div className="matrix-art" aria-hidden="true">
-          <span className="art-orbit one" />
-          <span className="art-orbit two" />
-          <div className="matrix-paper">
-            <div className="matrix-eyebrow">SYMPLECTIC FORM ω</div>
-            <div className="matrix-equation">
-              <span className="math-letter">ω</span>
-              <span className="math-equals">=</span>
-              <span className="matrix-bracket">
-                <span>0</span>
-                <span>1</span>
-                <span>1</span>
-                <span>0</span>
-              </span>
-            </div>
-            <div className="matrix-caption">Commutation as discrete geometry.</div>
-          </div>
-          <span className="art-dot" />
-        </div>
-      </section>
-
-      {/* Current 4-Hour Pack Focus */}
-      <div className="journey-heading" style={{ marginTop: '36px' }}>
-        <div>
-          <span className="eyebrow">ACTIVE STUDY BLOCK: PACK {currentPackNum} OF 15</span>
-          <h2>{currentPack.title}</h2>
-          <p style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>
-            {currentPack.theme}
-          </p>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <span className="subtle progress-label">
-            {currentPack.lectureIds.filter(id => data.completedLectures?.includes(id)).length} of 4
-            lectures completed in this pack
-          </span>
-        </div>
+      <div className="page-title-row">
+        <h1>Dashboard</h1>
+        <span className="subtle">
+          {data.completedLectures.length}/{ALL_LECTURES.length} done
+        </span>
       </div>
-
-      {/* 4 Lecture Slots for this Pack */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '16px',
-          marginBottom: '36px'
-        }}
-      >
-        {currentPack.lectureIds.map((lId, idx) => {
-          const lec = LECTURE_MAP.get(lId);
-          if (!lec) return null;
-          const isDone = data.completedLectures?.includes(lId);
-          const isCurrent = lId === nextLecture.id;
-
+      <section className="continue-card">
+        <div>
+          <span className="subtle">
+            {complete ? 'All lectures complete' : `Pack ${next.packNumber} · Lecture ${next.lectureNumber}`}
+          </span>
+          <h2>{next.title}</h2>
+        </div>
+        <Link className="button primary" to={lectureRoute(next.topicId, next.id)}>
+          {complete ? 'Review' : data.lastRead ? 'Continue' : 'Start learning'}
+          <ArrowRight size={17} />
+        </Link>
+      </section>
+      <div className="section-title">
+        <h2>{pack.title}</h2>
+        <Link to="/path" className="text-link">
+          Study path <ArrowRight size={15} />
+        </Link>
+      </div>
+      <div className="lecture-list">
+        {pack.lectureIds.map((id) => {
+          const lecture = LECTURE_MAP.get(id)!;
           return (
-            <Link
-              key={lId}
-              to={lectureRoute(lec.topicId, lec.id)}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                padding: '20px',
-                borderRadius: '9px',
-                border: isCurrent
-                  ? '2px solid var(--accent, #3a5d49)'
-                  : '1px solid var(--line, #e2e4da)',
-                background: 'var(--surface, #fffefa)',
-                textDecoration: 'none',
-                color: 'inherit',
-                position: 'relative',
-                boxShadow: isCurrent ? '0 4px 14px rgba(58, 93, 73, 0.08)' : 'none',
-                transition: 'transform 0.15s ease'
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '10px'
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 650,
-                    letterSpacing: '1px',
-                    color: isDone ? 'var(--accent)' : 'var(--muted)'
-                  }}
-                >
-                  SLOT {idx + 1} · 60 MIN
-                </span>
-                {isDone ? (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '11px',
-                      color: 'var(--accent)',
-                      background: 'var(--soft)',
-                      padding: '2px 8px',
-                      borderRadius: '12px'
-                    }}
-                  >
-                    <Check size={12} /> Mastered
-                  </span>
-                ) : isCurrent ? (
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      color: '#b86e00',
-                      background: '#fff3db',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      fontWeight: 600
-                    }}
-                  >
-                    Up Next
-                  </span>
-                ) : null}
-              </div>
-
-              <h3
-                style={{
-                  fontSize: '17px',
-                  fontFamily: 'var(--serif)',
-                  lineHeight: '1.3',
-                  marginBottom: '8px'
-                }}
-              >
-                {lec.title}
-              </h3>
-              <p
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--muted)',
-                  lineHeight: '1.5',
-                  marginBottom: '14px',
-                  flex: 1
-                }}
-              >
-                {lec.question}
-              </p>
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '11px',
-                  color: 'var(--accent)',
-                  fontWeight: 550,
-                  marginTop: 'auto'
-                }}
-              >
-                <span>Study Lecture</span>
-                <ArrowRight size={13} />
-              </div>
+            <Link key={id} className="lecture-list-item" to={lectureRoute(lecture.topicId, id)}>
+              <span className="lecture-number">{lecture.lectureNumber}</span>
+              <strong>{lecture.title}</strong>
+              <span className="subtle">{data.completedLectures.includes(id) ? 'Done' : '60 min'}</span>
+              <ArrowRight size={16} />
             </Link>
           );
         })}
       </div>
-
-      {/* Main Grid: Topics Map & Reference Shelf */}
-      <div className="dashboard-columns">
-        {/* All 10 Topics */}
-        <div>
-          <div className="journey-heading" style={{ margin: '0 0 16px' }}>
-            <div>
-              <span className="eyebrow">COMPLETE KNOWLEDGE GRAPH</span>
-              <h2>All 10 Core Topics</h2>
-            </div>
-            <Link to="/topics" className="text-link" style={{ fontSize: '12px' }}>
-              View all topics <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
-            {TOPICS.map(topic => {
-              const completedInTopic = topic.lectureIds.filter(id =>
-                data.completedLectures?.includes(id)
-              ).length;
-              const totalInTopic = topic.lectureIds.length;
-              const isTopicDone = completedInTopic === totalInTopic && totalInTopic > 0;
-
-              return (
-                <Link
-                  key={topic.id}
-                  to={`/topics#${topic.id}`}
-                  className={`session-card ${topic.color}`}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <div className="session-number">
-                    {isTopicDone ? <Check size={23} /> : topic.symbol}
-                  </div>
-                  <div className="session-copy">
-                    <div className="session-kicker">
-                      TOPIC {topic.number}
-                      <span>
-                        {completedInTopic} of {totalInTopic} lectures mastered
-                      </span>
-                    </div>
-                    <h3>{topic.title}</h3>
-                    <p>{topic.description}</p>
-                    <div className="topic-tags">
-                      <span>{topic.subtitle}</span>
-                      <span>{totalInTopic} Hours</span>
-                    </div>
-                  </div>
-                  <ArrowUpRight size={20} className="session-arrow" />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Aside: Reference Shelf & Notes */}
-        <aside className="study-aside">
-          {/* Reference Shelf */}
-          <section className="aside-card shelf">
-            <div className="small-heading">
-              <FolderOpen size={17} />
-              <span>Reference Library</span>
-            </div>
-            <h3>Reference Material</h3>
-            <p>Mathematical definitions, primary papers, and implementation notes.</p>
-            <div className="shelf-links">
-              <Link to={docRoute('CODEBASE_MAP.md')}>
-                <span>Systems Architecture Map</span>
-                <ChevronRight size={16} />
-              </Link>
-              <Link to={docRoute('GLOSSARY.md')}>
-                <span>Symplectic Glossary</span>
-                <ChevronRight size={16} />
-              </Link>
-              <Link to={docRoute('SOURCES.md')}>
-                <span>Primary Literature Guide</span>
-                <ChevronRight size={16} />
-              </Link>
-              <Link to={docRoute('SETUP.md')}>
-                <span>Practice & Simulation Setup</span>
-                <ChevronRight size={16} />
-              </Link>
-            </div>
-          </section>
-
-          {/* Notebook reflection card */}
-          <section className="aside-card thought">
-            <PencilLine size={22} />
-            <h3>Notebook & Sketches</h3>
-            <p>
-              Review your stylus drawings, mathematical derivations, and notes from lectures.
-            </p>
-            <Link to="/notes" className="text-link">
-              Open notebook <ArrowRight size={15} />
-            </Link>
-          </section>
-        </aside>
+      <div className="section-title">
+        <h2>Recent notes</h2>
+        <Link className="text-link" to="/notes">
+          <Plus size={15} />
+          Notebook
+        </Link>
       </div>
-
-      {/* Recent Notes Section */}
-      {recentNotes.length > 0 && (
-        <section className="recent-notes" style={{ marginTop: '40px' }}>
-          <div className="section-title">
-            <h2>From your notebook</h2>
-            <Link to="/notes" className="text-link">
-              All {data.notes.length} notes <ArrowRight size={15} />
+      {recent.length ? (
+        <div className="note-preview-grid">
+          {recent.map((note) => (
+            <Link key={note.id} className="note-preview" to={`/notes/${note.id}`}>
+              <h3>{note.title || 'Untitled note'}</h3>
+              <p>
+                {note.body.replace(/[#*`]/g, '').slice(0, 120) || (note.inkData ? 'Drawing' : 'Empty note')}
+              </p>
             </Link>
-          </div>
-          <div className="note-preview-grid">
-            {recentNotes.map(n => (
-              <Link
-                to={`/notes/${n.id}`}
-                className="note-preview"
-                key={n.id}
-                style={{ textDecoration: 'none', color: 'inherit' }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px'
-                  }}
-                >
-                  <span className="eyebrow">
-                    {new Intl.DateTimeFormat(undefined, {
-                      month: 'short',
-                      day: 'numeric'
-                    }).format(new Date(n.updatedAt))}
-                  </span>
-                  {n.inkData && (
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        background: 'var(--soft)',
-                        color: 'var(--accent)',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontWeight: 600
-                      }}
-                    >
-                      Stylus Drawing Attached
-                    </span>
-                  )}
-                </div>
-                <h3>{n.title || 'Untitled Note'}</h3>
-                <p>
-                  {n.body.replace(/[#*`]/g, '').slice(0, 140) ||
-                    'An open reflection with your personal derivations.'}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
+          ))}
+        </div>
+      ) : (
+        <p className="subtle">Your notes will appear here.</p>
       )}
     </div>
   );

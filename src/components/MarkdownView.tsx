@@ -1,14 +1,13 @@
-import React from 'react';
+import { ArrowUpRight, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { Link } from 'react-router-dom';
+import rehypeKatex from 'rehype-katex';
+import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
-import rehypeSlug from 'rehype-slug';
-import rehypeKatex from 'rehype-katex';
-import { ArrowUpRight, FileText } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import type { StudyDocument } from '../lib/content';
-import { usePdfViewer } from '../lib/pdfViewerContext';
 import { resolvePaperUrls } from '../lib/paperUtils';
+import { usePdfViewer } from '../lib/pdfViewerContext';
 
 interface MarkdownViewProps {
   source: string;
@@ -44,7 +43,7 @@ export function MarkdownView({ source, doc, className = '' }: MarkdownViewProps)
               return (
                 <a
                   href={href}
-                  onClick={event => {
+                  onClick={(event) => {
                     event.preventDefault();
                     document
                       .getElementById(decodeURIComponent(href.slice(1)))
@@ -67,7 +66,7 @@ export function MarkdownView({ source, doc, className = '' }: MarkdownViewProps)
                     </a>
                     <button
                       type="button"
-                      onClick={e => {
+                      onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         openPaper(paper);

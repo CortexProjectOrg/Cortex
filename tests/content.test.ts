@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { cleanMarkdown, documentRoute, linkTarget } from '../scripts/content.mjs';
 
 describe('Content Processing & Markdown Pipeline', () => {
@@ -35,7 +35,9 @@ Check [the plan](PLAN.md) and equation $x^2 + y^2 = 1$.
   it('correctly classifies link targets', () => {
     const knownIds = new Set(['PLAN.md', 'sessions/01-foundations/theory.md', 'GLOSSARY.md']);
 
-    expect(linkTarget('sessions/01-foundations/README.md', 'https://arxiv.org/abs/quant-ph/0406196', knownIds)).toEqual({
+    expect(
+      linkTarget('sessions/01-foundations/README.md', 'https://arxiv.org/abs/quant-ph/0406196', knownIds)
+    ).toEqual({
       kind: 'external',
       href: 'https://arxiv.org/abs/quant-ph/0406196'
     });

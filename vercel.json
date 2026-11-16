@@ -4,9 +4,33 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "headers": [
-    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }, { "key": "Service-Worker-Allowed", "value": "/" }] },
-    { "source": "/manifest.webmanifest", "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }, { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
-    { "source": "/(.*)", "headers": [{ "key": "X-Content-Type-Options", "value": "nosniff" }, { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }, { "key": "X-Frame-Options", "value": "DENY" }] }
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "DENY" }
+      ]
+    }
   ],
-  "rewrites": [{ "source": "/((?!api/|assets/|sw\\.js|workbox-|registerSW|manifest\\.webmanifest|pwa-|apple-touch-icon|icon\\.svg).*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/((?!api/|assets/|sw\\.js|workbox-|registerSW|manifest\\.webmanifest|pwa-|apple-touch-icon|icon\\.svg).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

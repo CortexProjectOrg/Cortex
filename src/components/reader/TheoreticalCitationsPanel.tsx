@@ -1,15 +1,16 @@
-import React from 'react';
 import { BookOpen, FileText } from 'lucide-react';
-import { MathFormula } from '../MathFormula';
-import { resolvePaperUrls, type ResolvedPaper } from '../../lib/paperUtils';
 import type { TheoreticalCitation } from '../../lib/curriculum';
+import { resolvePaperUrls, type ResolvedPaper } from '../../lib/paperUtils';
+import { MathFormula } from '../MathFormula';
 
 interface TheoreticalCitationsPanelProps {
+  concise?: boolean;
   citations?: TheoreticalCitation[];
   onOpenPaper: (paper: ResolvedPaper) => void;
 }
 
 export function TheoreticalCitationsPanel({
+  concise = false,
   citations,
   onOpenPaper
 }: TheoreticalCitationsPanelProps) {
@@ -18,7 +19,7 @@ export function TheoreticalCitationsPanel({
   return (
     <div
       style={{
-        background: '#fff',
+        background: 'var(--surface)',
         border: '1px solid var(--line, #e2e4da)',
         borderRadius: '8px',
         padding: '18px 22px',
@@ -37,7 +38,7 @@ export function TheoreticalCitationsPanel({
           gap: '6px'
         }}
       >
-        <BookOpen size={14} /> THEORETICAL FORMULAS & PRIMARY CITATIONS
+        <BookOpen size={14} /> {concise ? 'Formulas' : 'THEORETICAL FORMULAS & PRIMARY CITATIONS'}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         {citations.map((cite, i) => {

@@ -1,36 +1,24 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { ALL_LECTURES } from '../src/lib/curriculum';
 import {
-  buildKnowledgeDAG,
-  getKnowledgeDAG,
-  computeNodeReadiness,
-  getTopicRamification,
-  getLectureRamification,
-  LECTURE_DEPENDENCIES,
-  type GraphNode
-} from '../src/lib/knowledgeGraph';
-import {
-  buildTopicMacroGraph,
-  findLearningPath,
-  queryLectures
-} from '../src/lib/knowledgeGraphQuery';
-import {
-  prepareGraphDatabasePayload,
-  CLIENT_GRAPH_VERSION
-} from '../src/lib/graphStore';
-import {
+  collapseNodePrerequisites,
+  collapseNodeUnlocks,
   computeTopDownDagLayout,
   computeVisibleTransitiveReduction,
-  pruneToActiveBranch,
-  expandNodePrerequisites,
-  collapseNodePrerequisites,
-  expandNodeUnlocks,
-  collapseNodeUnlocks,
   expandAllAncestors,
-  expandAllDescendants,
+  expandNodePrerequisites,
+  expandNodeUnlocks,
+  getBedrockRootNodeIds,
   getOneHopNeighborhood,
-  getBedrockRootNodeIds
+  pruneToActiveBranch
 } from '../src/lib/dagLayoutEngine';
-import { ALL_LECTURES } from '../src/lib/curriculum';
+import {
+  computeNodeReadiness,
+  getKnowledgeDAG,
+  getLectureRamification,
+  getTopicRamification
+} from '../src/lib/knowledgeGraph';
+import { buildTopicMacroGraph, findLearningPath } from '../src/lib/knowledgeGraphQuery';
 
 describe('Knowledge DAG & Dependency Tree Invariants', () => {
   const dag = getKnowledgeDAG();
@@ -40,7 +28,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     expect(dag.nodeList.length).toBe(60);
     expect(ALL_LECTURES.length).toBe(60);
 
-    ALL_LECTURES.forEach(l => {
+    ALL_LECTURES.forEach((l) => {
       expect(dag.nodes.has(l.id)).toBe(true);
       const node = dag.nodes.get(l.id)!;
       expect(node.lectureNumber).toBe(l.lectureNumber);
@@ -60,12 +48,11 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
   });
 
   it('ensures every prerequisite ID exists in the lecture registry (Referential Integrity)', () => {
-    dag.nodeList.forEach(node => {
-      node.prerequisites.forEach(prereqId => {
-        expect(
-          dag.nodes.has(prereqId),
-          `Node '${node.id}' has non-existent prerequisite '${prereqId}'`
-        ).toBe(true);
+    dag.nodeList.forEach((node) => {
+      node.prerequisites.forEach((prereqId) => {
+        expect(dag.nodes.has(prereqId), `Node '${node.id}' has non-existent prerequisite '${prereqId}'`).toBe(
+          true
+        );
 
         // Disallow self-loops
         expect(prereqId).not.toBe(node.id);
@@ -74,14 +61,14 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
   });
 
   it('enforces that foundational root concepts have in-degree 0 and terminal concepts build on them', () => {
-    const rootNodes = dag.nodeList.filter(n => n.inDegree === 0);
+    const rootNodes = dag.nodeList.filter((n) => n.inDegree === 0);
     expect(rootNodes.length).toBe(1);
     expect(rootNodes[0].id).toBe('L01-sets-maps-proofs');
     expect(rootNodes[0].topologicalRank).toBe(0);
 
     // All other 59 lectures must have at least one prerequisite
-    const nonRootNodes = dag.nodeList.filter(n => n.id !== 'L01-sets-maps-proofs');
-    nonRootNodes.forEach(node => {
+    const nonRootNodes = dag.nodeList.filter((n) => n.id !== 'L01-sets-maps-proofs');
+    nonRootNodes.forEach((node) => {
       expect(node.prerequisites.length).toBeGreaterThanOrEqual(1);
       expect(node.inDegree).toBeGreaterThanOrEqual(1);
       expect(node.topologicalRank).toBeGreaterThan(0);
@@ -94,9 +81,9 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
       topoIndexMap.set(id, index);
     });
 
-    dag.nodeList.forEach(node => {
+    dag.nodeList.forEach((node) => {
       const nodeIndex = topoIndexMap.get(node.id)!;
-      node.prerequisites.forEach(prereqId => {
+      node.prerequisites.forEach((prereqId) => {
         const prereqIndex = topoIndexMap.get(prereqId)!;
         expect(
           prereqIndex,
@@ -113,9 +100,9 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
   });
 
   it('verifies bidirectional consistency between prerequisites and unlockedLectures', () => {
-    dag.nodeList.forEach(node => {
+    dag.nodeList.forEach((node) => {
       // If P is a prerequisite of N, then N must be in P.unlockedLectures
-      node.prerequisites.forEach(pId => {
+      node.prerequisites.forEach((pId) => {
         const parentNode = dag.nodes.get(pId)!;
         expect(
           parentNode.unlockedLectures.includes(node.id),
@@ -124,7 +111,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
       });
 
       // If C is in N.unlockedLectures, then N must be in C.prerequisites
-      node.unlockedLectures.forEach(cId => {
+      node.unlockedLectures.forEach((cId) => {
         const childNode = dag.nodes.get(cId)!;
         expect(
           childNode.prerequisites.includes(node.id),
@@ -151,8 +138,8 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
   it('validates cross-disciplinary soft links (cross-field contamination)', () => {
     expect(dag.totalSoftLinks).toBeGreaterThanOrEqual(20);
 
-    dag.nodeList.forEach(node => {
-      node.softLinks.forEach(link => {
+    dag.nodeList.forEach((node) => {
+      node.softLinks.forEach((link) => {
         // Target must be a valid lecture ID
         expect(
           dag.nodes.has(link.targetId),
@@ -170,14 +157,12 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     // Check specific cross-field soft link examples
     const l06 = dag.nodes.get('L06-bilinear-symplectic-forms')!;
     const l06LinkToMatchgates = l06.softLinks.find(
-      s => s.targetId === 'L56-gaussian-states-matchgate-simulation'
+      (s) => s.targetId === 'L56-gaussian-states-matchgate-simulation'
     );
     expect(l06LinkToMatchgates).toBeDefined();
 
     const l23 = dag.nodes.get('L23-symplectic-clifford-isomorphism')!;
-    const l23LinkToQEC = l23.softLinks.find(
-      s => s.targetId === 'L57-qec-stabilizer-codes-automorphisms'
-    );
+    const l23LinkToQEC = l23.softLinks.find((s) => s.targetId === 'L57-qec-stabilizer-codes-automorphisms');
     expect(l23LinkToQEC).toBeDefined();
   });
 
@@ -231,10 +216,10 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     const topic4Ramification = getTopicRamification('clifford-operations', dag);
     expect(topic4Ramification).not.toBeNull();
     // Prerequisite topics should include pauli-group or math-foundations
-    const prereqTopicIds = topic4Ramification!.prerequisiteTopics.map(p => p.topic.id);
+    const prereqTopicIds = topic4Ramification!.prerequisiteTopics.map((p) => p.topic.id);
     expect(prereqTopicIds).toContain('pauli-group');
     // Next topics should include stabilizer-formalism or simulation-architecture
-    const nextTopicIds = topic4Ramification!.nextTopics.map(n => n.topic.id);
+    const nextTopicIds = topic4Ramification!.nextTopics.map((n) => n.topic.id);
     expect(nextTopicIds).toContain('stabilizer-formalism');
   });
 
@@ -302,29 +287,17 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     expect(backwardPath!.isReachable).toBe(false);
   });
 
-  it('prepares static graph database persistence payload for Neon PostgreSQL', () => {
-    const payload = prepareGraphDatabasePayload(dag);
-    expect(payload.version).toBe(CLIENT_GRAPH_VERSION);
-    expect(payload.topics.length).toBe(10);
-    expect(payload.lectures.length).toBe(60);
-    expect(payload.dependencies.length).toBeGreaterThanOrEqual(70);
-
-    // Verify hard prerequisites and soft links exist in database payload
-    const hardDeps = payload.dependencies.filter(d => d.edgeType === 'hard_prerequisite');
-    const softDeps = payload.dependencies.filter(d => d.edgeType === 'soft_link');
-    expect(hardDeps.length).toBe(dag.totalPrerequisiteEdges);
-    expect(softDeps.length).toBe(dag.totalSoftLinks);
-  });
-
   describe('Top-to-Bottom Sugiyama-Style DAG Layout Engine', () => {
     it('positions visible nodes strictly top-to-bottom with parents above children', () => {
-      const focalNode = dag.nodeList.find(n => n.prerequisites.length > 0 && n.unlockedLectures.length > 0)!;
+      const focalNode = dag.nodeList.find(
+        (n) => n.prerequisites.length > 0 && n.unlockedLectures.length > 0
+      )!;
       expect(focalNode).toBeDefined();
 
       const visibleNodes = [
-        ...focalNode.prerequisites.map(id => dag.nodes.get(id)!),
+        ...focalNode.prerequisites.map((id) => dag.nodes.get(id)!),
         focalNode,
-        ...focalNode.unlockedLectures.map(id => dag.nodes.get(id)!)
+        ...focalNode.unlockedLectures.map((id) => dag.nodes.get(id)!)
       ];
 
       const { layoutMap, bounds } = computeTopDownDagLayout(visibleNodes, dag);
@@ -336,7 +309,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
       expect(focalLayout).toBeDefined();
 
       // Prerequisite parents must be placed strictly ABOVE focal node (smaller Y)
-      focalNode.prerequisites.forEach(pId => {
+      focalNode.prerequisites.forEach((pId) => {
         const pLayout = layoutMap.get(pId);
         if (pLayout) {
           expect(pLayout.y).toBeLessThan(focalLayout.y);
@@ -345,7 +318,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
       });
 
       // Unlocked children must be placed strictly BELOW focal node (larger Y)
-      focalNode.unlockedLectures.forEach(uId => {
+      focalNode.unlockedLectures.forEach((uId) => {
         const uLayout = layoutMap.get(uId);
         if (uLayout) {
           expect(uLayout.y).toBeGreaterThan(focalLayout.y);
@@ -355,17 +328,17 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     });
 
     it('enforces collision resolution with zero overlaps between nodes on the same level', () => {
-      const topic1Nodes = dag.nodeList.filter(n => n.topicId === 'foundations-symplectic-clifford');
+      const topic1Nodes = dag.nodeList.filter((n) => n.topicId === 'foundations-symplectic-clifford');
       const { layoutMap } = computeTopDownDagLayout(topic1Nodes, dag);
 
       // Group by level
       const levelMap = new Map<number, typeof layoutMap extends Map<any, infer V> ? V[] : never>();
-      layoutMap.forEach(l => {
+      layoutMap.forEach((l) => {
         if (!levelMap.has(l.level)) levelMap.set(l.level, []);
         levelMap.get(l.level)!.push(l);
       });
 
-      levelMap.forEach(nodes => {
+      levelMap.forEach((nodes) => {
         nodes.sort((a, b) => a.x - b.x);
         for (let i = 0; i < nodes.length - 1; i++) {
           const current = nodes[i];
@@ -383,18 +356,20 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     });
 
     it('expands and collapses prerequisites with dependent preservation', () => {
-      const intermediate = dag.nodeList.find(n => n.prerequisites.length >= 2 && n.unlockedLectures.length > 0)!;
+      const intermediate = dag.nodeList.find(
+        (n) => n.prerequisites.length >= 2 && n.unlockedLectures.length > 0
+      )!;
       expect(intermediate).toBeDefined();
 
       const initial = new Set<string>([intermediate.id]);
       const expanded = expandNodePrerequisites(initial, intermediate.id, dag);
-      intermediate.prerequisites.forEach(pId => {
+      intermediate.prerequisites.forEach((pId) => {
         expect(expanded.has(pId)).toBe(true);
       });
 
       // Collapse prerequisites without protected nodes: should remove them
       const collapsed = collapseNodePrerequisites(expanded, intermediate.id, dag);
-      intermediate.prerequisites.forEach(pId => {
+      intermediate.prerequisites.forEach((pId) => {
         expect(collapsed.has(pId)).toBe(false);
       });
       expect(collapsed.has(intermediate.id)).toBe(true);
@@ -411,17 +386,17 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     });
 
     it('expands and collapses downstream unlocks correctly', () => {
-      const parent = dag.nodeList.find(n => n.unlockedLectures.length >= 2)!;
+      const parent = dag.nodeList.find((n) => n.unlockedLectures.length >= 2)!;
       expect(parent).toBeDefined();
 
       const initial = new Set<string>([parent.id]);
       const expanded = expandNodeUnlocks(initial, parent.id, dag);
-      parent.unlockedLectures.forEach(uId => {
+      parent.unlockedLectures.forEach((uId) => {
         expect(expanded.has(uId)).toBe(true);
       });
 
       const collapsed = collapseNodeUnlocks(expanded, parent.id, dag);
-      parent.unlockedLectures.forEach(uId => {
+      parent.unlockedLectures.forEach((uId) => {
         expect(collapsed.has(uId)).toBe(false);
       });
       expect(collapsed.has(parent.id)).toBe(true);
@@ -430,20 +405,20 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     it('computes 1-hop neighborhood and bedrock roots accurately', () => {
       const roots = getBedrockRootNodeIds(dag);
       expect(roots.size).toBeGreaterThan(0);
-      roots.forEach(rootId => {
+      roots.forEach((rootId) => {
         const node = dag.nodes.get(rootId)!;
         expect(node.prerequisites.length).toBe(0);
       });
 
-      const sample = dag.nodeList.find(n => n.prerequisites.length > 0 && n.unlockedLectures.length > 0)!;
+      const sample = dag.nodeList.find((n) => n.prerequisites.length > 0 && n.unlockedLectures.length > 0)!;
       const oneHop = getOneHopNeighborhood(sample.id, dag);
       expect(oneHop.has(sample.id)).toBe(true);
-      sample.prerequisites.forEach(p => expect(oneHop.has(p)).toBe(true));
-      sample.unlockedLectures.forEach(u => expect(oneHop.has(u)).toBe(true));
+      sample.prerequisites.forEach((p) => expect(oneHop.has(p)).toBe(true));
+      sample.unlockedLectures.forEach((u) => expect(oneHop.has(u)).toBe(true));
     });
 
     it('recursively traces all ancestors back to axioms', () => {
-      const deepNode = dag.nodeList.find(n => n.topologicalRank >= 4)!;
+      const deepNode = dag.nodeList.find((n) => n.topologicalRank >= 4)!;
       expect(deepNode).toBeDefined();
 
       const allAncestors = expandAllAncestors(new Set([deepNode.id]), deepNode.id, dag);
@@ -451,7 +426,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
 
       // At least one bedrock root must be reachable
       const roots = getBedrockRootNodeIds(dag);
-      const reachesRoot = Array.from(roots).some(rId => allAncestors.has(rId));
+      const reachesRoot = Array.from(roots).some((rId) => allAncestors.has(rId));
       expect(reachesRoot).toBe(true);
     });
 
@@ -481,8 +456,12 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
 
       const visible = [l01, l02, l03];
       const tr = computeVisibleTransitiveReduction(visible, dag);
-      expect(tr.essentialPrerequisites.get('L03-finite-fields-gf2-gfp')).toEqual(['L02-groups-modular-arithmetic']);
-      expect(tr.essentialPrerequisites.get('L02-groups-modular-arithmetic')).toEqual(['L01-sets-maps-proofs']);
+      expect(tr.essentialPrerequisites.get('L03-finite-fields-gf2-gfp')).toEqual([
+        'L02-groups-modular-arithmetic'
+      ]);
+      expect(tr.essentialPrerequisites.get('L02-groups-modular-arithmetic')).toEqual([
+        'L01-sets-maps-proofs'
+      ]);
     });
 
     it('prunes unrelated side branches to favour sparsity and clean linear spine', () => {
