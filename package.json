@@ -12,13 +12,14 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "pretest": "npm run content",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.tools.json --noEmit",
-    "check": "npm run content && npm run typecheck && npm run lint && npm run secrets:check && npm test && npm run build",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.tools.json --noEmit && tsc -p tsconfig.api.json --noEmit",
+    "check": "npm run content && npm run typecheck && npm run lint && npm run secrets:check && npm test && npm run test:runtime && npm run build",
     "db:migrate": "tsx scripts/migrate.ts",
     "format": "prettier --write src api shared tests scripts *.json *.ts *.mjs *.html .github",
     "format:check": "prettier --check src api shared tests scripts *.json *.ts *.mjs *.html .github",
     "lint": "eslint src",
-    "secrets:check": "node scripts/check-secrets.mjs"
+    "secrets:check": "node scripts/check-secrets.mjs",
+    "test:runtime": "node scripts/check-api-runtime.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.1",

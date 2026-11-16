@@ -1,3 +1,4 @@
+import { configuredClientId } from '../../shared/googleConfig.js';
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
 
 export interface GoogleUser {
@@ -9,16 +10,6 @@ export interface GoogleUser {
 const keys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'), {
   timeoutDuration: 5000
 });
-export function configuredClientId(): string {
-  return (
-    process.env.GOOGLE_CLIENT_ID ||
-    process.env.GOOGLE_AUTH_CLIENT_API_KEY ||
-    process.env.VITE_GOOGLE_CLIENT_ID ||
-    ''
-  )
-    .trim()
-    .replace(/^["']|["']$/g, '');
-}
 export async function verifyGoogleToken(
   token: string,
   keySet: JWTVerifyGetKey = keys

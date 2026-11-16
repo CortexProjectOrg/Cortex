@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { emptyWorkspace, MAX_WORKSPACE_BYTES, parseWorkspace } from '../shared/workspace';
-import { extractBearerToken, verifyGoogleToken } from './lib/auth';
-import { upsertUser } from './lib/db';
-import { allowRequest, type Request, type Response } from './lib/http';
-import { getUserData, saveUserData } from './lib/storage';
+import { emptyWorkspace, MAX_WORKSPACE_BYTES, parseWorkspace } from '../shared/workspace.js';
+import { extractBearerToken, verifyGoogleToken } from './lib/auth.js';
+import { upsertUser } from './lib/db.js';
+import { allowRequest, type Request, type Response } from './lib/http.js';
+import { getUserData, saveUserData } from './lib/storage.js';
 const requestSchema = z
   .object({
     protocol: z.literal(1),

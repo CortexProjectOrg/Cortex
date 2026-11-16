@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseInk } from './ink';
+import { parseInk } from './ink.js';
 
 export const MAX_WORKSPACE_BYTES = 3_500_000;
 const id = z

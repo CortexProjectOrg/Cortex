@@ -14,6 +14,7 @@ import { useAuth } from '../lib/auth';
 import { mergeWorkspace, validateWorkspace } from '../lib/model';
 import { useWorkspace } from '../lib/workspace';
 import { SaveStatus } from './ui/SaveStatus';
+import { GoogleSignInButton } from './ui/GoogleSignInButton';
 
 interface SettingsModalProps {
   open: boolean;
@@ -34,10 +35,9 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
   const { data, update, syncState, triggerSync, needsRecovery, recover } = useWorkspace();
-  const { user, loginWithGoogle, logout, authWarning, renderGoogleButton } = useAuth();
+  const { user, token, logout, authWarning } = useAuth();
 
   useEffect(() => {
     if (open && !dialogRef.current?.open) {
@@ -46,12 +46,6 @@ export function SettingsModal({
       dialogRef.current?.close();
     }
   }, [open]);
-
-  useEffect(() => {
-    if (open && !user && googleBtnContainerRef.current) {
-      renderGoogleButton(googleBtnContainerRef.current);
-    }
-  }, [open, user, renderGoogleButton]);
 
   const exportBackup = () => {
     const backup = {
@@ -189,15 +183,7 @@ export function SettingsModal({
                 Sign in to sync your notes. Local notes stay separate; use a backup to import them into your
                 account.
               </p>
-              <div ref={googleBtnContainerRef} style={{ marginBottom: '10px' }} />
-              <button
-                type="button"
-                className="button primary"
-                onClick={loginWithGoogle}
-                style={{ width: '100%' }}
-              >
-                Sign In with Google
-              </button>
+              <GoogleSignInButton />
               {authWarning ? (
                 <div
                   style={{
@@ -218,13 +204,11 @@ export function SettingsModal({
           )}
         </section>
 
-        {user && authWarning && (
-          <p role="status">
-            {authWarning}{' '}
-            <button type="button" className="text-button" onClick={loginWithGoogle}>
-              Sign in
-            </button>
-          </p>
+        {user && !token && (
+          <div>
+            <p role="status">{authWarning}</p>
+            <GoogleSignInButton />
+          </div>
         )}
         {/* Appearance */}
         <section className="settings-section">

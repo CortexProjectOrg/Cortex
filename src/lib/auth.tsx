@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { cleanClientId } from '../../shared/googleConfig';
+import { loadGoogleIdentity, type GoogleIdentity } from './googleIdentity';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 export interface UserProfile {
   uid: string;
@@ -12,30 +14,23 @@ interface AuthContextType {
   clientId: string | null;
   authWarning: string | null;
   isLoading: boolean;
-  loginWithGoogle: () => void;
+  signInState: 'loading' | 'ready' | 'error';
+  retrySignIn: () => void;
   logout: () => void;
   invalidateSession: () => void;
   renderGoogleButton: (element: HTMLElement) => void;
 }
-export function cleanClientId(id: string | null | undefined): string | null {
-  if (!id) return null;
-  const trimmed = id.trim().replace(/^["']|["']$/g, '');
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-export function inspectClientId(id: string | null | undefined): { isValid: boolean; warning?: string } {
-  const cleaned = cleanClientId(id);
-  const isValid =
-    !!cleaned && cleaned.endsWith('.apps.googleusercontent.com') && !cleaned.includes('placeholder');
-  return { isValid, warning: isValid ? undefined : 'Sign-in is unavailable.' };
-}
-
 const AuthContext = createContext<AuthContextType | null>(null);
 const SESSION_KEY = 'ainotes-session';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [clientId, setClientId] = useState(cleanClientId(import.meta.env.VITE_GOOGLE_CLIENT_ID));
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [signInState, setSignInState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [setupError, setSetupError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const identity = useRef<GoogleIdentity | null>(null);
+  const retrySignIn = useCallback(() => setRetry((value) => value + 1), []);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const generation = useRef(0);
@@ -78,15 +73,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    if (!clientId)
-      void fetch('/api/auth/config', { signal: controller.signal })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((v) => {
-          if (v?.clientId) setClientId(cleanClientId(v.clientId));
-        })
-        .catch(() => {});
+    identity.current = null;
+    setSignInState('loading');
+    setSetupError(null);
+    const setup = async () => {
+      try {
+        let configured: string | null = null;
+        try {
+          const response = await fetch('/api/auth/config', {
+            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)])
+          });
+          if (!response.ok) throw new Error('Sign-in configuration unavailable.');
+          configured = cleanClientId((await response.json()).clientId);
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          // Standalone Vite development can use the explicitly configured public build ID.
+          configured = cleanClientId(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+          if (!configured) throw error;
+        }
+        if (!configured) throw new Error('Google sign-in is not configured for this app.');
+        if (controller.signal.aborted) return;
+        setClientId(configured);
+        const google = await loadGoogleIdentity();
+        if (controller.signal.aborted) return;
+        google.initialize({
+          client_id: configured,
+          auto_select: false,
+          callback: (response) => {
+            if (response.credential) void acceptCredential(response.credential);
+          }
+        });
+        identity.current = google;
+        setSignInState('ready');
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setSetupError(
+          error instanceof Error && error.message.startsWith('Google sign-in')
+            ? error.message
+            : 'Google sign-in could not load. Check your connection and try again.'
+        );
+        setSignInState('error');
+      }
+    };
+    void setup();
     return () => controller.abort();
-  }, [clientId]);
+  }, [retry, acceptCredential]);
   useEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
@@ -117,49 +148,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       invalidateSession();
     }
   }, [token, invalidateSession]);
-  useEffect(() => {
-    if (!inspectClientId(clientId).isValid) return;
-    const initialize = () => {
-      const google = (window as any).google;
-      if (!google?.accounts?.id) return false;
-      google.accounts.id.initialize({
-        client_id: clientId,
-        auto_select: false,
-        callback: (response: { credential?: string }) => {
-          if (response.credential) void acceptCredential(response.credential);
-        }
-      });
-      return true;
-    };
-    if (initialize()) return;
-    const timer = setInterval(() => {
-      if (initialize()) clearInterval(timer);
-    }, 300);
-    return () => clearInterval(timer);
-  }, [clientId, acceptCredential]);
-  const loginWithGoogle = useCallback(() => {
-    const google = (window as any).google;
-    if (inspectClientId(clientId).isValid && google?.accounts?.id) google.accounts.id.prompt();
-    else setAuthError('Sign-in is unavailable. Please try again later.');
-  }, [clientId]);
   const renderGoogleButton = useCallback(
     (element: HTMLElement) => {
-      const google = (window as any).google;
-      if (element && inspectClientId(clientId).isValid && google?.accounts?.id) {
-        element.replaceChildren();
-        google.accounts.id.renderButton(element, {
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with',
-          shape: 'pill'
-        });
-      }
+      if (signInState !== 'ready' || !identity.current) return;
+      element.replaceChildren();
+      identity.current.renderButton(element, {
+        theme: 'outline',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'pill'
+      });
     },
-    [clientId]
+    [signInState]
   );
   const logout = useCallback(() => {
     generation.current++;
-    (window as any).google?.accounts?.id?.disableAutoSelect();
+    identity.current?.disableAutoSelect();
     try {
       sessionStorage.removeItem(SESSION_KEY);
     } catch {
@@ -179,9 +183,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         logout,
         invalidateSession,
-        loginWithGoogle,
+        signInState,
+        retrySignIn,
         renderGoogleButton,
-        authWarning: authError || inspectClientId(clientId).warning || null
+        authWarning: setupError || authError
       }}
     >
       {children}

@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from '../api/sync';
 import graph from '../api/graph';
+import configHandler from '../api/auth/config';
+import verifyHandler from '../api/auth/verify';
 import { emptyWorkspace } from '../shared/workspace';
 import type { Request, Response } from '../api/lib/http';
 import { verifyGoogleToken } from '../api/lib/auth';
@@ -82,5 +84,39 @@ describe('authenticated sync endpoint', () => {
     graph(request({ topics: [] }), res);
     expect(res.status).toHaveBeenCalledWith(410);
     expect(saveUserData).not.toHaveBeenCalled();
+  });
+});
+
+describe('auth api endpoints', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('serves the configured client id over GET and rejects other methods', () => {
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'test.apps.googleusercontent.com');
+    const res = response();
+    configHandler(request(undefined, 'GET'), res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ clientId: 'test.apps.googleusercontent.com' });
+
+    const postRes = response();
+    configHandler(request(undefined, 'POST'), postRes);
+    expect(postRes.status).toHaveBeenCalledWith(405);
+  });
+
+  it('verifies google tokens on POST and rejects unauthorized requests', async () => {
+    const res = response();
+    await verifyHandler(request(undefined, 'POST'), res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      user: { uid: 'verified-user', email: '', name: '', picture: '' }
+    });
+
+    vi.mocked(verifyGoogleToken).mockResolvedValueOnce(null);
+    const unauthRes = response();
+    await verifyHandler(request(undefined, 'POST'), unauthRes);
+    expect(unauthRes.status).toHaveBeenCalledWith(401);
+
+    const getRes = response();
+    await verifyHandler(request(undefined, 'GET'), getRes);
+    expect(getRes.status).toHaveBeenCalledWith(405);
   });
 });
