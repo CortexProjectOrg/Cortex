@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Edit3, Trash2, Check, X, MessageSquareQuote } from 'lucide-react';
+import { Check, Edit3, MessageSquareQuote, Trash2, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { TextAnnotation } from '../../lib/ink';
 
 interface TextAnnotationLayerProps {
@@ -53,7 +53,7 @@ export function TextAnnotationLayer({
     const rect = e.currentTarget.getBoundingClientRect();
     const scaleX = rect.width ? sheetWidth / rect.width : 1;
     const x = Math.round((e.clientX - rect.left) * scaleX);
-    const y = Math.round(e.clientY - rect.top);
+    const y = Math.round((e.clientY - rect.top) * scaleX);
 
     // Keep draft within reasonable sheet bounds
     const clampedX = Math.max(20, Math.min(x, sheetWidth - 220));
@@ -100,7 +100,7 @@ export function TextAnnotationLayer({
       onClick={handleContainerClick}
     >
       {/* Existing saved text annotations */}
-      {annotations.map(ann => {
+      {annotations.map((ann) => {
         const isEditing = editingId === ann.id;
         const isMargin = ann.x >= 660;
 
@@ -114,7 +114,7 @@ export function TextAnnotationLayer({
                 left: `${ann.x}px`,
                 top: `${ann.y}px`,
                 width: isMargin ? '210px' : '280px',
-                background: '#ffffff',
+                background: 'var(--surface)',
                 border: '1.5px solid var(--accent, #3a5d49)',
                 borderRadius: '8px',
                 padding: '8px',
@@ -122,13 +122,13 @@ export function TextAnnotationLayer({
                 pointerEvents: 'auto',
                 zIndex: 25
               }}
-              onClick={e => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
               <textarea
                 ref={editInputRef}
                 value={editText}
-                onChange={e => setEditText(e.target.value)}
-                onKeyDown={e => {
+                onChange={(e) => setEditText(e.target.value)}
+                onKeyDown={(e) => {
                   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
                     handleSaveEdit(ann.id);
@@ -193,7 +193,7 @@ export function TextAnnotationLayer({
               transition: 'transform 0.15s, box-shadow 0.15s',
               zIndex: 16
             }}
-            onClick={e => {
+            onClick={(e) => {
               e.stopPropagation();
               startEdit(ann);
             }}
@@ -236,7 +236,7 @@ export function TextAnnotationLayer({
                   className="icon-button small"
                   style={{ width: '20px', height: '20px', padding: 0 }}
                   title="Edit note"
-                  onClick={e => {
+                  onClick={(e) => {
                     e.stopPropagation();
                     startEdit(ann);
                   }}
@@ -248,7 +248,7 @@ export function TextAnnotationLayer({
                   className="icon-button small"
                   style={{ width: '20px', height: '20px', padding: 0 }}
                   title="Delete note"
-                  onClick={e => {
+                  onClick={(e) => {
                     e.stopPropagation();
                     onDeleteAnnotation(ann.id);
                   }}
@@ -270,7 +270,7 @@ export function TextAnnotationLayer({
             left: `${newDraft.x}px`,
             top: `${newDraft.y}px`,
             width: newDraft.x >= 660 ? '210px' : '280px',
-            background: '#ffffff',
+            background: 'var(--surface)',
             border: '2px solid var(--accent, #3a5d49)',
             borderRadius: '8px',
             padding: '10px',
@@ -278,7 +278,7 @@ export function TextAnnotationLayer({
             pointerEvents: 'auto',
             zIndex: 30
           }}
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <div
             style={{
@@ -300,8 +300,8 @@ export function TextAnnotationLayer({
                 : 'Type note over paragraph...'
             }
             value={newDraft.text}
-            onChange={e => setNewDraft({ ...newDraft, text: e.target.value })}
-            onKeyDown={e => {
+            onChange={(e) => setNewDraft({ ...newDraft, text: e.target.value })}
+            onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 handleSaveDraft();
@@ -322,7 +322,14 @@ export function TextAnnotationLayer({
               outline: 'none'
             }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '6px'
+            }}
+          >
             <span style={{ fontSize: '9px', color: 'var(--muted)' }}>Ctrl+Enter to save</span>
             <div style={{ display: 'flex', gap: '6px' }}>
               <button

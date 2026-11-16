@@ -1,21 +1,20 @@
-import React from 'react';
 import {
-  Pen,
-  Highlighter,
   Eraser,
-  Type,
-  Undo2,
-  Redo2,
-  Trash2,
   Eye,
   EyeOff,
+  Highlighter,
+  Lock,
   MousePointer,
-  PanelRightOpen,
   PanelRightClose,
+  PanelRightOpen,
+  Pen,
+  Redo2,
   ShieldCheck,
-  Lock
+  Trash2,
+  Type,
+  Undo2
 } from 'lucide-react';
-import { PEN_COLORS, HIGHLIGHTER_COLORS } from '../../lib/ink';
+import { HIGHLIGHTER_COLORS, PEN_COLORS } from '../../lib/ink';
 import type { ToolMode } from './useInkState';
 
 interface AnnotationToolbarProps {
@@ -86,7 +85,7 @@ export function AnnotationToolbar({
         <button
           type="button"
           className={`icon-button small ${tool === 'browse' ? 'is-active' : ''}`}
-          title="Pointer / Browse Mode (Default: scroll & select text normally)"
+          title="Browse"
           onClick={() => setTool('browse')}
           style={{
             borderRadius: '20px',
@@ -100,7 +99,7 @@ export function AnnotationToolbar({
         <button
           type="button"
           className={`icon-button small ${tool === 'pen' ? 'is-active' : ''}`}
-          title="Pen (Write & draw directly over lecture text or margin; freezes scroll for precision)"
+          title="Pen"
           onClick={() => setTool('pen')}
           style={{
             borderRadius: '20px',
@@ -114,7 +113,7 @@ export function AnnotationToolbar({
         <button
           type="button"
           className={`icon-button small ${tool === 'highlighter' ? 'is-active' : ''}`}
-          title="Highlighter (Highlight text & equations; freezes scroll)"
+          title="Highlighter"
           onClick={() => setTool('highlighter')}
           style={{
             borderRadius: '20px',
@@ -128,7 +127,7 @@ export function AnnotationToolbar({
         <button
           type="button"
           className={`icon-button small ${tool === 'text' ? 'is-active' : ''}`}
-          title="Text Note (Click anywhere on the document or margin to type notes and derivations)"
+          title="Text note"
           onClick={() => setTool('text')}
           style={{
             borderRadius: '20px',
@@ -142,7 +141,7 @@ export function AnnotationToolbar({
         <button
           type="button"
           className={`icon-button small ${tool === 'eraser' ? 'is-active' : ''}`}
-          title="Stroke Eraser (Click or drag across strokes to remove them)"
+          title="Erase stroke"
           onClick={() => setTool('eraser')}
           style={{
             borderRadius: '20px',
@@ -184,7 +183,7 @@ export function AnnotationToolbar({
 
         {/* Color Palettes */}
         {(tool === 'pen' || tool === 'text') &&
-          PEN_COLORS.map(c => (
+          PEN_COLORS.map((c) => (
             <button
               key={c.value}
               type="button"
@@ -204,7 +203,7 @@ export function AnnotationToolbar({
           ))}
 
         {tool === 'highlighter' &&
-          HIGHLIGHTER_COLORS.map(c => (
+          HIGHLIGHTER_COLORS.map((c) => (
             <button
               key={c.value}
               type="button"
@@ -225,7 +224,7 @@ export function AnnotationToolbar({
 
         {tool === 'pen' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
-            {[2, 3.5, 6].map(sz => (
+            {[2, 3.5, 6].map((sz) => (
               <button
                 key={sz}
                 type="button"
@@ -333,7 +332,7 @@ export function AnnotationToolbar({
               }}
             >
               {sideNotesOpen ? <PanelRightClose size={13} /> : <PanelRightOpen size={13} />}
-              <span>{sideNotesOpen ? 'Hide Scratchpad' : 'Open Scratchpad'}</span>
+              <span>{sideNotesOpen ? 'Hide Scratchpad' : 'Open notes'}</span>
             </button>
           </>
         )}

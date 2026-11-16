@@ -1,4 +1,3 @@
-import React from 'react';
 import type { KnowledgeDAG, computeNodeReadiness } from '../../lib/knowledgeGraph';
 import { NodeCard } from './NodeCard';
 
@@ -19,8 +18,8 @@ export function StratifiedTreeView({
 }: StratifiedTreeViewProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {dag.layers.map(layer => {
-        const visibleNodes = layer.nodes.filter(n => filteredNodeIds.has(n.id));
+      {dag.layers.map((layer) => {
+        const visibleNodes = layer.nodes.filter((n) => filteredNodeIds.has(n.id));
         if (visibleNodes.length === 0) return null;
 
         return (
@@ -63,9 +62,7 @@ export function StratifiedTreeView({
                   {layer.rank}
                 </span>
                 <div>
-                  <h4 style={{ fontFamily: 'var(--serif)', fontSize: '16px', margin: 0 }}>
-                    {layer.title}
-                  </h4>
+                  <h4 style={{ fontFamily: 'var(--serif)', fontSize: '16px', margin: 0 }}>{layer.title}</h4>
                   <span style={{ fontSize: '10px', color: 'var(--muted)' }}>
                     Topological Depth {layer.rank} · {visibleNodes.length} Monothematic Concepts
                   </span>
@@ -81,7 +78,7 @@ export function StratifiedTreeView({
                 gap: '12px'
               }}
             >
-              {visibleNodes.map(node => {
+              {visibleNodes.map((node) => {
                 const readiness = nodeReadinessMap.get(node.id)!;
                 const isSelected = selectedNodeId === node.id;
 

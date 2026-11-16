@@ -1,27 +1,27 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
-  Pen,
-  Highlighter,
-  Eraser,
-  Undo2,
-  Redo2,
-  Trash2,
   Download,
+  Edit3,
+  Eraser,
+  Eye,
+  Highlighter,
   Maximize2,
   Minimize2,
-  Eye,
-  Edit3
+  Pen,
+  Redo2,
+  Trash2,
+  Undo2
 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import type { InkStroke } from '../lib/ink';
 import {
-  deserializeInk,
-  serializeInk,
-  renderStrokeToPath,
+  ERASER_THRESHOLD,
+  HIGHLIGHTER_COLORS,
   inkToSvgString,
   PEN_COLORS,
-  HIGHLIGHTER_COLORS,
-  ERASER_THRESHOLD
+  renderStrokeToPath,
+  parseInkData
 } from '../lib/ink';
-import type { InkStroke } from '../lib/ink';
+import { useAnnotationHistory } from './ink/useAnnotationHistory';
 
 interface InkCanvasProps {
   initialData?: string;
@@ -40,8 +40,6 @@ export function InkCanvas({
   className = '',
   minHeight = 360
 }: InkCanvasProps) {
-  const [strokes, setStrokes] = useState<InkStroke[]>(() => deserializeInk(initialData));
-  const [redoStack, setRedoStack] = useState<InkStroke[][]>([]);
   const [activeTool, setActiveTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen');
   const [activeColor, setActiveColor] = useState('#1e2822');
   const [activeSize, setActiveSize] = useState(3.5);
@@ -51,66 +49,35 @@ export function InkCanvas({
   const [mode, setMode] = useState<'edit' | 'preview'>(readOnly ? 'preview' : 'edit');
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: minHeight });
+  // The stored drawing has one coordinate system; resizing changes only its display size.
+  const [dimensions] = useState(() => {
+    const saved = parseInkData(initialData);
+    return { width: saved?.width || 800, height: saved?.height || minHeight };
+  });
 
-  // Update dimensions based on container and observe dynamic resizes
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const updateSize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setDimensions({
-          width: Math.max(rect.width, 320),
-          height: isExpanded ? Math.max(window.innerHeight - 180, 500) : minHeight
-        });
-      }
-    };
-    updateSize();
-
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(el);
-    window.addEventListener('resize', updateSize);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateSize);
-    };
-  }, [minHeight, isExpanded]);
-
-  // Sync external changes
-  useEffect(() => {
-    if (initialData) {
-      setStrokes(deserializeInk(initialData));
-    }
-  }, [initialData]);
-
-  // Notify parent of stroke changes
-  const notifyChange = useCallback(
-    (newStrokes: InkStroke[]) => {
-      if (onChange) {
-        const serialized = serializeInk(newStrokes, dimensions.width, dimensions.height);
-        onChange(serialized);
-      }
-    },
-    [onChange, dimensions]
+  const { strokes, canUndo, canRedo, apply } = useAnnotationHistory(
+    initialData,
+    onChange,
+    dimensions.width,
+    dimensions.height
   );
-
+  const activePointer = useRef<number | null>(null);
+  const cancelPointer = () => {
+    activePointer.current = null;
+    setIsDrawing(false);
+    setCurrentStroke(null);
+  };
   // Pointer event handlers for Apple Pencil / Stylus
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (readOnly || mode === 'preview') return;
-
-    // Palm rejection: if drawing with pen, ignore touch unless explicit
-    if (e.pointerType === 'touch' && (e.target as HTMLElement).closest('.ink-tools')) {
-      return;
-    }
+    if (readOnly || mode === 'preview' || activePointer.current !== null || e.pointerType === 'touch') return;
 
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = ((e.clientX - rect.left) * dimensions.width) / rect.width;
+    const y = ((e.clientY - rect.top) * dimensions.height) / rect.height;
     const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
 
+    activePointer.current = e.pointerId;
     svg.setPointerCapture(e.pointerId);
     setIsDrawing(true);
 
@@ -123,7 +90,7 @@ export function InkCanvas({
     const stroke: InkStroke = {
       id: crypto.randomUUID(),
       points: [[x, y, pressure]],
-      color: activeTool === 'highlighter' ? '#d4b106' : activeColor,
+      color: activeColor,
       size: activeTool === 'highlighter' ? 16 : activeSize,
       isHighlighter: activeTool === 'highlighter'
     };
@@ -131,12 +98,12 @@ export function InkCanvas({
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!isDrawing) return;
+    if (!isDrawing || activePointer.current !== e.pointerId) return;
 
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = ((e.clientX - rect.left) * dimensions.width) / rect.width;
+    const y = ((e.clientY - rect.top) * dimensions.height) / rect.height;
     const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
 
     if (activeTool === 'eraser') {
@@ -145,7 +112,7 @@ export function InkCanvas({
     }
 
     if (currentStroke) {
-      setCurrentStroke(prev =>
+      setCurrentStroke((prev) =>
         prev
           ? {
               ...prev,
@@ -157,65 +124,28 @@ export function InkCanvas({
   };
 
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!isDrawing) return;
+    if (!isDrawing || activePointer.current !== e.pointerId) return;
+    activePointer.current = null;
     setIsDrawing(false);
 
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
 
-    if (currentStroke && currentStroke.points.length > 1) {
-      setStrokes(prev => {
-        const next = [...prev, currentStroke];
-        notifyChange(next);
-        return next;
-      });
-      setRedoStack([]);
-    }
+    if (currentStroke) apply((doc) => ({ ...doc, strokes: [...doc.strokes, currentStroke] }));
     setCurrentStroke(null);
   };
-
-  const eraseAtPoint = (x: number, y: number) => {
-    const threshold = ERASER_THRESHOLD;
-    setStrokes(prev => {
-      const next = prev.filter(stroke => {
-        return !stroke.points.some(([sx, sy]) => {
-          const dist = Math.hypot(sx - x, sy - y);
-          return dist < threshold;
-        });
-      });
-      if (next.length !== prev.length) {
-        notifyChange(next);
-      }
-      return next;
-    });
-  };
-
-  const handleUndo = () => {
-    if (strokes.length === 0) return;
-    const last = strokes[strokes.length - 1];
-    setRedoStack(prev => [...prev, [last]]);
-    const next = strokes.slice(0, -1);
-    setStrokes(next);
-    notifyChange(next);
-  };
-
-  const handleRedo = () => {
-    if (redoStack.length === 0) return;
-    const [toRestore, ...rest] = redoStack;
-    setRedoStack(rest);
-    const next = [...strokes, ...toRestore];
-    setStrokes(next);
-    notifyChange(next);
-  };
-
+  const eraseAtPoint = (x: number, y: number) =>
+    apply((doc) => ({
+      ...doc,
+      strokes: doc.strokes.filter(
+        (stroke) => !stroke.points.some(([sx, sy]) => Math.hypot(sx - x, sy - y) < ERASER_THRESHOLD)
+      )
+    }));
+  const handleUndo = () => apply('undo');
+  const handleRedo = () => apply('redo');
   const handleClear = () => {
-    if (strokes.length === 0) return;
-    if (window.confirm('Clear all ink strokes on this page?')) {
-      setRedoStack(prev => [...prev, strokes]);
-      setStrokes([]);
-      notifyChange([]);
-    }
+    if (window.confirm('Clear this drawing?')) apply(() => ({ strokes: [], textAnnotations: [] }));
   };
 
   const downloadSvg = () => {
@@ -234,7 +164,7 @@ export function InkCanvas({
       ref={containerRef}
       className={`ink-canvas-wrapper ${isExpanded ? 'is-fullscreen' : ''} ${className}`}
       style={{
-        background: '#fffefa',
+        background: 'var(--surface)',
         border: '1px solid var(--line, #e2e4da)',
         borderRadius: '9px',
         overflow: 'hidden',
@@ -307,13 +237,11 @@ export function InkCanvas({
               <Eraser size={16} />
             </button>
 
-            <span
-              style={{ width: '1px', height: '18px', background: 'var(--line)', margin: '0 4px' }}
-            />
+            <span style={{ width: '1px', height: '18px', background: 'var(--line)', margin: '0 4px' }} />
 
             {/* Colors */}
             {activeTool === 'pen' &&
-              COLORS.map(c => (
+              COLORS.map((c) => (
                 <button
                   key={c.value}
                   type="button"
@@ -332,7 +260,7 @@ export function InkCanvas({
               ))}
 
             {activeTool === 'highlighter' &&
-              HIGHLIGHTER_COLORS.map(c => (
+              HIGHLIGHTER_COLORS.map((c) => (
                 <button
                   key={c.value}
                   type="button"
@@ -350,14 +278,12 @@ export function InkCanvas({
                 />
               ))}
 
-            <span
-              style={{ width: '1px', height: '18px', background: 'var(--line)', margin: '0 4px' }}
-            />
+            <span style={{ width: '1px', height: '18px', background: 'var(--line)', margin: '0 4px' }} />
 
             {/* Sizes */}
             {activeTool === 'pen' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {[2, 3.5, 6].map(sz => (
+                {[2, 3.5, 6].map((sz) => (
                   <button
                     key={sz}
                     type="button"
@@ -384,7 +310,7 @@ export function InkCanvas({
               type="button"
               className="icon-button small"
               title="Undo"
-              disabled={strokes.length === 0}
+              disabled={!canUndo}
               onClick={handleUndo}
             >
               <Undo2 size={15} />
@@ -393,7 +319,7 @@ export function InkCanvas({
               type="button"
               className="icon-button small"
               title="Redo"
-              disabled={redoStack.length === 0}
+              disabled={!canRedo}
               onClick={handleRedo}
             >
               <Redo2 size={15} />
@@ -441,25 +367,20 @@ export function InkCanvas({
         className="ink-drawing-surface"
         viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
         width="100%"
-        height={dimensions.height}
         style={{
           display: 'block',
-          touchAction: 'none',
-          cursor:
-            readOnly || mode === 'preview'
-              ? 'default'
-              : activeTool === 'eraser'
-                ? 'cell'
-                : 'crosshair',
-          background:
-            'radial-gradient(circle, #e2e4da 1px, transparent 1px) 0 0 / 24px 24px #fffefa'
+          touchAction: 'pan-y',
+          cursor: readOnly || mode === 'preview' ? 'default' : activeTool === 'eraser' ? 'cell' : 'crosshair',
+          background: 'radial-gradient(circle, #e2e4da 1px, transparent 1px) 0 0 / 24px 24px #fffefa'
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={cancelPointer}
+        onLostPointerCapture={cancelPointer}
       >
         {/* Rendered committed strokes */}
-        {strokes.map(stroke => {
+        {strokes.map((stroke) => {
           const d = renderStrokeToPath(stroke);
           const opacity = stroke.isHighlighter ? 0.35 : 1;
           return <path key={stroke.id} d={d} fill={stroke.color} opacity={opacity} />;
@@ -490,7 +411,7 @@ export function InkCanvas({
           }}
         >
           <Pen size={22} style={{ display: 'block', margin: '0 auto 8px', opacity: 0.6 }} />
-          <span>Write formulas, draw circuit diagrams, or sketch with your stylus</span>
+          <span>Draw with a pen or mouse</span>
         </div>
       )}
     </div>

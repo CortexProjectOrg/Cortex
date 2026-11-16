@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { extractArxivId, resolvePaperUrls, getGoogleDocsViewerUrl } from '../src/lib/paperUtils';
+import { describe, expect, it } from 'vitest';
+import { extractArxivId, getGoogleDocsViewerUrl, resolvePaperUrls } from '../src/lib/paperUtils';
 
 describe('Paper & PDF Resolution Engine', () => {
   it('extracts legacy and modern arXiv IDs from URLs and citation strings', () => {
@@ -20,7 +20,11 @@ describe('Paper & PDF Resolution Engine', () => {
   });
 
   it('resolves paper URLs to canonical abstract and direct PDF addresses', () => {
-    const paper = resolvePaperUrls('https://arxiv.org/abs/quant-ph/0406196', 'Aaronson & Gottesman (2004)', 'Improved Simulation of Stabilizer Circuits');
+    const paper = resolvePaperUrls(
+      'https://arxiv.org/abs/quant-ph/0406196',
+      'Aaronson & Gottesman (2004)',
+      'Improved Simulation of Stabilizer Circuits'
+    );
 
     expect(paper).not.toBeNull();
     expect(paper?.arxivId).toBe('quant-ph/0406196');

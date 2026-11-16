@@ -1,9 +1,9 @@
-import React from 'react';
+import { CheckCircle2, ChevronRight, ExternalLink, Lock, Network, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Network, ExternalLink, CheckCircle2, Lock, Share2, ChevronRight } from 'lucide-react';
 import type { GraphNode, KnowledgeDAG, SoftLink } from '../../lib/knowledgeGraph';
 
 interface LectureDagPanelProps {
+  concise?: boolean;
   dagNode: GraphNode;
   dag: KnowledgeDAG;
   lectureId: string;
@@ -11,6 +11,7 @@ interface LectureDagPanelProps {
 }
 
 export function LectureDagPanel({
+  concise = false,
   dagNode,
   dag,
   lectureId,
@@ -19,7 +20,7 @@ export function LectureDagPanel({
   return (
     <div
       style={{
-        background: '#fff',
+        background: 'var(--surface)',
         border: '1px solid var(--line, #e2e4da)',
         borderRadius: '8px',
         padding: '18px 22px',
@@ -47,7 +48,7 @@ export function LectureDagPanel({
             gap: '6px'
           }}
         >
-          <Network size={14} /> KNOWLEDGE DAG POSITION & PREREQUISITES
+          <Network size={14} /> {concise ? 'Prerequisites' : 'KNOWLEDGE DAG POSITION & PREREQUISITES'}
           <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '10px' }}>
             (Topological Rank {dagNode.topologicalRank})
           </span>
@@ -64,14 +65,30 @@ export function LectureDagPanel({
             textDecoration: 'none'
           }}
         >
-          View in Knowledge DAG <ExternalLink size={12} />
+          {concise ? 'Knowledge map' : 'View in Knowledge DAG'} <ExternalLink size={12} />
         </Link>
       </div>
 
       {/* Hard Prerequisites */}
-      <div style={{ marginBottom: dagNode.unlockedLectures.length > 0 || dagNode.softLinks.length > 0 ? '12px' : 0 }}>
-        <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '6px' }}>
-          HARD PREREQUISITES {dagNode.prerequisites.length === 0 ? '(Foundational Bedrock · No Prerequisites)' : `(${dagNode.prerequisites.length})`}:
+      <div
+        style={{
+          marginBottom: dagNode.unlockedLectures.length > 0 || dagNode.softLinks.length > 0 ? '12px' : 0
+        }}
+      >
+        <span
+          style={{
+            fontSize: '10px',
+            fontWeight: 600,
+            color: 'var(--muted)',
+            display: 'block',
+            marginBottom: '6px'
+          }}
+        >
+          HARD PREREQUISITES{' '}
+          {dagNode.prerequisites.length === 0
+            ? '(Foundational Bedrock · No Prerequisites)'
+            : `(${dagNode.prerequisites.length})`}
+          :
         </span>
         {dagNode.prerequisites.length === 0 ? (
           <span style={{ fontSize: '11px', color: '#2d6a4f', fontStyle: 'italic' }}>
@@ -101,7 +118,9 @@ export function LectureDagPanel({
                   }}
                 >
                   {isDone ? <CheckCircle2 size={12} /> : <Lock size={12} />}
-                  <span>L{String(pNode.lectureNumber).padStart(2, '0')}: {pNode.title}</span>
+                  <span>
+                    L{String(pNode.lectureNumber).padStart(2, '0')}: {pNode.title}
+                  </span>
                 </Link>
               );
             })}
@@ -111,8 +130,21 @@ export function LectureDagPanel({
 
       {/* Directly Unlocked */}
       {dagNode.unlockedLectures.length > 0 && (
-        <div style={{ marginBottom: (dagNode.derivedUnlocked?.length || 0) > 0 || dagNode.softLinks.length > 0 ? '12px' : 0 }}>
-          <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '6px' }}>
+        <div
+          style={{
+            marginBottom:
+              (dagNode.derivedUnlocked?.length || 0) > 0 || dagNode.softLinks.length > 0 ? '12px' : 0
+          }}
+        >
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: 'var(--muted)',
+              display: 'block',
+              marginBottom: '6px'
+            }}
+          >
             DIRECTLY UNLOCKS ({dagNode.unlockedLectures.length}):
           </span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -136,7 +168,9 @@ export function LectureDagPanel({
                     textDecoration: 'none'
                   }}
                 >
-                  <span>L{String(uNode.lectureNumber).padStart(2, '0')}: {uNode.title}</span>
+                  <span>
+                    L{String(uNode.lectureNumber).padStart(2, '0')}: {uNode.title}
+                  </span>
                 </Link>
               );
             })}
@@ -152,7 +186,15 @@ export function LectureDagPanel({
       {/* Derived Downstream Unlocks */}
       {dagNode.derivedUnlocked && dagNode.derivedUnlocked.length > 0 && (
         <div style={{ marginBottom: dagNode.softLinks.length > 0 ? '12px' : 0 }}>
-          <span style={{ fontSize: '10px', fontWeight: 600, color: '#b45309', display: 'block', marginBottom: '6px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: '#b45309',
+              display: 'block',
+              marginBottom: '6px'
+            }}
+          >
             DERIVED UNLOCKS (Transitive · {dagNode.derivedUnlocked.length}):
           </span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -177,7 +219,9 @@ export function LectureDagPanel({
                   }}
                   title="Indirectly enabled through intermediate lectures"
                 >
-                  <span>L{String(uNode.lectureNumber).padStart(2, '0')}: {uNode.title}</span>
+                  <span>
+                    L{String(uNode.lectureNumber).padStart(2, '0')}: {uNode.title}
+                  </span>
                 </Link>
               );
             })}
@@ -193,7 +237,17 @@ export function LectureDagPanel({
       {/* Cross-Disciplinary Soft Links */}
       {dagNode.softLinks.length > 0 && (
         <div>
-          <span style={{ fontSize: '10px', fontWeight: 600, color: '#b07d2b', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: '#b07d2b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              marginBottom: '6px'
+            }}
+          >
             <Share2 size={11} /> CROSS-FIELD SOFT LINKS ({dagNode.softLinks.length}):
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

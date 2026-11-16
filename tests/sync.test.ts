@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { mergeWorkspace, emptyWorkspace, type Workspace, type Note } from '../src/lib/model';
+import { describe, expect, it } from 'vitest';
 import { getUserData, saveUserData } from '../api/lib/storage';
+import { emptyWorkspace, mergeWorkspace, type Note, type Workspace } from '../src/lib/model';
 
 describe('Cross-Device Synchronization & Conflict Resolution', () => {
   it('unions notes created across multiple devices without data loss', () => {
@@ -11,8 +11,8 @@ describe('Cross-Device Synchronization & Conflict Resolution', () => {
           id: 'note-a',
           title: 'Notes on Tablet',
           body: 'Derivation of transvections',
-          inkData: '{"version":1,"strokes":[{"id":"s1"}]}',
-          lectureInk: '{"version":1,"strokes":[{"id":"s2"}]}',
+          inkData: '{"version":1,"strokes":[{"id":"s1","points":[[1,2,0.5]],"color":"#123456","size":3}]}',
+          lectureInk: '{"version":1,"strokes":[{"id":"s2","points":[[1,2,0.5]],"color":"#123456","size":3}]}',
           createdAt: '2026-11-15T10:00:00.000Z',
           updatedAt: '2026-11-15T10:00:00.000Z'
         }
@@ -34,10 +34,10 @@ describe('Cross-Device Synchronization & Conflict Resolution', () => {
 
     const merged = mergeWorkspace(wsDeviceA, wsDeviceB);
     expect(merged.notes.length).toBe(2);
-    expect(merged.notes.some(n => n.id === 'note-a')).toBe(true);
-    expect(merged.notes.some(n => n.id === 'note-b')).toBe(true);
+    expect(merged.notes.some((n) => n.id === 'note-a')).toBe(true);
+    expect(merged.notes.some((n) => n.id === 'note-b')).toBe(true);
 
-    const noteA = merged.notes.find(n => n.id === 'note-a')!;
+    const noteA = merged.notes.find((n) => n.id === 'note-a')!;
     expect(noteA.inkData).toBeTruthy();
     expect(noteA.lectureInk).toBeTruthy();
   });
@@ -55,7 +55,8 @@ describe('Cross-Device Synchronization & Conflict Resolution', () => {
       id: 'shared-note-1',
       title: 'Polished Title with Proof',
       body: 'Rigorous proof using Mod-2 Gram Schmidt',
-      lectureInk: '{"version":1,"strokes":[{"id":"stroke-highlight"}]}',
+      lectureInk:
+        '{"version":1,"strokes":[{"id":"stroke-highlight","points":[[1,2,0.5]],"color":"#123456","size":3}]}',
       createdAt: '2026-11-15T09:00:00.000Z',
       updatedAt: '2026-11-15T10:45:00.000Z'
     };
@@ -67,7 +68,9 @@ describe('Cross-Device Synchronization & Conflict Resolution', () => {
     const merged1 = mergeWorkspace(ws1, ws2);
     expect(merged1.notes.length).toBe(1);
     expect(merged1.notes[0].title).toBe('Polished Title with Proof');
-    expect(merged1.notes[0].lectureInk).toBe('{"version":1,"strokes":[{"id":"stroke-highlight"}]}');
+    expect(merged1.notes[0].lectureInk).toBe(
+      '{"version":1,"strokes":[{"id":"stroke-highlight","points":[[1,2,0.5]],"color":"#123456","size":3}]}'
+    );
 
     // Case 2: Merge older into newer (order independence)
     const merged2 = mergeWorkspace(ws2, ws1);
@@ -101,27 +104,15 @@ describe('Cross-Device Synchronization & Conflict Resolution', () => {
     expect(merged.lectureProgress['L03-finite-fields-gf2-gfp'].status).toBe('completed');
   });
 
-  it('persists and retrieves workspace through storage tier fallback', async () => {
-    const testUserId = 'test-user-sync-123';
-    const testData = {
-      ...emptyWorkspace(),
-      notes: [
-        {
-          id: 'n-sync-test',
-          title: 'Cross-Device Persistence Test',
-          body: 'Testing storage layer in memory fallback',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ]
-    };
-
-    const saveOk = await saveUserData(testUserId, testData);
-    expect(saveOk).toBe(true);
-
-    const retrieved = await getUserData(testUserId);
-    expect(retrieved).toBeDefined();
-    expect(retrieved.notes.length).toBe(1);
-    expect(retrieved.notes[0].title).toBe('Cross-Device Persistence Test');
+  it('does not report success without a durable backend', async () => {
+    const previous = { ...process.env };
+    for (const key of ['DATABASE_URL', 'POSTGRES_URL', 'NEON_DATABASE_URL', 'POSTGRES_PRISMA_URL'])
+      delete process.env[key];
+    try {
+      await expect(saveUserData('test', emptyWorkspace(), 0)).rejects.toThrow('not configured');
+      await expect(getUserData('test')).rejects.toThrow('not configured');
+    } finally {
+      process.env = previous;
+    }
   });
 });

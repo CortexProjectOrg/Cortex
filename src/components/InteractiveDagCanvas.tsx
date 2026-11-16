@@ -1,25 +1,8 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import {
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  RotateCcw,
-  Sparkles,
-  GitBranch,
-  CornerDownRight,
-  ArrowUp,
-  ArrowDown
-} from 'lucide-react';
-import {
-  type GraphNode,
-  type KnowledgeDAG,
-  computeNodeReadiness
-} from '../lib/knowledgeGraph';
-import {
-  computeTopDownDagLayout,
-  getOneHopNeighborhood,
-  type NodeLayout
-} from '../lib/dagLayoutEngine';
+import { CornerDownRight, GitBranch, Maximize2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { TOPICS } from '../lib/curriculumCatalog';
+import { computeTopDownDagLayout, getOneHopNeighborhood } from '../lib/dagLayoutEngine';
+import { computeNodeReadiness, type KnowledgeDAG } from '../lib/knowledgeGraph';
 
 interface Point {
   x: number;
@@ -31,25 +14,31 @@ interface InteractiveDagCanvasProps {
   selectedNodeId: string | null;
   onSelectNode: (id: string) => void;
   completedSet: Set<string>;
-  focusedTopicId?: string;
+  filteredNodeIds: Set<string>;
   onSelectTopic?: (topicId: string) => void;
 }
 
-export const TOPIC_PALETTE: Array<{ number: number; name: string; shortName: string; color: string }> = [
-  { number: 1, name: 'Mathematical Foundations', shortName: 'Math', color: '#4a6741' },
-  { number: 2, name: 'Quantum Mechanics Essentials', shortName: 'Quantum', color: '#0284c7' },
-  { number: 3, name: 'Pauli Group & Symplectic Rep', shortName: 'Pauli', color: '#4f46e5' },
-  { number: 4, name: 'Clifford Group & Tableaux', shortName: 'Clifford', color: '#7c3aed' },
-  { number: 5, name: 'Stabilizer Formalism', shortName: 'Stabilizer', color: '#059669' },
-  { number: 6, name: 'Stabilizer Codes & CSS', shortName: 'CSS Codes', color: '#0891b2' },
-  { number: 7, name: 'Surface Codes & Decoders', shortName: 'Surface', color: '#d97706' },
-  { number: 8, name: 'Color Codes & Topological QEC', shortName: 'Color/Topo', color: '#dc2626' },
-  { number: 9, name: 'Fault-Tolerant Architectures', shortName: 'Fault-Tol', color: '#db2777' },
-  { number: 10, name: 'Frontiers & Mixed Systems', shortName: 'Frontiers', color: '#0d9488' }
-];
+export const TOPIC_PALETTE = TOPICS.map((topic, index) => ({
+  id: topic.id,
+  number: topic.number,
+  name: topic.title,
+  shortName: topic.title,
+  color: [
+    '#4a6741',
+    '#0284c7',
+    '#4f46e5',
+    '#7c3aed',
+    '#059669',
+    '#0891b2',
+    '#d97706',
+    '#dc2626',
+    '#db2777',
+    '#0d9488'
+  ][index]
+}));
 
 const TOPIC_COLORS: Record<number, string> = Object.fromEntries(
-  TOPIC_PALETTE.map(t => [t.number, t.color])
+  TOPIC_PALETTE.map((t) => [t.number, t.color])
 );
 
 export function InteractiveDagCanvas({
@@ -57,16 +46,17 @@ export function InteractiveDagCanvas({
   selectedNodeId,
   onSelectNode,
   completedSet,
-  focusedTopicId,
+  filteredNodeIds,
   onSelectTopic
 }: InteractiveDagCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Active focal lecture (defaults to foundational root L01 if none selected)
-  const focalId = selectedNodeId && dag.nodes.has(selectedNodeId)
-    ? selectedNodeId
-    : dag.nodeList[0]?.id || 'L01-sets-maps-proofs';
+  const focalId =
+    selectedNodeId && filteredNodeIds.has(selectedNodeId)
+      ? selectedNodeId
+      : dag.nodeList.find((n) => filteredNodeIds.has(n.id))?.id || '';
 
   const focalNode = dag.nodes.get(focalId);
 
@@ -77,11 +67,12 @@ export function InteractiveDagCanvas({
   // Deterministically contains focal node + direct prerequisites + direct unlocks
   // (plus derived dependencies when showDerived is enabled)
   const visibleNodeIds = useMemo(() => {
-    return getOneHopNeighborhood(focalId, dag, showDerived);
-  }, [focalId, dag, showDerived]);
+    const neighborhood = getOneHopNeighborhood(focalId, dag, showDerived);
+    return filteredNodeIds.size === dag.nodeList.length ? neighborhood : new Set(filteredNodeIds);
+  }, [focalId, dag, showDerived, filteredNodeIds]);
 
   const visibleNodes = useMemo(() => {
-    return dag.nodeList.filter(n => visibleNodeIds.has(n.id));
+    return dag.nodeList.filter((n) => visibleNodeIds.has(n.id));
   }, [dag, visibleNodeIds]);
 
   // Pan & Zoom camera state
@@ -202,8 +193,8 @@ export function InteractiveDagCanvas({
     }> = [];
 
     // 1. Direct dependencies: node.prerequisites -> node.id
-    visibleNodes.forEach(toNode => {
-      toNode.prerequisites.forEach(fromId => {
+    visibleNodes.forEach((toNode) => {
+      toNode.prerequisites.forEach((fromId) => {
         if (!visibleNodeIds.has(fromId)) return;
         const fromLayout = layoutMap.get(fromId);
         const toLayout = layoutMap.get(toNode.id);
@@ -238,8 +229,8 @@ export function InteractiveDagCanvas({
 
     // 2. Derived dependencies (if enabled)
     if (showDerived) {
-      visibleNodes.forEach(toNode => {
-        (toNode.derivedPrerequisites || []).forEach(fromId => {
+      visibleNodes.forEach((toNode) => {
+        (toNode.derivedPrerequisites || []).forEach((fromId) => {
           if (!visibleNodeIds.has(fromId)) return;
           const fromLayout = layoutMap.get(fromId);
           const toLayout = layoutMap.get(toNode.id);
@@ -279,7 +270,9 @@ export function InteractiveDagCanvas({
     return { directEdges: dList, derivedEdges: derList };
   }, [visibleNodes, visibleNodeIds, layoutMap, focalId, hoveredNodeId, showDerived]);
 
-  const focalTopicColor = focalNode ? (TOPIC_COLORS[focalNode.topicNumber] || 'var(--accent)') : 'var(--accent)';
+  const focalTopicColor = focalNode
+    ? TOPIC_COLORS[focalNode.topicNumber] || 'var(--accent)'
+    : 'var(--accent)';
 
   return (
     <div
@@ -387,7 +380,7 @@ export function InteractiveDagCanvas({
             type="button"
             className={`button small ${showDerived ? 'soft' : 'secondary'}`}
             style={{ minHeight: '26px', padding: '2px 8px', fontSize: '10.5px' }}
-            onClick={() => setShowDerived(v => !v)}
+            onClick={() => setShowDerived((v) => !v)}
             title="Flag and display derived (transitive / indirect) dependencies"
           >
             <CornerDownRight size={12} style={{ marginRight: '4px' }} />
@@ -401,7 +394,7 @@ export function InteractiveDagCanvas({
             type="button"
             className="icon-button"
             style={{ width: '28px', height: '28px' }}
-            onClick={() => setZoom(z => Math.min(2.2, z + 0.15))}
+            onClick={() => setZoom((z) => Math.min(2.2, z + 0.15))}
             title="Zoom In"
           >
             <ZoomIn size={14} />
@@ -410,7 +403,7 @@ export function InteractiveDagCanvas({
             type="button"
             className="icon-button"
             style={{ width: '28px', height: '28px' }}
-            onClick={() => setZoom(z => Math.max(0.3, z - 0.15))}
+            onClick={() => setZoom((z) => Math.max(0.3, z - 0.15))}
             title="Zoom Out"
           >
             <ZoomOut size={14} />
@@ -471,10 +464,18 @@ export function InteractiveDagCanvas({
             maxWidth: '72%'
           }}
         >
-          <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
+          <span
+            style={{
+              fontSize: '9px',
+              fontWeight: 700,
+              color: 'var(--muted)',
+              letterSpacing: '0.5px',
+              whiteSpace: 'nowrap'
+            }}
+          >
             TOPIC COLORS:
           </span>
-          {TOPIC_PALETTE.map(topic => (
+          {TOPIC_PALETTE.map((topic) => (
             <span
               key={topic.number}
               style={{
@@ -487,7 +488,7 @@ export function InteractiveDagCanvas({
                 cursor: 'pointer'
               }}
               title={`Topic ${topic.number}: ${topic.name}`}
-              onClick={() => onSelectTopic?.(topic.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}
+              onClick={() => onSelectTopic?.(topic.id)}
             >
               <span
                 style={{
@@ -497,9 +498,7 @@ export function InteractiveDagCanvas({
                   background: topic.color
                 }}
               />
-              <span style={{ color: 'var(--muted)' }}>
-                {topic.shortName}
-              </span>
+              <span style={{ color: 'var(--muted)' }}>{topic.shortName}</span>
             </span>
           ))}
         </div>
@@ -597,10 +596,8 @@ export function InteractiveDagCanvas({
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
           {/* Direct Dependency Bezier Curves */}
           <g className="dag-direct-edges">
-            {directEdges.map(edge => {
-              const markerUrl = edge.isHighlighted
-                ? 'url(#arrow-highlight-down)'
-                : 'url(#arrow-direct-down)';
+            {directEdges.map((edge) => {
+              const markerUrl = edge.isHighlighted ? 'url(#arrow-highlight-down)' : 'url(#arrow-direct-down)';
 
               const strokeColor = edge.isHighlighted ? '#10b981' : '#93c5fd';
               const strokeWidth = edge.isHighlighted ? 2.8 : 1.8;
@@ -623,7 +620,7 @@ export function InteractiveDagCanvas({
 
           {/* Derived Dependency Curves (Dashed Amber) */}
           <g className="dag-derived-edges">
-            {derivedEdges.map(edge => {
+            {derivedEdges.map((edge) => {
               return (
                 <path
                   key={edge.id}
@@ -644,10 +641,9 @@ export function InteractiveDagCanvas({
 
           {/* Graph Nodes */}
           <g className="dag-nodes">
-            {Array.from(layoutMap.values()).map(layout => {
+            {Array.from(layoutMap.values()).map((layout) => {
               const { node, x, y, width, height } = layout;
               const isFocal = node.id === focalId;
-              const isHovered = hoveredNodeId === node.id;
 
               const isDirectPrereq = focalNode?.prerequisites.includes(node.id);
               const isDerivedPrereq = focalNode?.derivedPrerequisites.includes(node.id);
@@ -663,12 +659,12 @@ export function InteractiveDagCanvas({
               const borderColor = isFocal
                 ? topicColor
                 : isDirectPrereq
-                ? '#10b981'
-                : isDirectUnlock
-                ? '#3b82f6'
-                : isDerivedPrereq || isDerivedUnlock
-                ? '#d97706'
-                : 'var(--line)';
+                  ? '#10b981'
+                  : isDirectUnlock
+                    ? '#3b82f6'
+                    : isDerivedPrereq || isDerivedUnlock
+                      ? '#d97706'
+                      : 'var(--line)';
 
               const borderWidth = isFocal ? 3 : isDirectPrereq || isDirectUnlock ? 2 : 1.2;
 
@@ -681,7 +677,16 @@ export function InteractiveDagCanvas({
                     cursor: 'pointer',
                     transition: 'transform 0.15s ease'
                   }}
-                  onClick={e => {
+                  role="button"
+                  tabIndex={0}
+                  aria-label={node.title}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectNode(node.id);
+                    }
+                  }}
+                  onClick={(e) => {
                     e.stopPropagation();
                     // Clicking any node transitions focal 1-hop view to that node
                     onSelectNode(node.id);
@@ -703,24 +708,10 @@ export function InteractiveDagCanvas({
                   />
 
                   {/* Left Topic Indicator Color Bar */}
-                  <rect
-                    x={0}
-                    y={0}
-                    width={6}
-                    height={height}
-                    rx={3}
-                    fill={topicColor}
-                  />
+                  <rect x={0} y={0} width={6} height={height} rx={3} fill={topicColor} />
 
                   {/* Top Header: Lecture Badge in Topic Color & Context Tag */}
-                  <text
-                    x={14}
-                    y={21}
-                    fontSize={11}
-                    fontWeight={800}
-                    fill={topicColor}
-                    letterSpacing="0.5px"
-                  >
+                  <text x={14} y={21} fontSize={11} fontWeight={800} fill={topicColor} letterSpacing="0.5px">
                     L{String(node.lectureNumber).padStart(2, '0')}
                   </text>
 
@@ -734,21 +725,21 @@ export function InteractiveDagCanvas({
                       isFocal
                         ? 'var(--accent)'
                         : isDirectPrereq
-                        ? '#047857'
-                        : isDirectUnlock
-                        ? '#1d4ed8'
-                        : '#b45309'
+                          ? '#047857'
+                          : isDirectUnlock
+                            ? '#1d4ed8'
+                            : '#b45309'
                     }
                   >
                     {isFocal
                       ? '● FOCAL'
                       : isDirectPrereq
-                      ? '▲ PREREQUISITE'
-                      : isDirectUnlock
-                      ? '▼ DIRECT UNLOCK'
-                      : isDerivedPrereq
-                      ? '▲ DERIVED PREREQ'
-                      : '▼ DERIVED UNLOCK'}
+                        ? '▲ PREREQUISITE'
+                        : isDirectUnlock
+                          ? '▼ DIRECT UNLOCK'
+                          : isDerivedPrereq
+                            ? '▲ DERIVED PREREQ'
+                            : '▼ DERIVED UNLOCK'}
                   </text>
 
                   {/* Readiness Status Badge */}
@@ -776,12 +767,7 @@ export function InteractiveDagCanvas({
                   </text>
 
                   {/* Subtitle / Navigation Instruction */}
-                  <text
-                    x={14}
-                    y={58}
-                    fontSize={9.5}
-                    fill={isFocal ? 'var(--ink)' : 'var(--muted)'}
-                  >
+                  <text x={14} y={58} fontSize={9.5} fill={isFocal ? 'var(--ink)' : 'var(--muted)'}>
                     {isFocal
                       ? `${node.prerequisites.length} direct prereq${node.prerequisites.length === 1 ? '' : 's'} · ${node.unlockedLectures.length} direct unlock${node.unlockedLectures.length === 1 ? '' : 's'}${node.derivedUnlocked.length > 0 ? ` (${node.derivedUnlocked.length} derived)` : ''}`
                       : 'Click to shift 1-hop view to this lecture →'}

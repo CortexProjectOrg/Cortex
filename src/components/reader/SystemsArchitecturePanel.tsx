@@ -1,15 +1,16 @@
-import React from 'react';
 import { FileCode } from 'lucide-react';
-import { MarkdownView } from '../MarkdownView';
 import type { CodeReference } from '../../lib/curriculum';
+import { MarkdownView } from '../MarkdownView';
 
 interface SystemsArchitecturePanelProps {
+  legacyLayout?: boolean;
   codeReferences: CodeReference[];
   implementationChoices: string[];
   codeWalkthrough: string;
 }
 
 export function SystemsArchitecturePanel({
+  legacyLayout = false,
   codeReferences,
   implementationChoices,
   codeWalkthrough
@@ -17,7 +18,7 @@ export function SystemsArchitecturePanel({
   return (
     <section style={{ marginBottom: '36px' }}>
       <h2 style={{ fontFamily: 'var(--serif)', fontSize: '24px', marginBottom: '16px' }}>
-        4. Systems & Implementation Architecture
+        {legacyLayout ? '4. Systems & Implementation Architecture' : 'Implementation'}
       </h2>
 
       <div
@@ -54,8 +55,7 @@ export function SystemsArchitecturePanel({
               </span>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '8px' }}>
-              <strong>Key patterns & symbols:</strong>{' '}
-              {ref.symbols.map(s => `\`${s}\``).join(', ')}
+              <strong>Key patterns & symbols:</strong> {ref.symbols.map((s) => `\`${s}\``).join(', ')}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--ink)' }}>{ref.purpose}</div>
           </div>

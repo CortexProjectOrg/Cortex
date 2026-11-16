@@ -1,7 +1,7 @@
-import React from 'react';
 import { PenTool } from 'lucide-react';
 
-export function LectureMarginGutter() {
+export function LectureMarginGutter({ legacyLayout = false }: { legacyLayout?: boolean }) {
+  if (!legacyLayout) return <aside className="sheet-margin-column" aria-label="Annotation margin" />;
   return (
     <aside className="sheet-margin-column" aria-label="Academic Margin Notes and Proofs">
       <div className="sheet-margin-header">

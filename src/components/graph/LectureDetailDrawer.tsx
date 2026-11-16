@@ -1,15 +1,5 @@
-import React from 'react';
+import { BookOpen, Check, CheckCircle2, ChevronRight, GitBranch, Lock, Share2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import {
-  X,
-  BookOpen,
-  Check,
-  CheckCircle2,
-  Lock,
-  ChevronRight,
-  Share2,
-  GitBranch
-} from 'lucide-react';
 import type { GraphNode, KnowledgeDAG, computeNodeReadiness } from '../../lib/knowledgeGraph';
 
 interface LectureDetailDrawerProps {
@@ -31,13 +21,13 @@ export function LectureDetailDrawer({
   onClose,
   onToggleMastery
 }: LectureDetailDrawerProps) {
-  const isMastered = selectedReadiness.status === 'completed';
+  const isDone = selectedReadiness.status === 'completed';
 
   return (
     <aside
       style={{
-        position: 'sticky',
-        top: '20px',
+        position: 'relative',
+
         background: 'var(--surface)',
         border: '1px solid var(--line)',
         borderRadius: '10px',
@@ -48,7 +38,14 @@ export function LectureDetailDrawer({
       }}
     >
       {/* Drawer Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: '16px'
+        }}
+      >
         <div>
           <span
             style={{
@@ -73,16 +70,12 @@ export function LectureDetailDrawer({
           type="button"
           className="icon-button"
           onClick={onClose}
-          title="Close Inspector"
+          aria-label="Close lecture details"
           style={{ width: '28px', height: '28px', minWidth: '28px' }}
         >
           <X size={16} />
         </button>
       </div>
-
-      <p style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: '1.6', marginBottom: '18px' }}>
-        {selectedNode.subtitle}
-      </p>
 
       {/* Status & Action Buttons */}
       <div
@@ -102,17 +95,17 @@ export function LectureDetailDrawer({
         </Link>
         <button
           type="button"
-          className={`button small ${isMastered ? 'soft' : 'secondary'}`}
+          className={`button small ${isDone ? 'soft' : 'secondary'}`}
           onClick={() => onToggleMastery(selectedNode.id)}
           style={{ minHeight: '36px', fontSize: '11px' }}
           title="Toggle completion status"
         >
-          {isMastered ? (
+          {isDone ? (
             <>
-              <Check size={14} style={{ color: 'var(--accent)' }} /> Mastered
+              <Check size={14} style={{ color: 'var(--accent)' }} /> Done
             </>
           ) : (
-            'Mark Mastered'
+            'Mark done'
           )}
         </button>
       </div>
@@ -127,10 +120,27 @@ export function LectureDetailDrawer({
           marginBottom: '20px'
         }}
       >
-        <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.8px', color: 'var(--accent)', display: 'block', marginBottom: '3px' }}>
-          MONOTHEMATIC CORE QUESTION
+        <span
+          style={{
+            fontSize: '9px',
+            fontWeight: 700,
+            letterSpacing: '0.8px',
+            color: 'var(--accent)',
+            display: 'block',
+            marginBottom: '3px'
+          }}
+        >
+          Key question
         </span>
-        <p style={{ fontSize: '12px', fontStyle: 'italic', fontFamily: 'var(--serif)', margin: 0, color: 'var(--ink)' }}>
+        <p
+          style={{
+            fontSize: '12px',
+            fontStyle: 'italic',
+            fontFamily: 'var(--serif)',
+            margin: 0,
+            color: 'var(--ink)'
+          }}
+        >
           &ldquo;{selectedNode.question}&rdquo;
         </p>
       </div>
@@ -151,7 +161,9 @@ export function LectureDetailDrawer({
         </div>
         <div style={{ background: 'var(--bg)', padding: '8px 10px', borderRadius: '6px' }}>
           <span style={{ color: 'var(--muted)', display: 'block', fontSize: '9px' }}>EFFORT & PACK</span>
-          <strong>60 min · Pack {selectedNode.packNumber}.{selectedNode.packSlot}</strong>
+          <strong>
+            60 min · Pack {selectedNode.packNumber}.{selectedNode.packSlot}
+          </strong>
         </div>
       </div>
 
@@ -169,7 +181,9 @@ export function LectureDetailDrawer({
             DIRECT PREREQUISITES ({selectedNode.prerequisites.length})
           </span>
           <span style={{ fontSize: '10px', color: 'var(--muted)' }}>
-            {selectedNode.prerequisites.length === 0 ? 'Foundational Axiom' : `${selectedReadiness.percentReady}% Met`}
+            {selectedNode.prerequisites.length === 0
+              ? 'Foundational Axiom'
+              : `${selectedReadiness.percentReady}% Met`}
           </span>
         </div>
 
@@ -188,7 +202,7 @@ export function LectureDetailDrawer({
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {selectedNode.prerequisites.map(pId => {
+            {selectedNode.prerequisites.map((pId) => {
               const pNode = dag.nodes.get(pId);
               if (!pNode) return null;
               const isMet = completedSet.has(pId);
@@ -216,7 +230,15 @@ export function LectureDetailDrawer({
                       <Lock size={14} style={{ color: '#c27803', flexShrink: 0 }} />
                     )}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: '11px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
                         L{String(pNode.lectureNumber).padStart(2, '0')}: {pNode.title}
                       </div>
                       <span style={{ fontSize: '9px', color: 'var(--muted)' }}>
@@ -235,12 +257,23 @@ export function LectureDetailDrawer({
       {/* Derived Prerequisites (Transitive) Section */}
       {selectedNode.derivedPrerequisites && selectedNode.derivedPrerequisites.length > 0 && (
         <div style={{ marginBottom: '22px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#9a6b18', letterSpacing: '0.5px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#9a6b18',
+              letterSpacing: '0.5px',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
             <GitBranch size={13} />
             DERIVED PREREQUISITES (Transitive · {selectedNode.derivedPrerequisites.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {selectedNode.derivedPrerequisites.map(dpId => {
+            {selectedNode.derivedPrerequisites.map((dpId) => {
               const dpNode = dag.nodes.get(dpId);
               if (!dpNode) return null;
               const isMet = completedSet.has(dpId);
@@ -267,7 +300,16 @@ export function LectureDetailDrawer({
                       <Lock size={13} style={{ color: '#9a6b18', flexShrink: 0 }} />
                     )}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: '10.5px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+                      <div
+                        style={{
+                          fontSize: '10.5px',
+                          fontWeight: 600,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          color: 'var(--ink)'
+                        }}
+                      >
                         L{String(dpNode.lectureNumber).padStart(2, '0')}: {dpNode.title}
                       </div>
                       <span style={{ fontSize: '8.5px', color: '#9a6b18' }}>
@@ -285,7 +327,15 @@ export function LectureDetailDrawer({
 
       {/* Directly Unlocked Section */}
       <div style={{ marginBottom: '22px' }}>
-        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink)', letterSpacing: '0.5px', marginBottom: '10px' }}>
+        <div
+          style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: 'var(--ink)',
+            letterSpacing: '0.5px',
+            marginBottom: '10px'
+          }}
+        >
           DIRECTLY UNLOCKS ({selectedNode.unlockedLectures.length})
         </div>
         {selectedNode.unlockedLectures.length === 0 ? (
@@ -294,7 +344,7 @@ export function LectureDetailDrawer({
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {selectedNode.unlockedLectures.map(uId => {
+            {selectedNode.unlockedLectures.map((uId) => {
               const uNode = dag.nodes.get(uId);
               if (!uNode) return null;
 
@@ -314,7 +364,15 @@ export function LectureDetailDrawer({
                   }}
                 >
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
                       L{String(uNode.lectureNumber).padStart(2, '0')}: {uNode.title}
                     </div>
                     <span style={{ fontSize: '9px', color: 'var(--muted)' }}>
@@ -332,12 +390,23 @@ export function LectureDetailDrawer({
       {/* Derived Unlocks (Transitive) Section */}
       {selectedNode.derivedUnlocked && selectedNode.derivedUnlocked.length > 0 && (
         <div style={{ marginBottom: '22px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#9a6b18', letterSpacing: '0.5px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#9a6b18',
+              letterSpacing: '0.5px',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
             <GitBranch size={13} />
             DERIVED UNLOCKS (Transitive · {selectedNode.derivedUnlocked.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {selectedNode.derivedUnlocked.map(duId => {
+            {selectedNode.derivedUnlocked.map((duId) => {
               const duNode = dag.nodes.get(duId);
               if (!duNode) return null;
 
@@ -357,7 +426,16 @@ export function LectureDetailDrawer({
                   }}
                 >
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '10.5px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+                    <div
+                      style={{
+                        fontSize: '10.5px',
+                        fontWeight: 600,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        color: 'var(--ink)'
+                      }}
+                    >
                       L{String(duNode.lectureNumber).padStart(2, '0')}: {duNode.title}
                     </div>
                     <span style={{ fontSize: '8.5px', color: '#9a6b18' }}>
@@ -391,7 +469,7 @@ export function LectureDetailDrawer({
             CROSS-FIELD SOFT LINKS ({selectedNode.softLinks.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {selectedNode.softLinks.map(link => {
+            {selectedNode.softLinks.map((link) => {
               const targetNode = dag.nodes.get(link.targetId);
               if (!targetNode) return null;
 

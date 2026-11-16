@@ -1,15 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  makeNote,
-  slug,
   docRoute,
-  lectureRoute,
-  validateWorkspace,
-  exportWorkspaceJson,
   emptyWorkspace,
+  exportWorkspaceJson,
+  lectureRoute,
+  makeNote,
   noteMarkdown,
-  notePrompt,
-  type Workspace,
+  slug,
+  validateWorkspace,
   type Note
 } from '../src/lib/model';
 
@@ -39,7 +37,9 @@ describe('Model & Workspace Integrity', () => {
 
   it('validates and sanitizes corrupt or incomplete workspace inputs', () => {
     expect(() => validateWorkspace(null)).toThrow('This file is not a valid AINotes backup.');
-    expect(() => validateWorkspace({ version: 99, notes: [] })).toThrow('This file is not a valid AINotes backup.');
+    expect(() => validateWorkspace({ version: 99, notes: [] })).toThrow(
+      'This file is not a valid AINotes backup.'
+    );
 
     const fallback = emptyWorkspace();
     expect(fallback.notes).toEqual([]);
@@ -56,8 +56,8 @@ describe('Model & Workspace Integrity', () => {
           id: 'note-1',
           title: 'Direct Lecture Annotations',
           body: 'Tested derivation of tableau',
-          inkData: '{"version":1,"strokes":[{"id":"s1"}]}',
-          lectureInk: '{"version":1,"strokes":[{"id":"s2"}]}',
+          inkData: '{"version":1,"strokes":[{"id":"s1","points":[[1,2,0.5]],"color":"#123456","size":3}]}',
+          lectureInk: '{"version":1,"strokes":[{"id":"s2","points":[[1,2,0.5]],"color":"#123456","size":3}]}',
           lectureId: 'stabilizer-tableau-canonical',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -87,8 +87,12 @@ describe('Model & Workspace Integrity', () => {
 
     const validated = validateWorkspace(rawData);
     expect(validated.notes.length).toBe(1);
-    expect(validated.notes[0].inkData).toBe('{"version":1,"strokes":[{"id":"s1"}]}');
-    expect(validated.notes[0].lectureInk).toBe('{"version":1,"strokes":[{"id":"s2"}]}');
+    expect(validated.notes[0].inkData).toBe(
+      '{"version":1,"strokes":[{"id":"s1","points":[[1,2,0.5]],"color":"#123456","size":3}]}'
+    );
+    expect(validated.notes[0].lectureInk).toBe(
+      '{"version":1,"strokes":[{"id":"s2","points":[[1,2,0.5]],"color":"#123456","size":3}]}'
+    );
     expect(validated.notes[0].lectureId).toBe('stabilizer-tableau-canonical');
     expect(validated.completedLectures).toEqual(['stabilizer-tableau-canonical']);
     expect(validated.lectureProgress['stabilizer-tableau-canonical'].status).toBe('completed');

@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  serializeInk,
+  CANONICAL_PAGE_GEOMETRY,
   deserializeInk,
-  deserializeTextAnnotations,
   deserializeInkPayload,
+  deserializeTextAnnotations,
+  inkToSvgString,
   parseInkData,
   renderStrokeToPath,
-  inkToSvgString,
-  CANONICAL_PAGE_GEOMETRY,
+  serializeInk,
   type InkStroke,
   type TextAnnotation
 } from '../src/lib/ink';
@@ -80,13 +80,9 @@ describe('Ink vector smoothing and serialization engine', () => {
   });
 
   it('serializes and deserializes typed text annotations alongside ink strokes', () => {
-    const serialized = serializeInk(
-      [sampleStroke],
-      960,
-      2000,
-      CANONICAL_PAGE_GEOMETRY,
-      [sampleTextAnnotation]
-    );
+    const serialized = serializeInk([sampleStroke], 960, 2000, CANONICAL_PAGE_GEOMETRY, [
+      sampleTextAnnotation
+    ]);
 
     const payload = deserializeInkPayload(serialized);
     expect(payload.strokes.length).toBe(1);
@@ -120,7 +116,9 @@ describe('Ink vector smoothing and serialization engine', () => {
   });
 
   it('parses version 2 ink data with complete visualization metadata', () => {
-    const serialized = serializeInk([marginNoteStroke], 960, 1600, CANONICAL_PAGE_GEOMETRY, [sampleTextAnnotation]);
+    const serialized = serializeInk([marginNoteStroke], 960, 1600, CANONICAL_PAGE_GEOMETRY, [
+      sampleTextAnnotation
+    ]);
     const parsedData = parseInkData(serialized);
 
     expect(parsedData).not.toBeNull();

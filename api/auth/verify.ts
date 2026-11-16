@@ -1,28 +1,9 @@
 import { extractBearerToken, verifyGoogleToken } from '../lib/auth';
-import { upsertUser } from '../lib/db';
-
-export default async function handler(req: any, res: any) {
-  const origin = req.headers.origin || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Vary', 'Origin');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  const token = extractBearerToken(req.headers.authorization) || req.body?.token;
-  if (!token) {
-    return res.status(401).json({ error: 'Missing authentication token' });
-  }
-
-  const user = await verifyGoogleToken(token);
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid or expired Google token' });
-  }
-
-  void upsertUser(user).catch(err => console.warn('Failed to upsert user to Neon:', err));
-
+import { allowRequest, type Request, type Response } from '../lib/http';
+export default async function handler(req: Request, res: Response) {
+  if (!allowRequest(req, res, ['POST'])) return;
+  const token = extractBearerToken(req.headers.authorization);
+  const user = token && (await verifyGoogleToken(token));
+  if (!user) return res.status(401).json({ error: 'Please sign in again.' });
   return res.status(200).json({ user });
 }

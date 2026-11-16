@@ -1,20 +1,19 @@
-import React, { useRef, useEffect } from 'react';
 import {
-  Sun,
-  Moon,
-  FolderOpen,
   ArrowDownToLine,
+  Cloud,
   Download,
-  Upload,
-  User,
+  FolderOpen,
   LogOut,
+  Moon,
   RefreshCw,
-  Check,
-  Cloud
+  Sun,
+  Upload
 } from 'lucide-react';
-import { useWorkspace } from '../lib/workspace';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '../lib/auth';
-import { validateWorkspace, mergeWorkspace } from '../lib/model';
+import { mergeWorkspace, validateWorkspace } from '../lib/model';
+import { useWorkspace } from '../lib/workspace';
+import { SaveStatus } from './ui/SaveStatus';
 
 interface SettingsModalProps {
   open: boolean;
@@ -37,8 +36,8 @@ export function SettingsModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
-  const { data, update, syncState, triggerSync } = useWorkspace();
-  const { user, loginWithGoogle, logout, clientId, authWarning, renderGoogleButton } = useAuth();
+  const { data, update, syncState, triggerSync, needsRecovery, recover } = useWorkspace();
+  const { user, loginWithGoogle, logout, authWarning, renderGoogleButton } = useAuth();
 
   useEffect(() => {
     if (open && !dialogRef.current?.open) {
@@ -75,7 +74,8 @@ export function SettingsModal({
       if (file.size > 30 * 1024 * 1024) throw new Error('Backup file must be smaller than 30MB');
       const text = await file.text();
       const incoming = validateWorkspace(JSON.parse(text));
-      update(current => mergeWorkspace(current, incoming));
+      if (needsRecovery) recover(incoming);
+      else update((current) => mergeWorkspace(current, incoming));
       onShowToast(`Merged ${incoming.notes.length} notes and study progress.`);
     } catch (err: any) {
       onShowToast(err?.message || 'Failed to import backup.');
@@ -88,26 +88,27 @@ export function SettingsModal({
     <dialog
       ref={dialogRef}
       className="modal settings-modal"
-      onCancel={e => {
+      aria-label="Settings"
+      onCancel={(e) => {
         e.preventDefault();
         onClose();
       }}
-      onClick={e => {
+      onClick={(e) => {
         if (e.target === dialogRef.current) onClose();
       }}
     >
       <div className="modal-inner">
         <div className="modal-heading">
-          <h2>Settings & Synchronisation</h2>
+          <h2>Settings</h2>
           <button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose}>
             ✕
           </button>
         </div>
 
-        {/* Google Account & Cross-Device Cloud Sync */}
+        {/* Google Account & Account */}
         <section className="settings-section">
           <div className="small-heading">
-            <Cloud size={17} /> Cross-Device Cloud Sync
+            <Cloud size={17} /> Account
           </div>
           {user ? (
             <div
@@ -160,7 +161,7 @@ export function SettingsModal({
                       marginTop: '4px'
                     }}
                   >
-                    <Check size={12} /> Cloud sync active
+                    <SaveStatus />
                   </span>
                 </div>
               </div>
@@ -171,18 +172,13 @@ export function SettingsModal({
                   className="button small secondary"
                   title="Force Sync Now"
                   onClick={async () => {
-                    await triggerSync();
-                    onShowToast('Synced with cloud.');
+                    const ok = await triggerSync();
+                    onShowToast(ok ? 'Synced.' : 'Could not sync. Your changes remain on this device.');
                   }}
                 >
                   <RefreshCw size={13} /> Sync Now
                 </button>
-                <button
-                  type="button"
-                  className="button small secondary"
-                  title="Sign out"
-                  onClick={logout}
-                >
+                <button type="button" className="button small secondary" title="Sign out" onClick={logout}>
                   <LogOut size={13} /> Sign Out
                 </button>
               </div>
@@ -190,8 +186,8 @@ export function SettingsModal({
           ) : (
             <div>
               <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '14px' }}>
-                Sign in with your Google account to automatically persist your notes, stylus
-                drawings, and lecture progress between your tablet and PC.
+                Sign in to sync your notes. Local notes stay separate; use a backup to import them into your
+                account.
               </p>
               <div ref={googleBtnContainerRef} style={{ marginBottom: '10px' }} />
               <button
@@ -215,33 +211,37 @@ export function SettingsModal({
                     lineHeight: '1.4'
                   }}
                 >
-                  <strong>Setup note:</strong> {authWarning}
+                  {authWarning}
                 </div>
               ) : null}
             </div>
           )}
         </section>
 
-        {/* Reading Comfort */}
+        {user && authWarning && (
+          <p role="status">
+            {authWarning}{' '}
+            <button type="button" className="text-button" onClick={loginWithGoogle}>
+              Sign in
+            </button>
+          </p>
+        )}
+        {/* Appearance */}
         <section className="settings-section">
           <div className="small-heading">
-            <Sun size={17} /> Reading Comfort
+            <Sun size={17} /> Appearance
           </div>
           <div className="setting-row">
             <span>Appearance</span>
             <div className="segmented">
-              {(['light', 'dark', 'system'] as const).map(theme => (
+              {(['light', 'dark', 'system'] as const).map((theme) => (
                 <button
                   key={theme}
                   type="button"
                   className={data.theme === theme ? 'selected' : ''}
-                  onClick={() => update(cur => ({ ...cur, theme }))}
+                  onClick={() => update((cur) => ({ ...cur, theme }))}
                 >
-                  {theme === 'light' ? (
-                    <Sun size={14} />
-                  ) : theme === 'dark' ? (
-                    <Moon size={14} />
-                  ) : null}
+                  {theme === 'light' ? <Sun size={14} /> : theme === 'dark' ? <Moon size={14} /> : null}
                   {theme[0].toUpperCase() + theme.slice(1)}
                 </button>
               ))}
@@ -251,13 +251,13 @@ export function SettingsModal({
           <div className="setting-row">
             <span>Reading Size</span>
             <div className="segmented">
-              {[0.9, 1, 1.12, 1.25].map((scale, index) => (
+              {([0.9, 1, 1.12, 1.25] as const).map((scale, index) => (
                 <button
                   key={scale}
                   type="button"
                   className={data.fontScale === scale ? 'selected' : ''}
                   aria-label={`Reading size ${index + 1}`}
-                  onClick={() => update(cur => ({ ...cur, fontScale: scale }))}
+                  onClick={() => update((cur) => ({ ...cur, fontScale: scale }))}
                   style={{ fontSize: `${12 + index * 2}px` }}
                 >
                   A
@@ -270,21 +270,17 @@ export function SettingsModal({
         {/* Local Backup & Restore */}
         <section className="settings-section">
           <div className="small-heading">
-            <FolderOpen size={17} /> Offline Backups
+            <FolderOpen size={17} /> Backups
           </div>
           <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
-            All your notes, drawings, and progress are cached locally in your browser's IndexedDB.
-            Export a backup file to keep an offline JSON copy.
+            Export a copy of your notes and progress. Import adds notes and progress; previously deleted notes
+            stay deleted.
           </p>
           <div className="backup-buttons">
             <button type="button" className="button primary" onClick={exportBackup}>
               <Download size={16} /> Export Backup
             </button>
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => fileInputRef.current?.click()}
-            >
+            <button type="button" className="button secondary" onClick={() => fileInputRef.current?.click()}>
               <Upload size={16} /> Import Backup
             </button>
             <input
@@ -292,20 +288,18 @@ export function SettingsModal({
               hidden
               type="file"
               accept=".json,application/json"
-              onChange={e => importBackup(e.target.files?.[0])}
+              onChange={(e) => importBackup(e.target.files?.[0])}
             />
           </div>
         </section>
 
-        {/* PWA & Tablet Installation */}
+        {/* Install app */}
         <section className="settings-section">
           <div className="small-heading">
-            <ArrowDownToLine size={17} /> PWA & Tablet Installation
+            <ArrowDownToLine size={17} /> Install app
           </div>
           <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
-            {installed
-              ? 'AINotes is running as an installed PWA on this device.'
-              : 'Install this application to your home screen on iPad or Android tablet for full-screen stylus input.'}
+            {installed ? 'AINotes is installed.' : 'Add AINotes to your home screen from your browser menu.'}
           </p>
           {installEvent && !installed && (
             <button
@@ -322,7 +316,7 @@ export function SettingsModal({
           <div className="offline-setting" style={{ marginTop: '10px' }}>
             <span className="status-dot" />
             <span>
-              {offlineReady ? 'All 60 study lectures available offline' : 'Offline ready'}
+              {offlineReady ? 'Study material is available offline' : 'Offline download not confirmed'}
             </span>
           </div>
         </section>

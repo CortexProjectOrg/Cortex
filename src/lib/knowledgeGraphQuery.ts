@@ -8,13 +8,8 @@
  * - Upstream/downstream ramification sub-DAG queries
  */
 
-import {
-  type GraphNode,
-  type KnowledgeDAG,
-  getKnowledgeDAG,
-  computeNodeReadiness
-} from './knowledgeGraph';
-import { TOPICS, type Topic } from './curriculum';
+import { TOPICS, type Topic } from './curriculumCatalog';
+import { type GraphNode, type KnowledgeDAG, computeNodeReadiness, getKnowledgeDAG } from './knowledgeGraph';
 
 export interface TopicMacroNode {
   topic: Topic;
@@ -70,7 +65,7 @@ export function buildTopicMacroGraph(
 
   // 1. Initialize topic nodes
   for (const topic of TOPICS) {
-    const topicLectures = dag.nodeList.filter(n => n.topicId === topic.id);
+    const topicLectures = dag.nodeList.filter((n) => n.topicId === topic.id);
     let masteredCount = 0;
     let readyCount = 0;
 
@@ -214,7 +209,7 @@ export function findLearningPath(
     }
   }
 
-  const shortestPath = shortestPathIds.map(id => dag.nodes.get(id)!).filter(Boolean);
+  const shortestPath = shortestPathIds.map((id) => dag.nodes.get(id)!).filter(Boolean);
 
   // Build the complete prerequisite sub-DAG between start and target
   const subDAGIds = new Set<string>([targetId]);
@@ -237,11 +232,11 @@ export function findLearningPath(
   }
 
   const prerequisiteSubDAG = Array.from(subDAGIds)
-    .map(id => dag.nodes.get(id)!)
+    .map((id) => dag.nodes.get(id)!)
     .filter(Boolean)
     .sort((a, b) => a.lectureNumber - b.lectureNumber);
 
-  const remainingToMaster = prerequisiteSubDAG.filter(n => !completedSet.has(n.id));
+  const remainingToMaster = prerequisiteSubDAG.filter((n) => !completedSet.has(n.id));
 
   return {
     startNode,
@@ -261,7 +256,7 @@ export function queryLectures(
   dag: KnowledgeDAG = getKnowledgeDAG(),
   completedSet: Set<string> = new Set()
 ): GraphNode[] {
-  return dag.nodeList.filter(node => {
+  return dag.nodeList.filter((node) => {
     if (filter.topicId && filter.topicId !== 'all' && node.topicId !== filter.topicId) {
       return false;
     }

@@ -9,7 +9,7 @@
  * across fields (e.g. symplectic geometry <-> fermionic matchgates, stabilizer tableaux <-> QEC codes).
  */
 
-import { ALL_LECTURES, TOPICS, type Lecture, type Topic } from './curriculum';
+import { ALL_LECTURES, TOPICS, type Lecture, type Topic } from './curriculumCatalog';
 
 export interface SoftLink {
   targetId: string;
@@ -68,10 +68,7 @@ export interface NodeReadiness {
  * Hard prerequisites: strictly necessary theoretical foundations.
  * Soft links: cross-pollinated insights between distinct fields.
  */
-export const LECTURE_DEPENDENCIES: Record<
-  string,
-  { prereqs: string[]; softLinks: SoftLink[] }
-> = {
+export const LECTURE_DEPENDENCIES: Record<string, { prereqs: string[]; softLinks: SoftLink[] }> = {
   // === TOPIC 1: Mathematical Foundations ===
   'L01-sets-maps-proofs': {
     prereqs: [],
@@ -96,7 +93,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L60-qudit-algebra-mixed-dimension-registers',
-        relationship: 'Field Generalization: Galois fields GF(p) govern prime-dimensional qudit Pauli operators.'
+        relationship:
+          'Field Generalization: Galois fields GF(p) govern prime-dimensional qudit Pauli operators.'
       }
     ]
   },
@@ -105,7 +103,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L42-term-fixers-exact-kernel',
-        relationship: 'Kernel Subspaces: Discrete nullspaces over GF(2) determine invariant Hamiltonian term fixers.'
+        relationship:
+          'Kernel Subspaces: Discrete nullspaces over GF(2) determine invariant Hamiltonian term fixers.'
       }
     ]
   },
@@ -114,7 +113,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L45-krylov-subspaces-power-iteration',
-        relationship: 'Matrix Action: Linear transformations across finite fields mirror complex operator power iterations.'
+        relationship:
+          'Matrix Action: Linear transformations across finite fields mirror complex operator power iterations.'
       }
     ]
   },
@@ -123,7 +123,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L56-gaussian-states-matchgate-simulation',
-        relationship: 'Algebraic Duality: Alternating bilinear forms over GF(2) parallel orthogonal quadratic forms over Majorana fermions.'
+        relationship:
+          'Algebraic Duality: Alternating bilinear forms over GF(2) parallel orthogonal quadratic forms over Majorana fermions.'
       }
     ]
   },
@@ -136,7 +137,8 @@ export const LECTURE_DEPENDENCIES: Record<
       },
       {
         targetId: 'L60-qudit-algebra-mixed-dimension-registers',
-        relationship: 'Qudit Symplectic Extension: Sp(2n, F_p) generates qudit Clifford gates over discrete qudits.'
+        relationship:
+          'Qudit Symplectic Extension: Sp(2n, F_p) generates qudit Clifford gates over discrete qudits.'
       }
     ]
   },
@@ -156,7 +158,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L45-krylov-subspaces-power-iteration',
-        relationship: 'Hilbert Metric: Sesquilinear inner products govern Lanczos Rayleigh quotient convergence.'
+        relationship:
+          'Hilbert Metric: Sesquilinear inner products govern Lanczos Rayleigh quotient convergence.'
       }
     ]
   },
@@ -165,7 +168,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L49-quantum-observable-estimation-budget',
-        relationship: 'Born Statistical Variance: Single-qubit projective projection sets sample variance bounds.'
+        relationship:
+          'Born Statistical Variance: Single-qubit projective projection sets sample variance bounds.'
       }
     ]
   },
@@ -174,7 +178,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L22-standard-generators-conjugation',
-        relationship: 'Unitary Generators: One-qubit gates H and S form the discrete generators of Clifford groups.'
+        relationship:
+          'Unitary Generators: One-qubit gates H and S form the discrete generators of Clifford groups.'
       }
     ]
   },
@@ -183,7 +188,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L27-stabilizer-states-generators',
-        relationship: 'Entanglement Structure: Maximal Bell entanglement is canonically represented by two stabilizer generators.'
+        relationship:
+          'Entanglement Structure: Maximal Bell entanglement is canonically represented by two stabilizer generators.'
       }
     ]
   },
@@ -192,7 +198,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L54-hardware-noise-systematic-shifts',
-        relationship: 'Open System Dynamics: Mixed states and Kraus operators model hardware decoherence for Zero-Noise Extrapolation.'
+        relationship:
+          'Open System Dynamics: Mixed states and Kraus operators model hardware decoherence for Zero-Noise Extrapolation.'
       }
     ]
   },
@@ -201,7 +208,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L32-magic-states-pauli-based-computation',
-        relationship: 'Universality Threshold: Adding non-Clifford T-gates to Clifford circuits achieves BQP-completeness.'
+        relationship:
+          'Universality Threshold: Adding non-Clifford T-gates to Clifford circuits achieves BQP-completeness.'
       }
     ]
   },
@@ -212,7 +220,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L55-majorana-fermions-encodings',
-        relationship: 'Clifford Algebra Bridge: Pauli matrices form 3D Euclidean Clifford algebras isomorphic to paired Majorana modes.'
+        relationship:
+          'Clifford Algebra Bridge: Pauli matrices form 3D Euclidean Clifford algebras isomorphic to paired Majorana modes.'
       }
     ]
   },
@@ -221,7 +230,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L55-majorana-fermions-encodings',
-        relationship: 'Non-Local Jordan-Wigner Strings: Tensor products of Pauli Z operators represent fermionic exchange parity.'
+        relationship:
+          'Non-Local Jordan-Wigner Strings: Tensor products of Pauli Z operators represent fermionic exchange parity.'
       }
     ]
   },
@@ -230,7 +240,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L28-aaronson-gottesman-tableaux',
-        relationship: 'Tableau Bitboards: Symplectic binary vectors (x|z) become contiguous rows in stabilizer tableaux.'
+        relationship:
+          'Tableau Bitboards: Symplectic binary vectors (x|z) become contiguous rows in stabilizer tableaux.'
       }
     ]
   },
@@ -239,16 +250,22 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L50-commutation-graphs-clique-covers',
-        relationship: 'Graph Adjacency: The symplectic inner product defines edges in Hamiltonian commutation graphs.'
+        relationship:
+          'Graph Adjacency: The symplectic inner product defines edges in Hamiltonian commutation graphs.'
       }
     ]
   },
   'L19-acquired-phases-hostens-moduli': {
-    prereqs: ['L02-groups-modular-arithmetic', 'L17-binary-symplectic-encoding', 'L18-symplectic-product-commutation'],
+    prereqs: [
+      'L02-groups-modular-arithmetic',
+      'L17-binary-symplectic-encoding',
+      'L18-symplectic-product-commutation'
+    ],
     softLinks: [
       {
         targetId: 'L60-qudit-algebra-mixed-dimension-registers',
-        relationship: 'Discrete Phase Moduli: Hostens phase tracking extends from mod 4 integers to roots of unity omega_d.'
+        relationship:
+          'Discrete Phase Moduli: Hostens phase tracking extends from mod 4 integers to roots of unity omega_d.'
       }
     ]
   },
@@ -257,7 +274,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L37-many-body-hamiltonians-models',
-        relationship: 'Physical Systems: Molecular electronic Hamiltonians expand into linear sums of Pauli strings.'
+        relationship:
+          'Physical Systems: Molecular electronic Hamiltonians expand into linear sums of Pauli strings.'
       }
     ]
   },
@@ -277,16 +295,22 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L29-tableau-gate-updates',
-        relationship: 'Action on Tableaux: Gate conjugation rules directly translate to deterministic bitboard updates.'
+        relationship:
+          'Action on Tableaux: Gate conjugation rules directly translate to deterministic bitboard updates.'
       }
     ]
   },
   'L23-symplectic-clifford-isomorphism': {
-    prereqs: ['L07-symplectic-group-sp2n', 'L18-symplectic-product-commutation', 'L21-clifford-group-definition'],
+    prereqs: [
+      'L07-symplectic-group-sp2n',
+      'L18-symplectic-product-commutation',
+      'L21-clifford-group-definition'
+    ],
     softLinks: [
       {
         targetId: 'L57-qec-stabilizer-codes-automorphisms',
-        relationship: 'Code Symmetries: Fault-tolerant transversal gates correspond to symplectic automorphisms preserving the code.'
+        relationship:
+          'Code Symmetries: Fault-tolerant transversal gates correspond to symplectic automorphisms preserving the code.'
       }
     ]
   },
@@ -295,7 +319,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L25-clifford-circuit-synthesis',
-        relationship: 'Algorithmic Factoring: Decomposing symplectic matrices into shear transvections produces gate sequences.'
+        relationship:
+          'Algorithmic Factoring: Decomposing symplectic matrices into shear transvections produces gate sequences.'
       }
     ]
   },
@@ -304,11 +329,13 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L35-circuit-peephole-rewrites',
-        relationship: 'Canonical Forms: Synthesized circuits provide canonical representations to measure peephole rewrite reductions.'
+        relationship:
+          'Canonical Forms: Synthesized circuits provide canonical representations to measure peephole rewrite reductions.'
       },
       {
         targetId: 'L51-rotated-cliques-diagonalization-circuits',
-        relationship: 'Diagonalization Synthesis: Synthesizing unitary Clifford rotations to simultaneously measure commuting cliques.'
+        relationship:
+          'Diagonalization Synthesis: Synthesizing unitary Clifford rotations to simultaneously measure commuting cliques.'
       }
     ]
   },
@@ -317,18 +344,24 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L53-mcmc-covariance-integration',
-        relationship: 'Randomized Benchmarking & Shadows: Haar-uniform Clifford samples underpin classical shadow tomography.'
+        relationship:
+          'Randomized Benchmarking & Shadows: Haar-uniform Clifford samples underpin classical shadow tomography.'
       }
     ]
   },
 
   // === TOPIC 5: Stabilizer Formalism & Classical Simulation ===
   'L27-stabilizer-states-generators': {
-    prereqs: ['L12-multi-qubit-systems-entanglement', 'L18-symplectic-product-commutation', 'L21-clifford-group-definition'],
+    prereqs: [
+      'L12-multi-qubit-systems-entanglement',
+      'L18-symplectic-product-commutation',
+      'L21-clifford-group-definition'
+    ],
     softLinks: [
       {
         targetId: 'L57-qec-stabilizer-codes-automorphisms',
-        relationship: 'Quantum Error Correction: Stabilizer codes are joint +1 eigenspaces of commuting Pauli generator subgroups.'
+        relationship:
+          'Quantum Error Correction: Stabilizer codes are joint +1 eigenspaces of commuting Pauli generator subgroups.'
       }
     ]
   },
@@ -337,7 +370,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L34-pauli-frame-batched-sampling',
-        relationship: 'Memory-Throughput Tradeoff: Full (2n+1)x(2n+1) tableaux vs O(1) Pauli frame updates in quantum control.'
+        relationship:
+          'Memory-Throughput Tradeoff: Full (2n+1)x(2n+1) tableaux vs O(1) Pauli frame updates in quantum control.'
       }
     ]
   },
@@ -346,7 +380,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L35-circuit-peephole-rewrites',
-        relationship: 'Symbolic Simulation: Applying tableau updates to verify equivalence of circuit simplification rules.'
+        relationship:
+          'Symbolic Simulation: Applying tableau updates to verify equivalence of circuit simplification rules.'
       }
     ]
   },
@@ -355,7 +390,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L34-pauli-frame-batched-sampling',
-        relationship: 'Syndrome Acquisition: Non-deterministic measurement branches update active Pauli frames in quantum error tracking.'
+        relationship:
+          'Syndrome Acquisition: Non-deterministic measurement branches update active Pauli frames in quantum error tracking.'
       }
     ]
   },
@@ -364,7 +400,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L56-gaussian-states-matchgate-simulation',
-        relationship: 'Complexity Boundary: Gottesman-Knill and fermionic matchgates define the two solvable islands in quantum mechanics.'
+        relationship:
+          'Complexity Boundary: Gottesman-Knill and fermionic matchgates define the two solvable islands in quantum mechanics.'
       }
     ]
   },
@@ -373,7 +410,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L57-qec-stabilizer-codes-automorphisms',
-        relationship: 'Circumventing Eastin-Knill: Fault-tolerant magic state distillation compensates for transversal gate limitations.'
+        relationship:
+          'Circumventing Eastin-Knill: Fault-tolerant magic state distillation compensates for transversal gate limitations.'
       }
     ]
   },
@@ -384,7 +422,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L44-block-diagonalization-pipeline',
-        relationship: 'Compiler Partitioning: IR splits circuits into pure Clifford stabilizer routes and Hamiltonian symmetry sectors.'
+        relationship:
+          'Compiler Partitioning: IR splits circuits into pure Clifford stabilizer routes and Hamiltonian symmetry sectors.'
       }
     ]
   },
@@ -393,7 +432,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L54-hardware-noise-systematic-shifts',
-        relationship: 'Frame Virtualization: Tracking bit-flips in software eliminates physical calibration latency and noise.'
+        relationship:
+          'Frame Virtualization: Tracking bit-flips in software eliminates physical calibration latency and noise.'
       }
     ]
   },
@@ -402,7 +442,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L51-rotated-cliques-diagonalization-circuits',
-        relationship: 'Optimization for Hardware: Peephole rewrites eliminate redundant CNOT depth in measurement rotation subcircuits.'
+        relationship:
+          'Optimization for Hardware: Peephole rewrites eliminate redundant CNOT depth in measurement rotation subcircuits.'
       }
     ]
   },
@@ -411,7 +452,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L37-many-body-hamiltonians-models',
-        relationship: 'Tensor Networks: Ket network slicing provides matrix product states for strongly correlated condensed matter.'
+        relationship:
+          'Tensor Networks: Ket network slicing provides matrix product states for strongly correlated condensed matter.'
       }
     ]
   },
@@ -422,7 +464,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L55-majorana-fermions-encodings',
-        relationship: 'Electronic Structure: Ab initio quantum chemistry molecular integrals map into fermionic operators.'
+        relationship:
+          'Electronic Structure: Ab initio quantum chemistry molecular integrals map into fermionic operators.'
       }
     ]
   },
@@ -431,7 +474,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L40-colored-graphs-interaction-graphs',
-        relationship: 'Topological Symmetry: Permutational and spatial symmetries manifest as automorphism orbits of interaction graphs.'
+        relationship:
+          'Topological Symmetry: Permutational and spatial symmetries manifest as automorphism orbits of interaction graphs.'
       }
     ]
   },
@@ -440,7 +484,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L44-block-diagonalization-pipeline',
-        relationship: 'Empirical Symmetry Hunting: Practical symmetry identification compresses Hamiltonian state space exponentially.'
+        relationship:
+          'Empirical Symmetry Hunting: Practical symmetry identification compresses Hamiltonian state space exponentially.'
       }
     ]
   },
@@ -449,7 +494,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L50-commutation-graphs-clique-covers',
-        relationship: 'Graph-Theoretic Duality: Interaction graphs connect interacting particles; commutation graphs connect measurable observables.'
+        relationship:
+          'Graph-Theoretic Duality: Interaction graphs connect interacting particles; commutation graphs connect measurable observables.'
       }
     ]
   },
@@ -458,7 +504,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L42-term-fixers-exact-kernel',
-        relationship: 'Discrete Algorithms: McKay partition refinement discovers subgroup orbits without combinatorial explosion.'
+        relationship:
+          'Discrete Algorithms: McKay partition refinement discovers subgroup orbits without combinatorial explosion.'
       }
     ]
   },
@@ -467,16 +514,22 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L43-commuting-paulis-sector-resolution',
-        relationship: 'Symplectic Kernel Nullspace: Exact term fixers generate the maximal commuting point group symmetry algebra.'
+        relationship:
+          'Symplectic Kernel Nullspace: Exact term fixers generate the maximal commuting point group symmetry algebra.'
       }
     ]
   },
   'L43-commuting-paulis-sector-resolution': {
-    prereqs: ['L08-eigenvalues-without-diagonalization', 'L27-stabilizer-states-generators', 'L42-term-fixers-exact-kernel'],
+    prereqs: [
+      'L08-eigenvalues-without-diagonalization',
+      'L27-stabilizer-states-generators',
+      'L42-term-fixers-exact-kernel'
+    ],
     softLinks: [
       {
         targetId: 'L51-rotated-cliques-diagonalization-circuits',
-        relationship: 'Simultaneous Diagonalization: Resolving symmetry sectors is mathematically identical to diagonalizing measurement cliques.'
+        relationship:
+          'Simultaneous Diagonalization: Resolving symmetry sectors is mathematically identical to diagonalizing measurement cliques.'
       }
     ]
   },
@@ -485,18 +538,24 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L47-matrix-free-hamiltonian-products',
-        relationship: 'Solvers Integration: Block diagonal sectors feed decoupled sparse vectors directly into iterative Lanczos solvers.'
+        relationship:
+          'Solvers Integration: Block diagonal sectors feed decoupled sparse vectors directly into iterative Lanczos solvers.'
       }
     ]
   },
 
   // === TOPIC 8: Lanczos Algorithm & Krylov Subspace Solvers ===
   'L45-krylov-subspaces-power-iteration': {
-    prereqs: ['L05-linear-maps-matrices', 'L09-complex-inner-products-hilbert', 'L20-pauli-sums-observables-hamiltonians'],
+    prereqs: [
+      'L05-linear-maps-matrices',
+      'L09-complex-inner-products-hilbert',
+      'L20-pauli-sums-observables-hamiltonians'
+    ],
     softLinks: [
       {
         targetId: 'L46-lanczos-three-term-recurrence',
-        relationship: 'Subspace Expansion: Power iteration Krylov bases {v, Av, A^2v...} form the foundation for three-term tridiagonalization.'
+        relationship:
+          'Subspace Expansion: Power iteration Krylov bases {v, Av, A^2v...} form the foundation for three-term tridiagonalization.'
       }
     ]
   },
@@ -505,7 +564,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L48-convergence-precision-architecture',
-        relationship: 'Orthogonality Breakdown: Finite IEEE 754 precision causes ghost spurious Ritz values during Lanczos recursion.'
+        relationship:
+          'Orthogonality Breakdown: Finite IEEE 754 precision causes ghost spurious Ritz values during Lanczos recursion.'
       }
     ]
   },
@@ -514,7 +574,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L58-cuda-lanczos-gpu-kernels',
-        relationship: 'Hardware Acceleration: Matrix-free Pauli-vector bitboard evaluation translates to massive CUDA thread parallelism.'
+        relationship:
+          'Hardware Acceleration: Matrix-free Pauli-vector bitboard evaluation translates to massive CUDA thread parallelism.'
       }
     ]
   },
@@ -523,7 +584,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L59-batched-cuda-covariance-offload',
-        relationship: 'Heterogeneous Compute: Selective reorthogonalization on CPU host interleaved with GPU matrix-vector compute.'
+        relationship:
+          'Heterogeneous Compute: Selective reorthogonalization on CPU host interleaved with GPU matrix-vector compute.'
       }
     ]
   },
@@ -534,16 +596,22 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L52-bayesian-adaptive-allocation',
-        relationship: 'Sample Optimization: Allocating finite shot budgets to minimize aggregate variance Tr(Cov).'
+        relationship:
+          'Sample Optimization: Allocating finite shot budgets to minimize aggregate variance Tr(Cov).'
       }
     ]
   },
   'L50-commutation-graphs-clique-covers': {
-    prereqs: ['L18-symplectic-product-commutation', 'L40-colored-graphs-interaction-graphs', 'L49-quantum-observable-estimation-budget'],
+    prereqs: [
+      'L18-symplectic-product-commutation',
+      'L40-colored-graphs-interaction-graphs',
+      'L49-quantum-observable-estimation-budget'
+    ],
     softLinks: [
       {
         targetId: 'L51-rotated-cliques-diagonalization-circuits',
-        relationship: 'Clique Partitioning: Grouping non-commuting observables into minimal sets of simultaneously measurable commuting cliques.'
+        relationship:
+          'Clique Partitioning: Grouping non-commuting observables into minimal sets of simultaneously measurable commuting cliques.'
       }
     ]
   },
@@ -552,7 +620,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L52-bayesian-adaptive-allocation',
-        relationship: 'Circuit Execution: Measuring rotated cliques feeds live empirical shot statistics into Bayesian allocators.'
+        relationship:
+          'Circuit Execution: Measuring rotated cliques feeds live empirical shot statistics into Bayesian allocators.'
       }
     ]
   },
@@ -561,16 +630,22 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L53-mcmc-covariance-integration',
-        relationship: 'Posterior Sampling: When shot count grows, posterior covariance integrals are evaluated via Markov Chain Monte Carlo.'
+        relationship:
+          'Posterior Sampling: When shot count grows, posterior covariance integrals are evaluated via Markov Chain Monte Carlo.'
       }
     ]
   },
   'L53-mcmc-covariance-integration': {
-    prereqs: ['L26-clifford-uniform-sampling', 'L49-quantum-observable-estimation-budget', 'L52-bayesian-adaptive-allocation'],
+    prereqs: [
+      'L26-clifford-uniform-sampling',
+      'L49-quantum-observable-estimation-budget',
+      'L52-bayesian-adaptive-allocation'
+    ],
     softLinks: [
       {
         targetId: 'L59-batched-cuda-covariance-offload',
-        relationship: 'Massive Sampling Offload: High-dimensional covariance matrix inversion offloaded to GPU tensor cores.'
+        relationship:
+          'Massive Sampling Offload: High-dimensional covariance matrix inversion offloaded to GPU tensor cores.'
       }
     ]
   },
@@ -579,7 +654,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L57-qec-stabilizer-codes-automorphisms',
-        relationship: 'Noise Strategy: Error mitigation (ZNE) bridges the noisy intermediate-scale era until fault-tolerant QEC emerges.'
+        relationship:
+          'Noise Strategy: Error mitigation (ZNE) bridges the noisy intermediate-scale era until fault-tolerant QEC emerges.'
       }
     ]
   },
@@ -590,7 +666,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L56-gaussian-states-matchgate-simulation',
-        relationship: 'Majorana Kinematics: Quadratic Majorana Hamiltonians generate free-fermion matchgate circuits.'
+        relationship:
+          'Majorana Kinematics: Quadratic Majorana Hamiltonians generate free-fermion matchgate circuits.'
       }
     ]
   },
@@ -599,24 +676,32 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L06-bilinear-symplectic-forms',
-        relationship: 'Mathematical Duality: Symplectic forms over GF(2) mirror SO(2n) orthogonal Lie algebras over Majorana operators.'
+        relationship:
+          'Mathematical Duality: Symplectic forms over GF(2) mirror SO(2n) orthogonal Lie algebras over Majorana operators.'
       },
       {
         targetId: 'L31-gottesman-knill-theorem',
-        relationship: 'Solvable Subtheories: Matchgate polynomial simulation forms the fermionic twin to the Clifford Gottesman-Knill theorem.'
+        relationship:
+          'Solvable Subtheories: Matchgate polynomial simulation forms the fermionic twin to the Clifford Gottesman-Knill theorem.'
       }
     ]
   },
   'L57-qec-stabilizer-codes-automorphisms': {
-    prereqs: ['L27-stabilizer-states-generators', 'L31-gottesman-knill-theorem', 'L50-commutation-graphs-clique-covers'],
+    prereqs: [
+      'L27-stabilizer-states-generators',
+      'L31-gottesman-knill-theorem',
+      'L50-commutation-graphs-clique-covers'
+    ],
     softLinks: [
       {
         targetId: 'L23-symplectic-clifford-isomorphism',
-        relationship: 'Logical Gate Automorphisms: Transversal Clifford operations on CSS/surface codes map to symplectic invariants.'
+        relationship:
+          'Logical Gate Automorphisms: Transversal Clifford operations on CSS/surface codes map to symplectic invariants.'
       },
       {
         targetId: 'L32-magic-states-pauli-based-computation',
-        relationship: 'Universal Fault-Tolerance: Magic state distillation circumvents the Eastin-Knill no-go barrier in stabilizer codes.'
+        relationship:
+          'Universal Fault-Tolerance: Magic state distillation circumvents the Eastin-Knill no-go barrier in stabilizer codes.'
       }
     ]
   },
@@ -625,7 +710,8 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L59-batched-cuda-covariance-offload',
-        relationship: 'Kernel Fusion: Shared memory caching and warp shuffle operations scale sparse Pauli evaluations across GPU clusters.'
+        relationship:
+          'Kernel Fusion: Shared memory caching and warp shuffle operations scale sparse Pauli evaluations across GPU clusters.'
       }
     ]
   },
@@ -634,16 +720,23 @@ export const LECTURE_DEPENDENCIES: Record<
     softLinks: [
       {
         targetId: 'L53-mcmc-covariance-integration',
-        relationship: 'High-Throughput Analytics: Streaming GPU pipelines evaluate millions of MCMC shadow samples in parallel.'
+        relationship:
+          'High-Throughput Analytics: Streaming GPU pipelines evaluate millions of MCMC shadow samples in parallel.'
       }
     ]
   },
   'L60-qudit-algebra-mixed-dimension-registers': {
-    prereqs: ['L03-finite-fields-gf2-gfp', 'L07-symplectic-group-sp2n', 'L19-acquired-phases-hostens-moduli', 'L31-gottesman-knill-theorem'],
+    prereqs: [
+      'L03-finite-fields-gf2-gfp',
+      'L07-symplectic-group-sp2n',
+      'L19-acquired-phases-hostens-moduli',
+      'L31-gottesman-knill-theorem'
+    ],
     softLinks: [
       {
         targetId: 'L24-symplectic-transvections',
-        relationship: 'Generalized Symplectic Geometry: Discrete Wigner functions and Heisenberg-Weyl qudit operators over GF(p).'
+        relationship:
+          'Generalized Symplectic Geometry: Discrete Wigner functions and Heisenberg-Weyl qudit operators over GF(p).'
       }
     ]
   }
@@ -653,9 +746,8 @@ export const LECTURE_DEPENDENCIES: Record<
  * Builds and validates the Knowledge DAG.
  * Uses Kahn's algorithm to strictly verify acyclicity and determine topological rank.
  */
-export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): KnowledgeDAG {
-  const lectureMap = new Map<string, Lecture>(lectures.map(l => [l.id, l]));
-  const topicMap = new Map<string, Topic>(TOPICS.map(t => [t.id, t]));
+export function buildKnowledgeDAG(lectures: Omit<Lecture, 'content'>[] = ALL_LECTURES): KnowledgeDAG {
+  const topicMap = new Map<string, Topic>(TOPICS.map((t) => [t.id, t]));
 
   // Initialize nodes
   const nodeMap = new Map<string, GraphNode>();
@@ -741,7 +833,7 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
   const isAcyclic = topologicalOrder.length === lectures.length;
   const cycleNodes = isAcyclic
     ? undefined
-    : lectures.map(l => l.id).filter(id => !topologicalOrder.includes(id));
+    : lectures.map((l) => l.id).filter((id) => !topologicalOrder.includes(id));
 
   // Compute full transitive ancestors in topological order
   const fullAncestorsMap = new Map<string, Set<string>>();
@@ -752,7 +844,7 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
       ancestors.add(p);
       const parentAncestors = fullAncestorsMap.get(p);
       if (parentAncestors) {
-        parentAncestors.forEach(a => ancestors.add(a));
+        parentAncestors.forEach((a) => ancestors.add(a));
       }
     }
     fullAncestorsMap.set(id, ancestors);
@@ -832,9 +924,7 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
     if (node.prerequisites.length === 0) {
       node.topologicalRank = 0;
     } else {
-      const maxPrereqRank = Math.max(
-        ...node.prerequisites.map(p => nodeMap.get(p)?.topologicalRank ?? 0)
-      );
+      const maxPrereqRank = Math.max(...node.prerequisites.map((p) => nodeMap.get(p)?.topologicalRank ?? 0));
       node.topologicalRank = maxPrereqRank + 1;
     }
   }
@@ -867,7 +957,7 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
   }
 
   // Build stratified layers
-  const maxRank = Math.max(0, ...Array.from(nodeMap.values()).map(n => n.topologicalRank));
+  const maxRank = Math.max(0, ...Array.from(nodeMap.values()).map((n) => n.topologicalRank));
   const layers: Array<{ rank: number; title: string; nodes: GraphNode[] }> = [];
 
   const tierTitles: Record<number, string> = {
@@ -898,7 +988,7 @@ export function buildKnowledgeDAG(lectures: Lecture[] = ALL_LECTURES): Knowledge
 
   for (let r = 0; r <= maxRank; r++) {
     const nodesInRank = Array.from(nodeMap.values())
-      .filter(n => n.topologicalRank === r)
+      .filter((n) => n.topologicalRank === r)
       .sort((a, b) => a.lectureNumber - b.lectureNumber);
 
     if (nodesInRank.length > 0) {
@@ -946,9 +1036,7 @@ export function computeNodeReadiness(
   const dag = getKnowledgeDAG();
   const node = dag.nodes.get(nodeId);
   const completedSet =
-    completedLectureIds instanceof Set
-      ? completedLectureIds
-      : new Set(completedLectureIds);
+    completedLectureIds instanceof Set ? completedLectureIds : new Set(completedLectureIds);
 
   if (!node) {
     return {
@@ -1052,10 +1140,10 @@ export function getTopicRamification(
   topicId: string,
   dag: KnowledgeDAG = getKnowledgeDAG()
 ): TopicRamification | null {
-  const topic = TOPICS.find(t => t.id === topicId);
+  const topic = TOPICS.find((t) => t.id === topicId);
   if (!topic) return null;
 
-  const topicLectures = dag.nodeList.filter(n => n.topicId === topicId);
+  const topicLectures = dag.nodeList.filter((n) => n.topicId === topicId);
   const prereqTopicMap = new Map<string, { count: number; nodes: Set<string> }>();
   const nextTopicMap = new Map<string, { count: number; nodes: Set<string> }>();
   const internalProgression: Array<{ from: GraphNode; to: GraphNode }> = [];
@@ -1111,12 +1199,12 @@ export function getTopicRamification(
 
   const prerequisiteTopics = Array.from(prereqTopicMap.entries())
     .map(([tId, info]) => {
-      const t = TOPICS.find(top => top.id === tId)!;
+      const t = TOPICS.find((top) => top.id === tId)!;
       return {
         topic: t,
         crossEdgesCount: info.count,
         samplePrereqs: Array.from(info.nodes)
-          .map(id => dag.nodes.get(id)!)
+          .map((id) => dag.nodes.get(id)!)
           .filter(Boolean)
       };
     })
@@ -1124,12 +1212,12 @@ export function getTopicRamification(
 
   const nextTopics = Array.from(nextTopicMap.entries())
     .map(([tId, info]) => {
-      const t = TOPICS.find(top => top.id === tId)!;
+      const t = TOPICS.find((top) => top.id === tId)!;
       return {
         topic: t,
         crossEdgesCount: info.count,
         sampleUnlocked: Array.from(info.nodes)
-          .map(id => dag.nodes.get(id)!)
+          .map((id) => dag.nodes.get(id)!)
           .filter(Boolean)
       };
     })
@@ -1140,7 +1228,7 @@ export function getTopicRamification(
     for (const link of node.softLinks) {
       const targetNode = dag.nodes.get(link.targetId);
       if (targetNode && targetNode.topicId !== topicId) {
-        const targetTopic = TOPICS.find(t => t.id === targetNode.topicId);
+        const targetTopic = TOPICS.find((t) => t.id === targetNode.topicId);
         if (targetTopic) {
           softLinkedTopics.push({
             topic: targetTopic,
@@ -1177,13 +1265,9 @@ export function getLectureRamification(
   const node = dag.nodes.get(nodeId);
   if (!node) return null;
 
-  const directPrerequisites = node.prerequisites
-    .map(p => dag.nodes.get(p)!)
-    .filter(Boolean);
+  const directPrerequisites = node.prerequisites.map((p) => dag.nodes.get(p)!).filter(Boolean);
 
-  const directUnlocked = node.unlockedLectures
-    .map(u => dag.nodes.get(u)!)
-    .filter(Boolean);
+  const directUnlocked = node.unlockedLectures.map((u) => dag.nodes.get(u)!).filter(Boolean);
 
   // Compute upstream layers by distance
   const ancestorTiers: Array<{ distance: number; title: string; nodes: GraphNode[] }> = [];
@@ -1193,7 +1277,7 @@ export function getLectureRamification(
 
   while (currentAncestorIds.size > 0 && distanceBack <= 6) {
     const layerNodes = Array.from(currentAncestorIds)
-      .map(id => dag.nodes.get(id)!)
+      .map((id) => dag.nodes.get(id)!)
       .filter(Boolean)
       .sort((a, b) => a.lectureNumber - b.lectureNumber);
 
@@ -1201,8 +1285,8 @@ export function getLectureRamification(
       distanceBack === 1
         ? 'Direct Prerequisites'
         : distanceBack === 2
-        ? 'Secondary Foundations (Grandparents)'
-        : `Ancestral Tier -${distanceBack}`;
+          ? 'Secondary Foundations (Grandparents)'
+          : `Ancestral Tier -${distanceBack}`;
 
     ancestorTiers.push({
       distance: distanceBack,
@@ -1235,7 +1319,7 @@ export function getLectureRamification(
 
   while (currentDescendantIds.size > 0 && distanceFwd <= 6) {
     const layerNodes = Array.from(currentDescendantIds)
-      .map(id => dag.nodes.get(id)!)
+      .map((id) => dag.nodes.get(id)!)
       .filter(Boolean)
       .sort((a, b) => a.lectureNumber - b.lectureNumber);
 
@@ -1243,8 +1327,8 @@ export function getLectureRamification(
       distanceFwd === 1
         ? 'Directly Unlocks (Next Topics)'
         : distanceFwd === 2
-        ? 'Secondary Horizon (Grandchildren)'
-        : `Unlocked Tier +${distanceFwd}`;
+          ? 'Secondary Horizon (Grandchildren)'
+          : `Unlocked Tier +${distanceFwd}`;
 
     descendantTiers.push({
       distance: distanceFwd,
@@ -1270,15 +1354,15 @@ export function getLectureRamification(
   }
 
   const softLinks = node.softLinks
-    .map(link => {
+    .map((link) => {
       const targetNode = dag.nodes.get(link.targetId);
       return targetNode ? { targetNode, relationship: link.relationship } : null;
     })
     .filter(Boolean) as Array<{ targetNode: GraphNode; relationship: string }>;
 
   // Children whose other prerequisites are satisfied (ready to tackle)
-  const readyToTackleNext = directUnlocked.filter(child => {
-    return child.prerequisites.every(p => p === node.id || completedSet.has(p));
+  const readyToTackleNext = directUnlocked.filter((child) => {
+    return child.prerequisites.every((p) => p === node.id || completedSet.has(p));
   });
 
   return {

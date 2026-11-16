@@ -74,7 +74,7 @@ pub trait SimulationBackend {
     fn counts(&mut self, program: &Program, shots: usize) -> HashMap<String, usize>;
 }
 
-/// Minimal reference simulator illustrating the execution lifecycle
+/// Architecture stub: ignores gates and always returns the all-zero bitstring.
 pub struct ReferenceSimulator {
     rng: SmallRng,
 }
@@ -90,7 +90,7 @@ impl ReferenceSimulator {
 impl SimulationBackend for ReferenceSimulator {
     fn counts(&mut self, program: &Program, shots: usize) -> HashMap<String, usize> {
         let mut results = HashMap::new();
-        // In this example simulator, simulate or sample according to circuit gates:
+        // Placeholder only: implement gate evolution and Born-rule sampling before using results.
         for _ in 0..shots {
             // Compute or sample measurement record
             let bitstring = "0".repeat(program.num_qubits);

@@ -5,18 +5,25 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "content": "node scripts/content.mjs",
+    "content": "tsx scripts/content.mjs",
     "icons": "node scripts/icons.mjs",
     "dev": "npm run content && vite --host 127.0.0.1",
-    "build": "npm run content && npm run icons && tsc -b && vite build",
+    "build": "npm run content && npm run icons && npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "vitest run"
+    "test": "vitest run",
+    "pretest": "npm run content",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.tools.json --noEmit",
+    "check": "npm run content && npm run typecheck && npm run lint && npm run secrets:check && npm test && npm run build",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "format": "prettier --write src api shared tests scripts *.json *.ts *.mjs *.html .github",
+    "format:check": "prettier --check src api shared tests scripts *.json *.ts *.mjs *.html .github",
+    "lint": "eslint src",
+    "secrets:check": "node scripts/check-secrets.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.1",
-    "@vercel/blob": "^2.9.0",
-    "@vercel/kv": "^3.0.0",
     "idb": "8.0.4",
+    "jose": "^6.2.17",
     "katex": "^0.19.1",
     "lucide-react": "1.73.0",
     "perfect-freehand": "^1.2.3",
@@ -27,18 +34,35 @@
     "rehype-katex": "^7.0.1",
     "rehype-slug": "^6.0.0",
     "remark-gfm": "4.0.1",
-    "remark-math": "^6.0.0"
+    "remark-math": "^6.0.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@testing-library/react": "^16.3.3",
     "@types/katex": "^0.16.8",
     "@types/node": "^22.18.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@typescript-eslint/parser": "^8.73.0",
     "@vitejs/plugin-react": "6.3.0",
-    "sharp": "^0.34.5",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.10.1",
+    "sharp": "^0.35.5",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "8.3.8",
     "vite-plugin-pwa": "2.0.0",
     "vitest": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "overrides": {
+    "katex": "$katex",
+    "glob": "^14.0.6",
+    "minimatch": "^11.0.8"
   }
 }

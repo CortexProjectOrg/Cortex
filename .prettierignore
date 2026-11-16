@@ -1,0 +1,6 @@
+node_modules
+dist
+src/generated
+src/lib/curriculumData.ts
+package-lock.json
+*.tsbuildinfo

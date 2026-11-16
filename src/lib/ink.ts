@@ -1,4 +1,5 @@
 import { getStroke } from 'perfect-freehand';
+import { inkSchema, parseInk } from '../../shared/ink';
 
 export interface InkPoint {
   x: number;
@@ -96,7 +97,7 @@ export function renderStrokeToPath(stroke: InkStroke): string {
     }
   };
 
-  const points = stroke.points.map(p => [p[0], p[1], p[2] || 0.5]);
+  const points = stroke.points.map((p) => [p[0], p[1], p[2] ?? 0.5]);
   const outline = getStroke(points, options);
   return getSvgPathFromStroke(outline);
 }
@@ -119,70 +120,24 @@ export function serializeInk(
   return JSON.stringify(data);
 }
 
-export function deserializeInkPayload(serialized?: string): {
-  strokes: InkStroke[];
-  textAnnotations: TextAnnotation[];
-  visualization?: InkVisualizationMeta;
-  width: number;
-  height: number;
-} {
-  if (!serialized) {
-    return { strokes: [], textAnnotations: [], width: 960, height: 1600 };
-  }
-  try {
-    const parsed = JSON.parse(serialized);
-    if (parsed && typeof parsed === 'object') {
-      const strokes = Array.isArray(parsed.strokes) ? parsed.strokes : Array.isArray(parsed) ? parsed : [];
-      const textAnnotations = Array.isArray(parsed.textAnnotations) ? parsed.textAnnotations : [];
-      return {
-        strokes,
-        textAnnotations,
-        visualization: parsed.visualization,
-        width: parsed.width || 960,
-        height: parsed.height || 1600
-      };
-    }
-    return { strokes: [], textAnnotations: [], width: 960, height: 1600 };
-  } catch {
-    return { strokes: [], textAnnotations: [], width: 960, height: 1600 };
-  }
-}
-
-export function deserializeInk(serialized?: string): InkStroke[] {
-  return deserializeInkPayload(serialized).strokes;
-}
-
-export function deserializeTextAnnotations(serialized?: string): TextAnnotation[] {
-  return deserializeInkPayload(serialized).textAnnotations;
-}
-
 export function parseInkData(serialized?: string): InkData | null {
   if (!serialized) return null;
   try {
-    const parsed = JSON.parse(serialized);
-    if (parsed && Array.isArray(parsed.strokes)) {
-      return {
-        version: parsed.version || 1,
-        width: parsed.width || 960,
-        height: parsed.height || 1600,
-        strokes: parsed.strokes,
-        textAnnotations: Array.isArray(parsed.textAnnotations) ? parsed.textAnnotations : [],
-        visualization: parsed.visualization
-      };
-    }
-    if (Array.isArray(parsed)) {
-      return {
-        version: 1,
-        width: 800,
-        height: 600,
-        strokes: parsed,
-        textAnnotations: []
-      };
-    }
-    return null;
+    return parseInk(serialized);
   } catch {
     return null;
   }
+}
+export function deserializeInkPayload(serialized?: string) {
+  const parsed = parseInkData(serialized);
+  if (parsed) return { ...parsed, textAnnotations: parsed.textAnnotations || [] };
+  return { strokes: [] as InkStroke[], textAnnotations: [] as TextAnnotation[], width: 960, height: 1600 };
+}
+export function deserializeInk(serialized?: string): InkStroke[] {
+  return deserializeInkPayload(serialized).strokes;
+}
+export function deserializeTextAnnotations(serialized?: string): TextAnnotation[] {
+  return deserializeInkPayload(serialized).textAnnotations || [];
 }
 
 export function inkToSvgString(
@@ -191,8 +146,9 @@ export function inkToSvgString(
   height = 1600,
   textAnnotations: TextAnnotation[] = []
 ): string {
+  inkSchema.parse({ version: 2, width, height, strokes, textAnnotations });
   const paths = strokes
-    .map(stroke => {
+    .map((stroke) => {
       const d = renderStrokeToPath(stroke);
       const opacity = stroke.isHighlighter ? 0.35 : 1;
       return `<path d="${d}" fill="${stroke.color}" opacity="${opacity}" />`;
@@ -200,7 +156,7 @@ export function inkToSvgString(
     .join('\n  ');
 
   const texts = textAnnotations
-    .map(ann => {
+    .map((ann) => {
       const escaped = ann.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return `<text x="${ann.x}" y="${ann.y}" fill="${ann.color}" font-size="${ann.fontSize}" font-family="Georgia, serif">${escaped}</text>`;
     })

@@ -1,70 +1,66 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
 import {
-  Link,
-  NavLink,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate
-} from 'react-router-dom';
-import { registerSW } from 'virtual:pwa-register';
-import {
+  ArrowRight,
   BookOpen,
-  Bookmark,
-  ChevronRight,
-  Clock3,
-  Compass,
-  Download,
-  FolderOpen,
-  LayoutDashboard,
-  Layers,
   Calendar,
-  List,
+  Check,
+  Compass,
+  Layers,
+  LayoutDashboard,
   LoaderCircle,
   Menu,
-  Moon,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
-  Route as RouteIcon,
+  PenTool,
   Search,
   Settings,
-  Sparkles,
-  StickyNote,
-  Sun,
-  Trash2,
-  Upload,
   WifiOff,
-  Cloud,
-  FileText,
-  ArrowRight,
-  PenTool,
-  Check,
   X
 } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, useRef } from 'react';
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { registerSW } from 'virtual:pwa-register';
+import { SaveStatus } from './components/ui/SaveStatus';
+import { useMediaQuery } from './components/ui/useMediaQuery';
+import { useDrawerFocus } from './components/ui/useDrawerFocus';
 
-import { documents } from './lib/content';
-import { docRoute } from './lib/model';
-import { useWorkspace } from './lib/workspace';
 import { useAuth } from './lib/auth';
-import { ALL_LECTURES, TOPICS } from './lib/curriculum';
-
-import { Dashboard } from './components/Dashboard';
-import { TopicBrowser } from './components/TopicBrowser';
-import { StudyPathView } from './components/StudyPathView';
-import { LectureReader } from './components/LectureReader';
-import { KnowledgeGraphView } from './components/KnowledgeGraphView';
-import { NotebookView } from './components/NotebookView';
-import { SettingsModal } from './components/SettingsModal';
-import { SearchModal } from './components/SearchModal';
-import { ReferenceReader } from './components/reference/ReferenceReader';
-import { ReferenceLibrary as Library } from './components/reference/ReferenceLibrary';
+import { TOPICS } from './lib/curriculumCatalog';
 import { usePdfViewer } from './lib/pdfViewerContext';
-import { PdfEmbedViewer } from './components/PdfEmbedViewer';
+import { useWorkspace } from './lib/workspace';
 
-const join = (...classes: (string | false | null | undefined)[]) =>
-  classes.filter(Boolean).join(' ');
+const Dashboard = lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })));
+const TopicBrowser = lazy(() =>
+  import('./components/TopicBrowser').then((m) => ({ default: m.TopicBrowser }))
+);
+const StudyPathView = lazy(() =>
+  import('./components/StudyPathView').then((m) => ({ default: m.StudyPathView }))
+);
+const LectureReader = lazy(() =>
+  import('./components/LectureReader').then((m) => ({ default: m.LectureReader }))
+);
+const KnowledgeGraphView = lazy(() =>
+  import('./components/KnowledgeGraphView').then((m) => ({ default: m.KnowledgeGraphView }))
+);
+const NotebookView = lazy(() =>
+  import('./components/NotebookView').then((m) => ({ default: m.NotebookView }))
+);
+const SettingsModal = lazy(() =>
+  import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal }))
+);
+const SearchModal = lazy(() => import('./components/SearchModal').then((m) => ({ default: m.SearchModal })));
+const ReferenceReader = lazy(() =>
+  import('./components/reference/ReferenceReader').then((m) => ({ default: m.ReferenceReader }))
+);
+const Library = lazy(() =>
+  import('./components/reference/ReferenceLibrary').then((m) => ({ default: m.ReferenceLibrary }))
+);
+const PdfEmbedViewer = lazy(() =>
+  import('./components/PdfEmbedViewer').then((m) => ({ default: m.PdfEmbedViewer }))
+);
+
+const join = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
 
 function Logo({ small = false }: { small?: boolean }) {
   return (
@@ -98,7 +94,7 @@ function Empty({
 
 // Main App Shell
 export default function App() {
-  const { data, loaded, error, syncState } = useWorkspace();
+  const { data, loaded, error, syncState, saving, flush } = useWorkspace();
   const { user } = useAuth();
   const { activePaper, closePaper } = usePdfViewer();
   const location = useLocation();
@@ -106,6 +102,9 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const compact = useMediaQuery('(max-width: 1100px)');
+  const navigationRef = useRef<HTMLElement>(null);
+  useDrawerFocus(navigationRef, compact && menuOpen, () => setMenuOpen(false));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('ainotes_sidebar_collapsed') === 'true';
@@ -126,7 +125,7 @@ export default function App() {
     const keyboard = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setSearchOpen(open => !open);
+        setSearchOpen((open) => !open);
       }
     };
     const network = () => setOnline(navigator.onLine);
@@ -147,6 +146,9 @@ export default function App() {
 
     const updater = registerSW({
       immediate: true,
+      onRegisteredSW(_url, registration) {
+        if (registration?.active && navigator.serviceWorker.controller) setOfflineReady(true);
+      },
       onOfflineReady() {
         setOfflineReady(true);
       },
@@ -172,15 +174,15 @@ export default function App() {
 
   useEffect(() => {
     setMenuOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.hash]);
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: <LayoutDashboard size={19} /> },
-    { to: '/topics', label: '10 Topics', icon: <Layers size={19} /> },
-    { to: '/tree', label: 'Knowledge DAG', icon: <Network size={19} /> },
-    { to: '/path', label: 'Study Path', icon: <Calendar size={19} /> },
-    { to: '/notes', label: 'Notebook & Ink', icon: <PenTool size={19} /> },
-    { to: '/library', label: 'Reference Shelf', icon: <BookOpen size={19} /> }
+    { to: '/topics', label: 'Topics', icon: <Layers size={19} /> },
+    { to: '/tree', label: 'Knowledge map', icon: <Network size={19} /> },
+    { to: '/path', label: 'Study path', icon: <Calendar size={19} /> },
+    { to: '/notes', label: 'Notebook', icon: <PenTool size={19} /> },
+    { to: '/library', label: 'Library', icon: <BookOpen size={19} /> }
   ];
 
   return (
@@ -199,14 +201,26 @@ export default function App() {
         )}
 
         {/* Sidebar */}
-        <aside className={join('sidebar', menuOpen && 'open')}>
+        <aside
+          ref={navigationRef}
+          inert={compact && !menuOpen}
+          className={join('sidebar', menuOpen && 'open')}
+        >
+          {compact && (
+            <button
+              className="icon-button navigation-close"
+              aria-label="Close navigation"
+              onClick={() => setMenuOpen(false)}
+            >
+              <X size={20} />
+            </button>
+          )}
           <Link to="/" className="brand-link" aria-label="AINotes home">
             <Logo />
           </Link>
-          <div className="sidebar-caption">OPEN STUDY PLATFORM</div>
 
           <nav className="main-nav" aria-label="Main navigation">
-            {navItems.map(item => (
+            {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -216,23 +230,17 @@ export default function App() {
               >
                 {item.icon}
                 <span>{item.label}</span>
-                {item.to === '/notes' && data.notes.length > 0 && (
-                  <small>{data.notes.length}</small>
-                )}
+                {item.to === '/notes' && data.notes.length > 0 && <small>{data.notes.length}</small>}
               </NavLink>
             ))}
           </nav>
 
           <div className="sidebar-divider" />
-          <div className="sidebar-section-label">TOPIC NAVIGATION</div>
+          <div className="sidebar-section-label">Topics</div>
 
           <nav className="chapter-nav" aria-label="Topics">
-            {TOPICS.slice(0, 7).map(topic => (
-              <Link
-                key={topic.id}
-                to={`/topics#${topic.id}`}
-                title={`Topic ${topic.number}: ${topic.title}`}
-              >
+            {TOPICS.map((topic) => (
+              <Link key={topic.id} to={`/topics#${topic.id}`} title={`Topic ${topic.number}: ${topic.title}`}>
                 <span className={join('chapter-dot', topic.color)}>{topic.number}</span>
                 <span style={{ fontSize: '11px' }}>{topic.title}</span>
               </Link>
@@ -243,30 +251,19 @@ export default function App() {
             <button
               type="button"
               className="nav-link settings-trigger"
-              onClick={() => setSettingsOpen(true)}
-              title="Settings & Sync"
+              onClick={() => {
+                setMenuOpen(false);
+                setSettingsOpen(true);
+              }}
+              title="Settings"
             >
               <Settings size={18} />
-              <span>Settings & Sync</span>
+              <span>Settings</span>
             </button>
 
             <div className="offline-status">
-              {syncState === 'synced' ? (
-                <>
-                  <Cloud size={13} style={{ color: 'var(--accent)' }} />
-                  <span>Cloud Synced</span>
-                </>
-              ) : online ? (
-                <>
-                  <span className="status-dot" />
-                  <span>Online (Local Cache)</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff size={13} />
-                  <span>Offline Mode</span>
-                </>
-              )}
+              <SaveStatus />
+              {!online && <WifiOff size={13} aria-label="Offline" />}
             </div>
           </div>
         </aside>
@@ -287,7 +284,7 @@ export default function App() {
                 type="button"
                 className="icon-button desktop-sidebar-toggle"
                 onClick={() => {
-                  setSidebarCollapsed(c => {
+                  setSidebarCollapsed((c) => {
                     const next = !c;
                     localStorage.setItem('ainotes_sidebar_collapsed', String(next));
                     return next;
@@ -298,7 +295,7 @@ export default function App() {
               >
                 {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
               </button>
-              <span className="topbar-label">AINotes · Symplectic & Quantum Systems Guide</span>
+
               <Link className="mobile-brand" to="/">
                 <Logo small />
               </Link>
@@ -308,10 +305,11 @@ export default function App() {
               <button
                 type="button"
                 className="global-search"
+                aria-label="Search"
                 onClick={() => setSearchOpen(true)}
               >
                 <Search size={16} />
-                <span>Search 60 lectures & notes</span>
+                <span>Search</span>
                 <kbd>⌘ K</kbd>
               </button>
 
@@ -345,7 +343,7 @@ export default function App() {
               ) : (
                 <button
                   type="button"
-                  className="button small secondary"
+                  className="button small secondary sign-in-trigger"
                   style={{ padding: '6px 12px', minHeight: '32px', fontSize: '11px' }}
                   onClick={() => setSettingsOpen(true)}
                 >
@@ -364,38 +362,67 @@ export default function App() {
             </div>
           </header>
 
+          {error && (
+            <div className="status-banner" role="alert">
+              {error}
+              <button className="text-button" onClick={() => setSettingsOpen(true)}>
+                Backups
+              </button>
+            </div>
+          )}
+          {needRefresh && (
+            <div className="status-banner" role="status">
+              <span>Update available</span>
+              <button
+                className="button small secondary"
+                disabled={saving || !!error || syncState === 'syncing'}
+                onClick={async () => {
+                  try {
+                    await flush();
+                    refresh?.();
+                  } catch {
+                    setToast('Save or export your changes before updating.');
+                  }
+                }}
+              >
+                Update app
+              </button>
+            </div>
+          )}
           <main id="main-content">
             {loaded ? (
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/topics" element={<TopicBrowser />} />
-                <Route path="/topics/:topicId/:lectureId" element={<LectureReader />} />
-                <Route path="/tree" element={<KnowledgeGraphView />} />
-                <Route path="/graph" element={<KnowledgeGraphView />} />
-                <Route path="/path" element={<StudyPathView />} />
-                <Route path="/notes" element={<NotebookView />} />
-                <Route path="/notes/:id" element={<NotebookView />} />
-                <Route path="/library" element={<Library />} />
-                <Route path="/read/*" element={<ReferenceReader />} />
-                <Route
-                  path="*"
-                  element={
-                    <div className="page">
-                      <Empty
-                        icon={<Compass />}
-                        title="Page not found"
-                        action={
-                          <Link className="button primary" to="/">
-                            Return to Dashboard <ArrowRight size={16} />
-                          </Link>
-                        }
-                      >
-                        The study lectures and reference shelves are in the navigation menu.
-                      </Empty>
-                    </div>
-                  }
-                />
-              </Routes>
+              <Suspense fallback={<div className="loading-workspace">Loading…</div>}>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/topics" element={<TopicBrowser />} />
+                  <Route path="/topics/:topicId/:lectureId" element={<LectureReader />} />
+                  <Route path="/tree" element={<KnowledgeGraphView />} />
+                  <Route path="/graph" element={<KnowledgeGraphView />} />
+                  <Route path="/path" element={<StudyPathView />} />
+                  <Route path="/notes" element={<NotebookView />} />
+                  <Route path="/notes/:id" element={<NotebookView />} />
+                  <Route path="/library" element={<Library />} />
+                  <Route path="/read/*" element={<ReferenceReader />} />
+                  <Route
+                    path="*"
+                    element={
+                      <div className="page">
+                        <Empty
+                          icon={<Compass />}
+                          title="Page not found"
+                          action={
+                            <Link className="button primary" to="/">
+                              Return to Dashboard <ArrowRight size={16} />
+                            </Link>
+                          }
+                        >
+                          The study lectures and reference shelves are in the navigation menu.
+                        </Empty>
+                      </div>
+                    }
+                  />
+                </Routes>
+              </Suspense>
             ) : (
               <div className="loading-workspace">
                 <LoaderCircle className="spin" size={25} />
@@ -403,57 +430,31 @@ export default function App() {
               </div>
             )}
           </main>
-
-          <footer className="site-footer">
-            <span>
-              AINotes <span className="footer-dot">·</span> Open Foundational Platform for
-              Quantum & Symplectic Computing.
-            </span>
-            <span>Theory ↔ Systems Architecture ↔ Derivations</span>
-          </footer>
         </div>
       </div>
 
-      {/* Bottom Nav for Mobile / Tablet */}
-      <nav className="bottom-nav" aria-label="Tablet navigation">
-        {navItems.map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            className={({ isActive }) => join(isActive && 'active')}
-          >
-            {item.icon}
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <Suspense fallback={null}>
+        {searchOpen && <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />}
 
-      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+        {activePaper && <PdfEmbedViewer paper={activePaper} onClose={closePaper} />}
 
-      {activePaper && (
-        <PdfEmbedViewer paper={activePaper} onClose={closePaper} />
-      )}
-
-      <SettingsModal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onShowToast={msg => setToast(msg)}
-        installEvent={installEvent}
-        installed={installed}
-        offlineReady={offlineReady}
-      />
+        {settingsOpen && (
+          <SettingsModal
+            open={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            onShowToast={(msg) => setToast(msg)}
+            installEvent={installEvent}
+            installed={installed}
+            offlineReady={offlineReady}
+          />
+        )}
+      </Suspense>
 
       {toast && (
         <div className="toast" role="status">
           <Check size={17} />
           <span>{toast}</span>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Dismiss"
-            onClick={() => setToast('')}
-          >
+          <button type="button" className="icon-button" aria-label="Dismiss" onClick={() => setToast('')}>
             <X size={14} />
           </button>
         </div>

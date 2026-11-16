@@ -1,27 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
   Bookmark,
+  BookOpen,
   Check,
   CheckCheck,
   Clock3,
   PanelRightClose,
+  PencilLine,
   PenTool,
   Plus,
-  PencilLine,
-  BookOpen,
   X
 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { documentMap } from '../../lib/content';
 import { makeNote } from '../../lib/model';
 import { useWorkspace } from '../../lib/workspace';
-import { MarkdownView } from '../MarkdownView';
+import { useMediaQuery } from '../ui/useMediaQuery';
+import { useDrawerFocus } from '../ui/useDrawerFocus';
 import { InkCanvas } from '../InkCanvas';
+import { MarkdownView } from '../MarkdownView';
 
-const join = (...classes: (string | false | null | undefined)[]) =>
-  classes.filter(Boolean).join(' ');
+const join = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
 
 function Empty({
   icon,
@@ -49,26 +50,32 @@ export function ReferenceReader() {
   const id = params['*'] ?? '';
   const doc = documentMap.get(id);
   const location = useLocation();
-  const navigate = useNavigate();
   const { data, update } = useWorkspace();
   const [notesOpen, setNotesOpen] = useState(false);
+  const notesRef = useRef<HTMLElement>(null);
+  const overlay = useMediaQuery('(max-width: 1200px)');
+  useDrawerFocus(notesRef, notesOpen && overlay, () => setNotesOpen(false));
   const [activeNote, setActiveNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (!doc) return;
-    update(cur => ({ ...cur, lastRead: { id: doc.id, at: new Date().toISOString() } }));
+    update((cur) => ({ ...cur, lastRead: { id: doc.id, at: new Date().toISOString() } }));
     setActiveNote(null);
     const timeout = window.setTimeout(() => {
       if (location.hash) {
-        document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({
-          block: 'start'
-        });
+        try {
+          document
+            .getElementById(decodeURIComponent(location.hash.slice(1)))
+            ?.scrollIntoView({ block: 'start' });
+        } catch {
+          /* Ignore malformed anchors. */
+        }
       } else {
         window.scrollTo(0, Number(localStorage.getItem(`ainotes-position:${id}`) ?? 0));
       }
     }, 80);
     return () => clearTimeout(timeout);
-  }, [id, location.hash, update]);
+  }, [id, doc, location.hash, update]);
 
   useEffect(() => {
     const save = () => {
@@ -99,32 +106,30 @@ export function ReferenceReader() {
   }
 
   const attached = data.notes
-    .filter(n => n.documentId === id)
+    .filter((n) => n.documentId === id)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const note = attached.find(n => n.id === activeNote) ?? attached[0];
+  const note = attached.find((n) => n.id === activeNote) ?? attached[0];
   const read = data.read.includes(id);
   const bookmarked = data.bookmarks.includes(id);
 
   const toggleRead = () =>
-    update(current => ({
+    update((current) => ({
       ...current,
-      read: current.read.includes(id)
-        ? current.read.filter(item => item !== id)
-        : [...current.read, id]
+      read: current.read.includes(id) ? current.read.filter((item) => item !== id) : [...current.read, id]
     }));
 
   const addNote = () => {
     const fresh = makeNote(`Notes on ${doc.title}`, id);
-    update(current => ({ ...current, notes: [fresh, ...current.notes] }));
+    update((current) => ({ ...current, notes: [fresh, ...current.notes] }));
     setActiveNote(fresh.id);
     setNotesOpen(true);
   };
 
   const updateActiveNote = (patch: Partial<typeof note>) => {
     if (!note) return;
-    update(cur => ({
+    update((cur) => ({
       ...cur,
-      notes: cur.notes.map(n =>
+      notes: cur.notes.map((n) =>
         n.id === note.id ? { ...n, ...patch, updatedAt: new Date().toISOString() } : n
       )
     }));
@@ -144,10 +149,10 @@ export function ReferenceReader() {
               aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark page'}
               title="Bookmark page"
               onClick={() =>
-                update(current => ({
+                update((current) => ({
                   ...current,
                   bookmarks: bookmarked
-                    ? current.bookmarks.filter(item => item !== id)
+                    ? current.bookmarks.filter((item) => item !== id)
                     : [...current.bookmarks, id]
                 }))
               }
@@ -198,7 +203,7 @@ export function ReferenceReader() {
 
       {/* Side Notes Drawer with Ink Canvas */}
       {notesOpen && (
-        <aside className="reading-notes" style={{ width: '400px' }}>
+        <aside ref={notesRef} className="reading-notes" style={{ width: '400px' }}>
           <div className="notes-panel-heading">
             <div>
               <span className="eyebrow">MARGIN NOTES</span>
@@ -219,20 +224,15 @@ export function ReferenceReader() {
               <select
                 aria-label="Choose a note"
                 value={note?.id}
-                onChange={e => setActiveNote(e.target.value)}
+                onChange={(e) => setActiveNote(e.target.value)}
               >
-                {attached.map(n => (
+                {attached.map((n) => (
                   <option key={n.id} value={n.id}>
                     {n.title || 'Untitled Note'}
                   </option>
                 ))}
               </select>
-              <button
-                type="button"
-                className="icon-button"
-                title="Add another note"
-                onClick={addNote}
-              >
+              <button type="button" className="icon-button" title="Add another note" onClick={addNote}>
                 <Plus size={17} />
               </button>
             </div>
@@ -243,27 +243,24 @@ export function ReferenceReader() {
               <input
                 className="note-title"
                 value={note.title}
-                onChange={e => updateActiveNote({ title: e.target.value })}
+                onChange={(e) => updateActiveNote({ title: e.target.value })}
                 placeholder="Note title"
                 style={{ padding: '8px', border: '1px solid var(--line)', borderRadius: '6px' }}
               />
 
-              <div style={{ fontSize: '11px', fontWeight: 650, color: 'var(--muted)' }}>
-                STYLUS CANVAS:
-              </div>
+              <div style={{ fontSize: '11px', fontWeight: 650, color: 'var(--muted)' }}>STYLUS CANVAS:</div>
               <InkCanvas
+                key={note.id}
                 initialData={note.inkData}
-                onChange={inkData => updateActiveNote({ inkData })}
+                onChange={(inkData) => updateActiveNote({ inkData })}
                 minHeight={240}
               />
 
-              <div style={{ fontSize: '11px', fontWeight: 650, color: 'var(--muted)' }}>
-                TYPED NOTES:
-              </div>
+              <div style={{ fontSize: '11px', fontWeight: 650, color: 'var(--muted)' }}>TYPED NOTES:</div>
               <textarea
                 className="note-body"
                 value={note.body}
-                onChange={e => updateActiveNote({ body: e.target.value })}
+                onChange={(e) => updateActiveNote({ body: e.target.value })}
                 placeholder="Type formulas or thoughts..."
                 rows={4}
                 style={{

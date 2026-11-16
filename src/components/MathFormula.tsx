@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
 import katex from 'katex';
+import { useMemo } from 'react';
 
 interface MathFormulaProps {
   math: string;
@@ -26,10 +26,11 @@ export function MathFormula({ math, display = false, className = '' }: MathFormu
         strict: false
       });
     } catch {
-      return `<code class="math-fallback">${math}</code>`;
+      return null;
     }
   }, [math, display]);
 
+  if (html === null) return <code className="math-fallback">{math}</code>;
   if (display) {
     return (
       <div
@@ -40,10 +41,5 @@ export function MathFormula({ math, display = false, className = '' }: MathFormu
     );
   }
 
-  return (
-    <span
-      className={`math-formula-inline ${className}`}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
+  return <span className={`math-formula-inline ${className}`} dangerouslySetInnerHTML={{ __html: html }} />;
 }

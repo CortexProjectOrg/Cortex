@@ -1,12 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import {
-  TOPICS,
-  ALL_LECTURES,
-  MASTERY_PACKS,
-  LECTURE_MAP,
-  type Topic,
-  type Lecture
-} from '../src/lib/curriculum';
+import { describe, expect, it } from 'vitest';
+import { ALL_LECTURES, LECTURE_MAP, MASTERY_PACKS, TOPICS } from '../src/lib/curriculum';
 
 describe('Curriculum Structure & Academic Invariants', () => {
   it('defines exactly 10 comprehensive foundational topics with sequential numbering', () => {
@@ -27,7 +20,7 @@ describe('Curriculum Structure & Academic Invariants', () => {
     expect(ALL_LECTURES.length).toBe(60);
     expect(LECTURE_MAP.size).toBe(60);
 
-    const uniqueIds = new Set(ALL_LECTURES.map(l => l.id));
+    const uniqueIds = new Set(ALL_LECTURES.map((l) => l.id));
     expect(uniqueIds.size).toBe(60);
   });
 
@@ -49,11 +42,11 @@ describe('Curriculum Structure & Academic Invariants', () => {
   });
 
   it('ensures every lecture contains formal theoretical citations and formula references', () => {
-    ALL_LECTURES.forEach(lecture => {
+    ALL_LECTURES.forEach((lecture) => {
       expect(lecture.theoreticalCitations).toBeDefined();
       expect(lecture.theoreticalCitations.length).toBeGreaterThanOrEqual(1);
 
-      lecture.theoreticalCitations.forEach(citation => {
+      lecture.theoreticalCitations.forEach((citation) => {
         expect(citation.formulaName.trim().length).toBeGreaterThan(0);
         expect(citation.expression.trim().length).toBeGreaterThan(0);
         expect(citation.source.trim().length).toBeGreaterThan(0);
@@ -63,7 +56,7 @@ describe('Curriculum Structure & Academic Invariants', () => {
   });
 
   it('ensures every lecture includes complete pedagogical content sections', () => {
-    ALL_LECTURES.forEach(lecture => {
+    ALL_LECTURES.forEach((lecture) => {
       expect(lecture.question.trim().length).toBeGreaterThan(0);
       expect(lecture.subtitle.trim().length).toBeGreaterThan(0);
       expect(lecture.content.motivation.trim().length).toBeGreaterThan(10);
@@ -75,9 +68,9 @@ describe('Curriculum Structure & Academic Invariants', () => {
   });
 
   it('ensures systems architecture code references and research papers are documented', () => {
-    ALL_LECTURES.forEach(lecture => {
+    ALL_LECTURES.forEach((lecture) => {
       expect(lecture.codeReferences.length).toBeGreaterThanOrEqual(1);
-      lecture.codeReferences.forEach(ref => {
+      lecture.codeReferences.forEach((ref) => {
         expect(ref.crate).toBeTruthy();
         expect(ref.filePath).toBeTruthy();
         expect(ref.symbols.length).toBeGreaterThan(0);
@@ -85,7 +78,7 @@ describe('Curriculum Structure & Academic Invariants', () => {
       });
 
       expect(lecture.paperReferences.length).toBeGreaterThanOrEqual(1);
-      lecture.paperReferences.forEach(paper => {
+      lecture.paperReferences.forEach((paper) => {
         expect(paper.title).toBeTruthy();
         expect(paper.authors).toBeTruthy();
         expect(paper.citation).toBeTruthy();
