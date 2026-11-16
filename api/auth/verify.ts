@@ -1,5 +1,5 @@
-import { extractBearerToken, verifyGoogleToken } from '../lib/auth';
-import { allowRequest, type Request, type Response } from '../lib/http';
+import { extractBearerToken, verifyGoogleToken } from '../lib/auth.js';
+import { allowRequest, type Request, type Response } from '../lib/http.js';
 export default async function handler(req: Request, res: Response) {
   if (!allowRequest(req, res, ['POST'])) return;
   const token = extractBearerToken(req.headers.authorization);

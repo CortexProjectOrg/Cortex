@@ -1,4 +1,4 @@
-import type { Request, Response } from './lib/http';
+import type { Request, Response } from './lib/http.js';
 // Curriculum is a versioned build asset. There is no public graph writer or database dependency.
 export default function handler(_req: Request, res: Response) {
   return res

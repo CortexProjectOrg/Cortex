@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless';
-import { parseWorkspace, type Snapshot, type Workspace } from '../../shared/workspace';
-import type { GoogleUser } from './auth';
+import { parseWorkspace, type Snapshot, type Workspace } from '../../shared/workspace.js';
+import type { GoogleUser } from './auth.js';
 export function getDatabaseUrl(): string | undefined {
   return (
     process.env.DATABASE_URL ||
