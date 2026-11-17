@@ -50,7 +50,7 @@ describe('Google signature and claim verification', () => {
     vi.stubEnv('GOOGLE_CLIENT_ID', audience);
     const token = await sign();
     const parts = token.split('.');
-    parts[2] = 'X' + parts[2].slice(1);
+    parts[2] = (parts[2].startsWith('X') ? 'Y' : 'X') + parts[2].slice(1);
     expect(await verifyGoogleToken(parts.join('.'), keys)).toBeNull();
   });
   it('extracts only bearer credentials', () => {
