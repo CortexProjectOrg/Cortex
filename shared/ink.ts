@@ -33,7 +33,7 @@ export const inkSchema = z.object({
       canonicalWidth: z.number().positive().max(10_000),
       contentWidth: z.number().positive().max(10_000),
       marginWidth: z.number().positive().max(10_000),
-      version: z.number().int().min(1).max(3)
+      version: z.number().int().min(1).max(4)
     })
     .optional()
 });

@@ -15,6 +15,7 @@ export function SystemsArchitecturePanel({
   implementationChoices,
   codeWalkthrough
 }: SystemsArchitecturePanelProps) {
+  if (!codeReferences.length && !implementationChoices.length && !codeWalkthrough.trim()) return null;
   return (
     <section style={{ marginBottom: '36px' }}>
       <h2 style={{ fontFamily: 'var(--serif)', fontSize: '24px', marginBottom: '16px' }}>

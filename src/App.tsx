@@ -56,6 +56,9 @@ const ReferenceReader = lazy(() =>
 const Library = lazy(() =>
   import('./components/reference/ReferenceLibrary').then((m) => ({ default: m.ReferenceLibrary }))
 );
+const PaperPlanner = lazy(() =>
+  import('./components/PaperPlanner').then((m) => ({ default: m.PaperPlanner }))
+);
 const PdfEmbedViewer = lazy(() =>
   import('./components/PdfEmbedViewer').then((m) => ({ default: m.PdfEmbedViewer }))
 );
@@ -181,6 +184,7 @@ export default function App() {
     { to: '/topics', label: 'Topics', icon: <Layers size={19} /> },
     { to: '/tree', label: 'Knowledge map', icon: <Network size={19} /> },
     { to: '/path', label: 'Study path', icon: <Calendar size={19} /> },
+    { to: '/papers', label: 'Paper study', icon: <Network size={19} /> },
     { to: '/notes', label: 'Notebook', icon: <PenTool size={19} /> },
     { to: '/library', label: 'Library', icon: <BookOpen size={19} /> }
   ];
@@ -399,6 +403,7 @@ export default function App() {
                   <Route path="/tree" element={<KnowledgeGraphView />} />
                   <Route path="/graph" element={<KnowledgeGraphView />} />
                   <Route path="/path" element={<StudyPathView />} />
+                  <Route path="/papers" element={<PaperPlanner />} />
                   <Route path="/notes" element={<NotebookView />} />
                   <Route path="/notes/:id" element={<NotebookView />} />
                   <Route path="/library" element={<Library />} />

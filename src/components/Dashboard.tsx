@@ -44,7 +44,9 @@ export function Dashboard() {
             <Link key={id} className="lecture-list-item" to={lectureRoute(lecture.topicId, id)}>
               <span className="lecture-number">{lecture.lectureNumber}</span>
               <strong>{lecture.title}</strong>
-              <span className="subtle">{data.completedLectures.includes(id) ? 'Done' : '60 min'}</span>
+              <span className="subtle">
+                {data.completedLectures.includes(id) ? 'Done' : `~${lecture.durationMinutes} min`}
+              </span>
               <ArrowRight size={16} />
             </Link>
           );

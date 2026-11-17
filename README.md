@@ -1,6 +1,16 @@
 # AINotes
 
-A study notebook for mathematics, quantum computing, and simulation systems: 60 lectures, 10 topics, and 15 four-hour study packs.
+A study notebook for mathematics, quantum computing, and simulation systems: 60 lectures, 14 topics, 15 study packs, and paper-based prerequisite trees.
+
+## Study a paper
+
+Open **Paper study**, upload a PDF (up to 8 MB) or supply text/Markdown/LaTeX (up to 150,000 characters), and enter your own Gemini API key. You can select a theorem by label; otherwise the model identifies the main theorem. Generation sends the paper directly from your browser to Google and uses your API quota. The key stays in component memory, is cleared on navigation, and is never stored in notes, browser storage, the AINotes API, or exports. Google sign-in is not required.
+
+The client uses Gemini's [structured-output API](https://aistudio.google.com/api-reference/generate-content), with `gemini-3.5-flash-lite` as the editable default. It proposes a bounded concept graph with source evidence, explanations, examples, and exercises. Deterministic title/alias retrieval links relevant existing lectures; DFS expands their prerequisite closure, deduplicates shared lessons, rejects cycles and missing references, and orders foundations before dependent lessons. Catalog matching is conservative: unmatched concepts remain labeled AI drafts. This is local catalog search, not an internet literature search or proof verifier.
+
+Quotes are checked against supplied text; PDF evidence and mathematical sufficiency require review. An abstract without an identifiable theorem should return a request for more material. Errors, quotas, truncation, and cancellation do not trigger automatic paid retries. General lessons reject unrelated quantum material; specialized applications stay in explicitly titled lessons.
+
+Export a tree as JSON to reopen it offline, or add the study guide to Notebook for normal workspace persistence and sync. The raw paper and key are not included. Unsaved results last until you leave the page. Study times estimate reading, mathematical work, and practice rather than imposing one-hour lectures; pack totals sum their actual lesson estimates.
 
 ## Develop and verify
 
@@ -33,7 +43,7 @@ npm run preview        # production PWA at http://127.0.0.1:4173
 
 ## Reading and annotations
 
-Reading mode reflows to the screen. Annotation mode uses a fixed coordinate system with **Fit page** / **Actual size** controls, keeping ink anchored while its display scales. Earlier lecture annotation layouts retain their legacy structure; new annotations use layout version 3. Do not reflow or remove content from those layouts without a versioned compatibility strategy.
+Reading mode reflows to the screen. Annotation mode uses a fixed coordinate system with **Fit page** / **Actual size** controls, keeping ink anchored while its display scales. Existing lecture drawings retain their original content and geometry (versions 1–3); new drawings use content revision 4. The original lecture record remains intact so revised foundations and topic names do not move existing ink. Deploy the matching API validator before syncing revision-4 drawings; older clients do not understand that revision.
 
 Scratchpad drawings retain their stored dimensions across screen changes. Undo/redo covers strokes and typed annotations. Pen/mouse drawing and touch scrolling are separate; physical stylus and installed Safari/Android testing remain release checks.
 

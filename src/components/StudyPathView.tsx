@@ -1,3 +1,4 @@
+import { formatStudyTime } from '../lib/studyTime';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ALL_LECTURES, FOUR_HOUR_MASTERY_PATH, LECTURE_MAP } from '../lib/curriculumCatalog';
@@ -38,7 +39,12 @@ export function StudyPathView() {
                 })}
               </div>
               <div className="pack-actions">
-                <span className="subtle">4 hours</span>
+                <span className="subtle">
+                  ~
+                  {formatStudyTime(
+                    pack.lectureIds.reduce((sum, id) => sum + LECTURE_MAP.get(id)!.durationMinutes, 0)
+                  )}
+                </span>
                 <button
                   type="button"
                   className={`button small ${current ? 'soft' : 'secondary'}`}

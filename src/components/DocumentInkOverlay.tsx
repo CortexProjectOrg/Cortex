@@ -8,6 +8,7 @@ import { useInkState } from './ink/useInkState';
 interface DocumentInkOverlayProps {
   initialData?: string;
   legacyLayout?: boolean;
+  contentVersion?: number;
   onChange?: (data: string) => void;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   onToggleSideNotes?: () => void;
@@ -19,6 +20,7 @@ interface DocumentInkOverlayProps {
 export function DocumentInkOverlay({
   initialData,
   legacyLayout = false,
+  contentVersion = 3,
   onChange,
   containerRef,
   onToggleSideNotes,
@@ -84,7 +86,9 @@ export function DocumentInkOverlay({
     onChange,
     canonicalWidth: CANONICAL_PAGE_GEOMETRY.canonicalWidth,
     height: dimensions.height,
-    visualization: legacyLayout ? CANONICAL_PAGE_GEOMETRY : { ...CANONICAL_PAGE_GEOMETRY, version: 3 }
+    visualization: legacyLayout
+      ? CANONICAL_PAGE_GEOMETRY
+      : { ...CANONICAL_PAGE_GEOMETRY, version: contentVersion }
   });
 
   useEffect(() => {

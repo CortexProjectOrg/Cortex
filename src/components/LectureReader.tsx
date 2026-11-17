@@ -1,9 +1,10 @@
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, PanelRightClose, PenTool } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ALL_LECTURES, LECTURE_MAP, TOPICS } from '../lib/curriculum';
+import { ALL_LECTURES, LECTURE_MAP, TOPICS, LEGACY_LECTURE_MAP, LEGACY_TOPICS } from '../lib/curriculum';
+import { formatStudyTime } from '../lib/studyTime';
 import { parseInkData } from '../lib/ink';
-import { getKnowledgeDAG } from '../lib/knowledgeGraph';
+import { buildKnowledgeDAG, getKnowledgeDAG } from '../lib/knowledgeGraph';
 import type { Note } from '../lib/model';
 import { lectureRoute, makeNote } from '../lib/model';
 import { usePdfViewer } from '../lib/pdfViewerContext';
@@ -21,7 +22,7 @@ import { TheoreticalCitationsPanel } from './reader/TheoreticalCitationsPanel';
 export function LectureReader() {
   const { topicId, lectureId } = useParams();
   const lecture = lectureId && LECTURE_MAP.get(lectureId);
-  if (!lecture || lecture.topicId !== topicId)
+  if (!lecture || (lecture.topicId !== topicId && LEGACY_LECTURE_MAP.get(lecture.id)?.topicId !== topicId))
     return (
       <div className="page">
         <h1>Lecture not found</h1>
@@ -38,9 +39,23 @@ function LectureReaderContent() {
   const { data, update } = useWorkspace();
   const { openPaper } = usePdfViewer();
 
-  const lecture = (lectureId && LECTURE_MAP.get(lectureId)) || ALL_LECTURES[0];
-  const topic = TOPICS.find((t) => t.id === lecture.topicId) || TOPICS[0];
-  const dag = useMemo(() => getKnowledgeDAG(), []);
+  const currentLecture = (lectureId && LECTURE_MAP.get(lectureId)) || ALL_LECTURES[0];
+  const attachedNote = data.notes.find(
+    (n) => n.lectureId === currentLecture.id || n.documentId === currentLecture.id
+  );
+  const inkVersion = attachedNote?.lectureInk
+    ? parseInkData(attachedNote.lectureInk)?.visualization?.version || 1
+    : 4;
+  const originalContent = inkVersion < 4;
+  const lecture = originalContent ? LEGACY_LECTURE_MAP.get(currentLecture.id)! : currentLecture;
+  const topic = (originalContent ? LEGACY_TOPICS : TOPICS).find((t) => t.id === lecture.topicId) || TOPICS[0];
+  const dag = useMemo(
+    () =>
+      originalContent
+        ? buildKnowledgeDAG([...LEGACY_LECTURE_MAP.values()], LEGACY_TOPICS)
+        : getKnowledgeDAG(),
+    [originalContent]
+  );
   const dagNode = lecture ? dag.nodes.get(lecture.id) : null;
 
   const [notesOpen, setNotesOpen] = useState(false);
@@ -211,6 +226,7 @@ function LectureReaderContent() {
           key={lecture.id}
           initialData={activeNote.lectureInk}
           legacyLayout={legacyLayout}
+          contentVersion={originalContent ? inkVersion : 4}
           onChange={(lectureInk) => updateActiveNote({ lectureInk })}
           onToggleSideNotes={() => setNotesOpen(!notesOpen)}
           sideNotesOpen={notesOpen}
@@ -221,11 +237,16 @@ function LectureReaderContent() {
             <header className="article-heading">
               <div className="article-meta">
                 <span className="eyebrow">
-                  TOPIC {topic.number}: {topic.title.toUpperCase()} · 4H PACK {lecture.packNumber}, SLOT{' '}
-                  {lecture.packSlot}
+                  TOPIC {topic.number}: {topic.title.toUpperCase()} · {originalContent ? '4H PACK' : 'PACK'}{' '}
+                  {lecture.packNumber}, SLOT {lecture.packSlot}
                 </span>
                 <span>
-                  <Clock3 size={13} /> {legacyLayout ? '60 min true effort' : '60 min'}
+                  <Clock3 size={13} />{' '}
+                  {legacyLayout
+                    ? '60 min true effort'
+                    : originalContent
+                      ? '60 min'
+                      : `~${formatStudyTime(lecture.durationMinutes)}`}
                 </span>
               </div>
               <h1>{lecture.title}</h1>

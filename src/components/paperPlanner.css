@@ -1,0 +1,273 @@
+.paper-planner {
+  max-width: 1360px;
+}
+.paper-planner .page-title-row {
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.paper-planner h2,
+.paper-planner h3 {
+  overflow-wrap: anywhere;
+}
+.paper-form,
+.paper-theorem,
+.paper-lesson {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 0;
+}
+.paper-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.paper-form legend {
+  font-size: 18px;
+  font-weight: 600;
+  padding: 0 0 20px;
+}
+.paper-input-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 32px;
+}
+.paper-form label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.paper-form small {
+  color: var(--muted);
+  display: block;
+  line-height: 1.5;
+}
+.paper-form input,
+.paper-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.paper-form textarea {
+  resize: vertical;
+  min-height: 150px;
+}
+.paper-form input[type='file'] {
+  padding: 8px;
+  font-size: 13px;
+}
+.paper-form input[type='file']::file-selector-button {
+  border: 0;
+  border-radius: 4px;
+  padding: 8px;
+  background: var(--soft);
+  color: var(--ink);
+  margin-right: 10px;
+  cursor: pointer;
+}
+.paper-source > small,
+.paper-options > small {
+  margin: 6px 0 20px;
+}
+.paper-options details {
+  margin-top: 20px;
+}
+.paper-options details label {
+  margin-top: 12px;
+}
+.paper-options label small {
+  display: inline;
+  font-weight: 400;
+}
+.paper-key {
+  display: flex;
+  gap: 8px;
+}
+.paper-key input {
+  min-width: 0;
+}
+.paper-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--soft);
+  border-radius: 8px;
+  padding: 12px;
+}
+.paper-file span {
+  flex: 1;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.paper-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.paper-form > .paper-actions {
+  margin-top: 20px;
+}
+.paper-actions small {
+  max-width: 350px;
+}
+.paper-import {
+  position: relative;
+}
+.paper-import input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.paper-import:focus-within {
+  outline: 3px solid #8caa7c;
+  outline-offset: 3px;
+}
+.paper-error {
+  border-left: 3px solid #a13939;
+  background: #fff2ee;
+  padding: 16px;
+  color: #8a2929;
+}
+.paper-result {
+  margin-top: 32px;
+}
+.paper-result h2 {
+  font-size: 24px;
+}
+.paper-theorem h3,
+.paper-lesson h3 {
+  margin-top: 8px;
+  font-family: var(--serif);
+  font-size: 25px;
+}
+.paper-planner details > summary {
+  cursor: pointer;
+  line-height: 1.6;
+}
+.paper-planner blockquote {
+  border-left: 3px solid var(--line);
+  margin: 12px 0;
+  padding: 0 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.paper-review {
+  margin-bottom: 24px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.paper-result-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.5fr);
+  gap: 24px;
+  align-items: start;
+}
+.paper-result-grid > aside {
+  min-width: 0;
+}
+.paper-view-switch {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.paper-view-switch button {
+  padding: 10px;
+  border-radius: 6px;
+  background: transparent;
+}
+.paper-planner button.selected {
+  background: var(--soft);
+  color: var(--accent);
+}
+.paper-tree {
+  font-size: 14px;
+  overflow: auto;
+}
+.paper-tree ul {
+  list-style: none;
+  margin: 6px 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+.paper-tree li {
+  margin: 6px 0;
+}
+.paper-tree button,
+.paper-study-order button {
+  text-align: left;
+  width: 100%;
+  border-radius: 6px;
+  background: transparent;
+  padding: 8px;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.paper-tree small,
+.paper-study-order small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.paper-tree summary {
+  color: var(--muted);
+  font-size: 12px;
+  padding-left: 8px;
+}
+.paper-study-order {
+  padding-left: 24px;
+  margin-top: 0;
+}
+.paper-study-order li {
+  margin-bottom: 4px;
+}
+.paper-lesson {
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.paper-lesson pre {
+  overflow: auto;
+}
+.paper-lesson .katex-display,
+.paper-theorem .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+@media (max-width: 800px) {
+  .paper-input-grid,
+  .paper-result-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .paper-form,
+  .paper-theorem,
+  .paper-lesson {
+    padding: 18px;
+  }
+  .paper-tree {
+    max-height: 380px;
+    overflow: auto;
+  }
+  .paper-study-order {
+    max-height: 380px;
+    overflow: auto;
+  }
+}
+@media (max-width: 420px) {
+  .paper-form,
+  .paper-theorem,
+  .paper-lesson {
+    padding: 14px;
+  }
+  .paper-actions .button {
+    flex-grow: 1;
+    justify-content: center;
+  }
+}

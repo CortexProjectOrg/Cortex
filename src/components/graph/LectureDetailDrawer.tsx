@@ -1,4 +1,5 @@
 import { BookOpen, Check, CheckCircle2, ChevronRight, GitBranch, Lock, Share2, X } from 'lucide-react';
+import { LECTURE_MAP } from '../../lib/curriculumCatalog';
 import { Link } from 'react-router-dom';
 import type { GraphNode, KnowledgeDAG, computeNodeReadiness } from '../../lib/knowledgeGraph';
 
@@ -162,7 +163,8 @@ export function LectureDetailDrawer({
         <div style={{ background: 'var(--bg)', padding: '8px 10px', borderRadius: '6px' }}>
           <span style={{ color: 'var(--muted)', display: 'block', fontSize: '9px' }}>EFFORT & PACK</span>
           <strong>
-            60 min · Pack {selectedNode.packNumber}.{selectedNode.packSlot}
+            ~{LECTURE_MAP.get(selectedNode.id)?.durationMinutes} min · Pack {selectedNode.packNumber}.
+            {selectedNode.packSlot}
           </strong>
         </div>
       </div>
