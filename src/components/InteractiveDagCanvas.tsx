@@ -1,15 +1,26 @@
-import { CornerDownRight, GitBranch, GitFork, Maximize2, Network, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  CornerDownRight,
+  GitBranch,
+  GitFork,
+  Maximize2,
+  Minimize2,
+  Network,
+  ZoomIn,
+  ZoomOut
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TOPICS } from '../lib/curriculumCatalog';
 import {
+  collapseNodePrerequisites,
+  collapseNodeUnlocks,
   computeTopDownDagLayout,
   expandFullTreeFromNode,
+  expandNodePrerequisites,
+  expandNodeUnlocks,
   getOneHopNeighborhood
 } from '../lib/dagLayoutEngine';
 import { computeNodeReadiness, type KnowledgeDAG } from '../lib/knowledgeGraph';
 import { NodeCard } from './graph/NodeCard';
-
-export type CanvasExpansionMode = 'one-hop' | 'tree' | 'all';
 
 interface Point {
   x: number;
@@ -72,35 +83,131 @@ export function InteractiveDagCanvas({
   // Toggle to optionally show derived (indirect / transitive) dependencies
   const [showDerived, setShowDerived] = useState(false);
 
-  // Expansion mode: 'one-hop' (default 1-hop focus), 'tree' (ancestors + descendants of focal), 'all' (entire DAG)
-  const [expansionMode, setExpansionMode] = useState<CanvasExpansionMode>('one-hop');
+  // Progressive visible node set: holds all nodes expanded so far
+  const [visibleNodeIds, setVisibleNodeIds] = useState<Set<string>>(() => {
+    const initialId =
+      selectedNodeId && filteredNodeIds.has(selectedNodeId)
+        ? selectedNodeId
+        : dag.nodeList.find((n) => filteredNodeIds.has(n.id))?.id || '';
+    return initialId ? getOneHopNeighborhood(initialId, dag, false) : new Set();
+  });
 
-  const visibleNodeIds = useMemo(() => {
-    let baseSet: Set<string>;
-    if (expansionMode === 'all') {
-      baseSet = new Set(dag.nodeList.map((n) => n.id));
-    } else if (expansionMode === 'tree') {
-      baseSet = expandFullTreeFromNode(focalId, dag);
-    } else {
-      baseSet = getOneHopNeighborhood(focalId, dag, showDerived);
+  // When selectedNodeId changes, ensure it and its direct connections are added to the expanded visible set
+  useEffect(() => {
+    if (selectedNodeId && dag.nodes.has(selectedNodeId)) {
+      setVisibleNodeIds((prev) => {
+        const next = new Set(prev);
+        next.add(selectedNodeId);
+        const node = dag.nodes.get(selectedNodeId);
+        node?.prerequisites.forEach((p) => next.add(p));
+        node?.unlockedLectures.forEach((u) => next.add(u));
+        if (showDerived) {
+          node?.derivedPrerequisites.forEach((p) => next.add(p));
+          node?.derivedUnlocked.forEach((u) => next.add(u));
+        }
+        return next;
+      });
     }
+  }, [selectedNodeId, dag, showDerived]);
 
+  // Filter visible nodes according to active search / topic filter
+  const effectiveVisibleNodeIds = useMemo(() => {
     if (filteredNodeIds.size === dag.nodeList.length) {
-      return baseSet;
+      return visibleNodeIds;
     }
-
     const filtered = new Set<string>();
-    baseSet.forEach((id) => {
+    visibleNodeIds.forEach((id) => {
       if (filteredNodeIds.has(id)) {
         filtered.add(id);
       }
     });
     return filtered.size > 0 ? filtered : new Set(filteredNodeIds);
-  }, [focalId, dag, showDerived, expansionMode, filteredNodeIds]);
+  }, [visibleNodeIds, filteredNodeIds, dag.nodeList.length]);
 
   const visibleNodes = useMemo(() => {
-    return dag.nodeList.filter((n) => visibleNodeIds.has(n.id));
-  }, [dag, visibleNodeIds]);
+    return dag.nodeList.filter((n) => effectiveVisibleNodeIds.has(n.id));
+  }, [dag, effectiveVisibleNodeIds]);
+
+  // Expansion and exploration handlers
+  const handleTogglePrerequisites = (nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const node = dag.nodes.get(nodeId);
+    if (!node) return;
+
+    const hidden = node.prerequisites.filter((pId) => !effectiveVisibleNodeIds.has(pId));
+    if (hidden.length > 0) {
+      setVisibleNodeIds((prev) => expandNodePrerequisites(prev, nodeId, dag));
+    } else {
+      const protectedSet = new Set<string>([focalId].filter(Boolean));
+      setVisibleNodeIds((prev) => collapseNodePrerequisites(prev, nodeId, dag, protectedSet));
+    }
+  };
+
+  const handleToggleUnlocks = (nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const node = dag.nodes.get(nodeId);
+    if (!node) return;
+
+    const hidden = node.unlockedLectures.filter((uId) => !effectiveVisibleNodeIds.has(uId));
+    if (hidden.length > 0) {
+      setVisibleNodeIds((prev) => expandNodeUnlocks(prev, nodeId, dag));
+    } else {
+      const protectedSet = new Set<string>([focalId].filter(Boolean));
+      setVisibleNodeIds((prev) => collapseNodeUnlocks(prev, nodeId, dag, protectedSet));
+    }
+  };
+
+  const handleExpandFromNode = (nodeId: string) => {
+    onSelectNode(nodeId);
+    const node = dag.nodes.get(nodeId);
+    if (!node) return;
+
+    const hiddenPrereqs = node.prerequisites.filter((pId) => !effectiveVisibleNodeIds.has(pId));
+    const hiddenUnlocks = node.unlockedLectures.filter((uId) => !effectiveVisibleNodeIds.has(uId));
+
+    if (hiddenPrereqs.length > 0 || hiddenUnlocks.length > 0) {
+      setVisibleNodeIds((prev) => {
+        let next = expandNodePrerequisites(prev, nodeId, dag);
+        next = expandNodeUnlocks(next, nodeId, dag);
+        return next;
+      });
+    } else {
+      const protectedSet = new Set<string>([focalId].filter(Boolean));
+      setVisibleNodeIds((prev) => collapseNodeUnlocks(prev, nodeId, dag, protectedSet));
+    }
+  };
+
+  const handleExplore = (id: string) => {
+    onSelectNode(id);
+    setVisibleNodeIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      const target = dag.nodes.get(id);
+      target?.prerequisites.forEach((p) => next.add(p));
+      target?.unlockedLectures.forEach((u) => next.add(u));
+      return next;
+    });
+  };
+
+  const isAllExpanded =
+    visibleNodes.length >= (filteredNodeIds.size > 0 ? filteredNodeIds.size : dag.nodeList.length);
+
+  const handleToggleExpandAll = () => {
+    if (isAllExpanded) {
+      setVisibleNodeIds(getOneHopNeighborhood(focalId, dag, showDerived));
+    } else {
+      setVisibleNodeIds(new Set(dag.nodeList.map((n) => n.id)));
+    }
+  };
+
+  const handleExpandTree = () => {
+    const treeSet = expandFullTreeFromNode(focalId, dag);
+    setVisibleNodeIds((prev) => new Set([...prev, ...treeSet]));
+  };
+
+  const handleResetOneHop = () => {
+    setVisibleNodeIds(getOneHopNeighborhood(focalId, dag, showDerived));
+  };
 
   // Pan & Zoom camera state
   const [zoom, setZoom] = useState(0.9);
@@ -146,10 +253,10 @@ export function InteractiveDagCanvas({
     setPan({ x: newPanX, y: newPanY });
   }, [bounds]);
 
-  // Automatically center whenever focal node, derived toggle, or expansion mode changes
+  // Automatically center whenever visible bounds or focal node changes
   useEffect(() => {
     fitToCurrentBounds();
-  }, [focalId, showDerived, expansionMode, fitToCurrentBounds]);
+  }, [bounds, fitToCurrentBounds]);
 
   useEffect(() => {
     if (!containerRef.current || typeof ResizeObserver === 'undefined') return;
@@ -314,28 +421,49 @@ export function InteractiveDagCanvas({
           <button
             type="button"
             className="button small secondary"
-            onClick={() => onSelectNode(dag.nodeList.find((node) => filteredNodeIds.has(node.id))!.id)}
+            onClick={() => {
+              const startId = dag.nodeList.find((node) => filteredNodeIds.has(node.id))?.id;
+              if (startId) {
+                onSelectNode(startId);
+                setVisibleNodeIds((prev) => {
+                  const next = new Set(prev);
+                  next.add(startId);
+                  const node = dag.nodes.get(startId);
+                  node?.prerequisites.forEach((p) => next.add(p));
+                  node?.unlockedLectures.forEach((u) => next.add(u));
+                  return next;
+                });
+              }
+            }}
           >
             <GitBranch size={14} /> Start
           </button>
           <button
             type="button"
             className="button small secondary"
-            aria-pressed={expansionMode === 'all'}
-            onClick={() => setExpansionMode((prev) => (prev === 'all' ? 'one-hop' : 'all'))}
-            aria-label={expansionMode === 'all' ? 'Collapse to 1-hop' : 'Expand all'}
+            aria-pressed={isAllExpanded}
+            onClick={handleToggleExpandAll}
+            aria-label={isAllExpanded ? 'Collapse to 1-hop' : 'Expand all'}
           >
-            <Network size={14} /> {expansionMode === 'all' ? '1-Hop' : 'Expand all'}
+            <Network size={14} /> {isAllExpanded ? 'Collapse to 1-hop' : 'Expand all'}
           </button>
           <button
             type="button"
             className="button small secondary"
-            aria-pressed={expansionMode === 'tree'}
-            onClick={() => setExpansionMode((prev) => (prev === 'tree' ? 'one-hop' : 'tree'))}
-            aria-label={expansionMode === 'tree' ? 'Collapse to 1-hop' : 'Expand tree'}
+            onClick={handleExpandTree}
+            aria-label="Expand tree"
             title={`Expand full dependency tree from ${focalNode?.title || 'selected node'}`}
           >
-            <GitFork size={14} /> {expansionMode === 'tree' ? '1-Hop' : 'Expand tree'}
+            <GitFork size={14} /> Expand tree
+          </button>
+          <button
+            type="button"
+            className="button small secondary"
+            onClick={handleResetOneHop}
+            aria-label="1-Hop"
+            title="Reset to 1-hop neighborhood of selected node"
+          >
+            <Minimize2 size={14} /> 1-Hop
           </button>
           <button
             type="button"
@@ -508,6 +636,20 @@ export function InteractiveDagCanvas({
 
                 const borderWidth = isFocal ? 3 : isDirectPrereq || isDirectUnlock ? 2 : 1.2;
 
+                const hiddenPrereqs = node.prerequisites.filter((pId) => !effectiveVisibleNodeIds.has(pId));
+                const visiblePrereqs = node.prerequisites.filter((pId) => effectiveVisibleNodeIds.has(pId));
+                const hasHiddenPrereqs = hiddenPrereqs.length > 0;
+
+                const hiddenUnlocks = node.unlockedLectures.filter(
+                  (uId) => !effectiveVisibleNodeIds.has(uId)
+                );
+                const visibleUnlocks = node.unlockedLectures.filter((uId) =>
+                  effectiveVisibleNodeIds.has(uId)
+                );
+                const hasHiddenUnlocks = hiddenUnlocks.length > 0;
+
+                const isCardExpanded = !hasHiddenPrereqs && !hasHiddenUnlocks;
+
                 return (
                   <g
                     key={node.id}
@@ -537,7 +679,7 @@ export function InteractiveDagCanvas({
                         node={node}
                         readiness={computeNodeReadiness(node.id, completedSet)}
                         isSelected={isFocal}
-                        isExpanded={expansionMode !== 'one-hop' && isFocal}
+                        isExpanded={isCardExpanded}
                         variant="canvas"
                         context={
                           isFocal
@@ -550,38 +692,98 @@ export function InteractiveDagCanvas({
                                   ? 'Indirect'
                                   : undefined
                         }
-                        onExplore={() => onSelectNode(node.id)}
-                        onExpand={() => {
-                          if (isFocal && expansionMode !== 'one-hop') {
-                            setExpansionMode('one-hop');
-                          } else {
-                            onSelectNode(node.id);
-                            setExpansionMode('all');
-                          }
-                        }}
+                        onExplore={() => handleExplore(node.id)}
+                        onExpand={() => handleExpandFromNode(node.id)}
                         onDetails={() => onShowDetails(node.id)}
                       />
                     </foreignObject>
 
-                    {/* Top Direct Port Marker */}
-                    <circle
-                      cx={width / 2}
-                      cy={0}
-                      r={3}
-                      fill={isDirectPrereq || isFocal ? '#10b981' : topicColor}
-                      stroke="#fff"
-                      strokeWidth={1}
-                    />
+                    {/* Top Expand Pill (Prerequisites Entering Port) */}
+                    {node.prerequisites.length > 0 ? (
+                      <g
+                        className="dag-expand-pill-top"
+                        transform={`translate(${width / 2 - 45}, -11)`}
+                        onClick={(e) => handleTogglePrerequisites(node.id, e)}
+                        style={{ cursor: 'pointer' }}
+                        role="button"
+                        aria-label={
+                          hasHiddenPrereqs
+                            ? `Expand prerequisites for ${node.title}`
+                            : `Hide prerequisites for ${node.title}`
+                        }
+                      >
+                        <rect
+                          width={90}
+                          height={20}
+                          rx={10}
+                          fill={hasHiddenPrereqs ? '#ecfdf5' : '#f8fafc'}
+                          stroke={hasHiddenPrereqs ? '#10b981' : '#94a3b8'}
+                          strokeWidth={1.2}
+                        />
+                        <text
+                          x={45}
+                          y={13.5}
+                          fontSize={9.5}
+                          fontWeight={600}
+                          textAnchor="middle"
+                          fill={hasHiddenPrereqs ? '#047857' : '#475569'}
+                          style={{ pointerEvents: 'none', userSelect: 'none' }}
+                        >
+                          {hasHiddenPrereqs
+                            ? `▲ +${hiddenPrereqs.length} Prereqs`
+                            : `▲ Hide (${visiblePrereqs.length})`}
+                        </text>
+                      </g>
+                    ) : (
+                      <circle cx={width / 2} cy={0} r={3.5} fill="#4a6741" stroke="#fff" strokeWidth={1} />
+                    )}
 
-                    {/* Bottom Direct Port Marker */}
-                    <circle
-                      cx={width / 2}
-                      cy={height}
-                      r={3}
-                      fill={isDirectUnlock || isFocal ? '#3b82f6' : 'var(--line)'}
-                      stroke="#fff"
-                      strokeWidth={1}
-                    />
+                    {/* Bottom Expand Pill (Unlocks Outgoing Port) */}
+                    {node.unlockedLectures.length > 0 ? (
+                      <g
+                        className="dag-expand-pill-bottom"
+                        transform={`translate(${width / 2 - 45}, ${height - 9})`}
+                        onClick={(e) => handleToggleUnlocks(node.id, e)}
+                        style={{ cursor: 'pointer' }}
+                        role="button"
+                        aria-label={
+                          hasHiddenUnlocks
+                            ? `Expand unlocks for ${node.title}`
+                            : `Hide unlocks for ${node.title}`
+                        }
+                      >
+                        <rect
+                          width={90}
+                          height={20}
+                          rx={10}
+                          fill={hasHiddenUnlocks ? '#eff6ff' : '#f8fafc'}
+                          stroke={hasHiddenUnlocks ? '#3b82f6' : '#94a3b8'}
+                          strokeWidth={1.2}
+                        />
+                        <text
+                          x={45}
+                          y={13.5}
+                          fontSize={9.5}
+                          fontWeight={600}
+                          textAnchor="middle"
+                          fill={hasHiddenUnlocks ? '#1d4ed8' : '#475569'}
+                          style={{ pointerEvents: 'none', userSelect: 'none' }}
+                        >
+                          {hasHiddenUnlocks
+                            ? `▼ +${hiddenUnlocks.length} Next`
+                            : `▼ Hide (${visibleUnlocks.length})`}
+                        </text>
+                      </g>
+                    ) : (
+                      <circle
+                        cx={width / 2}
+                        cy={height}
+                        r={3.5}
+                        fill="var(--line)"
+                        stroke="#fff"
+                        strokeWidth={1}
+                      />
+                    )}
                   </g>
                 );
               })}

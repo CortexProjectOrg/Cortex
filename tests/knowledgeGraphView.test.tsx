@@ -145,19 +145,38 @@ describe('explicit graph card actions', () => {
     expect(screen.getByRole('button', { name: 'Expand all' })).toBeTruthy();
   });
 
-  it('expands everything starting from a node using the node card Expand button', () => {
+  it('expands nodes progressively using the node card Expand button', () => {
     mount();
     fireEvent.click(screen.getByRole('button', { name: 'Graph' }));
     const graph = screen.getByRole('group', { name: 'Lecture connections' });
     expect(within(graph).queryByRole('article', { name: fieldsTitle })).toBeNull();
 
-    // Click Expand on rootTitle card
-    const expandCardBtn = within(graph).getByRole('button', { name: `Expand ${rootTitle}` });
+    // Click Expand on groupsTitle card (which has hidden unlocks including fieldsTitle)
+    const expandCardBtn = within(graph).getByRole('button', { name: `Expand ${groupsTitle}` });
     fireEvent.click(expandCardBtn);
 
-    // Graph expands, fieldsTitle is now visible
+    // Graph expands, fieldsTitle is now visible alongside rootTitle and groupsTitle!
+    expect(within(graph).getByRole('article', { name: rootTitle })).toBeTruthy();
+    expect(within(graph).getByRole('article', { name: groupsTitle })).toBeTruthy();
     expect(within(graph).getByRole('article', { name: fieldsTitle })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Collapse to 1-hop' })).toBeTruthy();
+  });
+
+  it('expands unlocks using the SVG bottom pill and retains existing nodes up to expansion', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Graph' }));
+    const graph = screen.getByRole('group', { name: 'Lecture connections' });
+    expect(within(graph).queryByRole('article', { name: fieldsTitle })).toBeNull();
+
+    // Click the bottom unlock pill on groupsTitle
+    const unlockPill = within(graph).getByRole('button', {
+      name: `Expand unlocks for ${groupsTitle}`
+    });
+    fireEvent.click(unlockPill);
+
+    // Both rootTitle, groupsTitle, and the newly expanded fieldsTitle are visible
+    expect(within(graph).getByRole('article', { name: rootTitle })).toBeTruthy();
+    expect(within(graph).getByRole('article', { name: groupsTitle })).toBeTruthy();
+    expect(within(graph).getByRole('article', { name: fieldsTitle })).toBeTruthy();
   });
 
   it('expands full dependency tree starting from an intermediate node', () => {
