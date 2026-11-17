@@ -125,6 +125,51 @@ export function DocumentInkOverlay({
     };
   }, [activeSheetRef]);
 
+  // Freeze page scrolling in drawing mode so drawing with stylus, mouse, or touch is stable and precise.
+  useEffect(() => {
+    if (!annotationMode || tool === 'browse') return;
+
+    const handleWheel = (e: WheelEvent) => {
+      const element = e.target instanceof Element ? e.target : null;
+      if (
+        element?.closest('.lecture-scratchpad-panel') ||
+        element?.closest('dialog') ||
+        element?.closest('.document-annotation-hud') ||
+        element?.closest('.text-annotation-card') ||
+        element?.tagName === 'TEXTAREA' ||
+        element?.tagName === 'INPUT'
+      ) {
+        return;
+      }
+      e.preventDefault();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const element = e.target instanceof Element ? e.target : null;
+      if (
+        element?.closest('.lecture-scratchpad-panel') ||
+        element?.closest('dialog') ||
+        element?.closest('.document-annotation-hud') ||
+        element?.closest('.text-annotation-card') ||
+        element?.tagName === 'TEXTAREA' ||
+        element?.tagName === 'INPUT'
+      ) {
+        return;
+      }
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [annotationMode, tool]);
+
   const handleScrollStep = (direction: 'up' | 'down') => {
     const step = Math.round(window.innerHeight * 0.65);
     window.scrollBy({
@@ -234,7 +279,7 @@ export function DocumentInkOverlay({
           height: '100%',
           zIndex: 10,
           pointerEvents: tool === 'browse' || tool === 'text' ? 'none' : 'auto',
-          touchAction: palmRejection || tool === 'browse' || tool === 'text' ? 'pan-y' : 'none',
+          touchAction: tool === 'browse' ? 'auto' : 'none',
           cursor: tool === 'browse' || tool === 'text' ? 'default' : tool === 'eraser' ? 'cell' : 'crosshair'
         }}
         onPointerDown={handlePointerDown}
