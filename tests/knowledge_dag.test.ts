@@ -6,6 +6,7 @@ import {
   computeTopDownDagLayout,
   computeVisibleTransitiveReduction,
   expandAllAncestors,
+  expandFullTreeFromNode,
   expandNodePrerequisites,
   expandNodeUnlocks,
   getBedrockRootNodeIds,
@@ -477,6 +478,25 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
       expect(pruned.has(l02)).toBe(true);
       expect(pruned.has(l03)).toBe(true);
       expect(pruned.has(unrelated)).toBe(false); // successfully pruned for sparsity
+    });
+
+    it('expands full dependency tree from any node including ancestors and descendants', () => {
+      const rootId = 'L01-sets-maps-proofs';
+      const rootTree = expandFullTreeFromNode(rootId, dag);
+      expect(rootTree.size).toBe(60); // Root unlocks all 59 other lectures
+
+      const intermediateId = 'L03-finite-fields-gf2-gfp';
+      const intermediateTree = expandFullTreeFromNode(intermediateId, dag);
+      expect(intermediateTree.has(intermediateId)).toBe(true);
+      expect(intermediateTree.has('L01-sets-maps-proofs')).toBe(true);
+      expect(intermediateTree.has('L02-groups-modular-arithmetic')).toBe(true);
+      expect(intermediateTree.size).toBeGreaterThan(5);
+
+      const apexId = 'L57-qec-stabilizer-codes-automorphisms';
+      const apexTree = expandFullTreeFromNode(apexId, dag);
+      expect(apexTree.has(apexId)).toBe(true);
+      expect(apexTree.has('L01-sets-maps-proofs')).toBe(true);
+      expect(apexTree.has('L18-symplectic-product-commutation')).toBe(true);
     });
   });
 });

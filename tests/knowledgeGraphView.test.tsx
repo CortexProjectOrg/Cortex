@@ -123,4 +123,73 @@ describe('explicit graph card actions', () => {
     expect(graph.style.cursor).toBe('grab');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+
+  it('expands everything starting from a node using the toolbar Expand all control', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Graph' }));
+    const graph = screen.getByRole('group', { name: 'Lecture connections' });
+    // In 1-hop, fieldsTitle (L03) is not visible from rootTitle (L01)
+    expect(within(graph).queryByRole('article', { name: fieldsTitle })).toBeNull();
+
+    // Click Expand all
+    const expandAllBtn = screen.getByRole('button', { name: 'Expand all' });
+    fireEvent.click(expandAllBtn);
+
+    // Now distant nodes like fieldsTitle are visible in the graph
+    expect(within(graph).getByRole('article', { name: fieldsTitle })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Collapse to 1-hop' })).toBeTruthy();
+
+    // Collapse back to 1-hop
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse to 1-hop' }));
+    expect(within(graph).queryByRole('article', { name: fieldsTitle })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Expand all' })).toBeTruthy();
+  });
+
+  it('expands nodes progressively using the node card Expand button', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Graph' }));
+    const graph = screen.getByRole('group', { name: 'Lecture connections' });
+    expect(within(graph).queryByRole('article', { name: fieldsTitle })).toBeNull();
+
+    // Click Expand on groupsTitle card (which has hidden unlocks including fieldsTitle)
+    const expandCardBtn = within(graph).getByRole('button', { name: `Expand ${groupsTitle}` });
+    fireEvent.click(expandCardBtn);
+
+    // Graph expands, fieldsTitle is now visible alongside rootTitle and groupsTitle!
+    expect(within(graph).getByRole('article', { name: rootTitle })).toBeTruthy();
+    expect(within(graph).getByRole('article', { name: groupsTitle })).toBeTruthy();
+    expect(within(graph).getByRole('article', { name: fieldsTitle })).toBeTruthy();
+  });
+
+  it('expands unlocks using the SVG bottom pill and retains existing nodes up to expansion', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Graph' }));
+    const graph = screen.getByRole('group', { name: 'Lecture connections' });
+    expect(within(graph).queryByRole('article', { name: fieldsTitle })).toBeNull();
+
+    // Click the bottom unlock pill on groupsTitle
+    const unlockPill = within(graph).getByRole('button', {
+      name: `Expand unlocks for ${groupsTitle}`
+    });
+    fireEvent.click(unlockPill);
+
+    // Both rootTitle, groupsTitle, and the newly expanded fieldsTitle are visible
+    expect(within(graph).getByRole('article', { name: rootTitle })).toBeTruthy();
+    expect(within(graph).getByRole('article', { name: groupsTitle })).toBeTruthy();
+    expect(within(graph).getByRole('article', { name: fieldsTitle })).toBeTruthy();
+  });
+
+  it('expands full dependency tree starting from an intermediate node', () => {
+    mount('?focus=L03-finite-fields-gf2-gfp');
+    fireEvent.click(screen.getByRole('button', { name: 'Graph' }));
+    const graph = screen.getByRole('group', { name: 'Lecture connections' });
+
+    // Click Expand tree
+    const expandTreeBtn = screen.getByRole('button', { name: 'Expand tree' });
+    fireEvent.click(expandTreeBtn);
+
+    // Both ancestors (rootTitle) and descendants of fieldsTitle are visible
+    expect(within(graph).getByRole('article', { name: rootTitle })).toBeTruthy();
+    expect(within(graph).getByRole('article', { name: fieldsTitle })).toBeTruthy();
+  });
 });
