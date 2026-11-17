@@ -5,6 +5,7 @@ interface Props {
   filteredNodeIds: Set<string>;
   selectedNodeId: string;
   onSelectNode: (id: string) => void;
+  onShowDetails: (id: string) => void;
   completedSet: Set<string>;
 }
 export function DagRamificationExplorer({
@@ -12,6 +13,7 @@ export function DagRamificationExplorer({
   filteredNodeIds,
   selectedNodeId,
   onSelectNode,
+  onShowDetails,
   completedSet
 }: Props) {
   const connections = getLectureRamification(selectedNodeId, completedSet, dag);
@@ -27,7 +29,7 @@ export function DagRamificationExplorer({
       {groups.map((group) => {
         const nodes = group.nodes.filter((node) => filteredNodeIds.has(node.id));
         return (
-          <section key={group.title}>
+          <section key={group.title} aria-label={group.title}>
             <h2>{group.title}</h2>
             {nodes.length ? (
               <div className="graph-card-grid">
@@ -37,7 +39,8 @@ export function DagRamificationExplorer({
                     node={node}
                     readiness={computeNodeReadiness(node.id, completedSet)}
                     isSelected={node.id === selectedNodeId}
-                    onClick={() => onSelectNode(node.id)}
+                    onExplore={() => onSelectNode(node.id)}
+                    onDetails={() => onShowDetails(node.id)}
                   />
                 ))}
               </div>

@@ -7,6 +7,7 @@ interface StratifiedTreeViewProps {
   nodeReadinessMap: Map<string, ReturnType<typeof computeNodeReadiness>>;
   selectedNodeId: string | null;
   onSelectNode: (id: string) => void;
+  onShowDetails: (id: string) => void;
 }
 
 export function StratifiedTreeView({
@@ -14,7 +15,8 @@ export function StratifiedTreeView({
   filteredNodeIds,
   nodeReadinessMap,
   selectedNodeId,
-  onSelectNode
+  onSelectNode,
+  onShowDetails
 }: StratifiedTreeViewProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -64,7 +66,7 @@ export function StratifiedTreeView({
                 <div>
                   <h4 style={{ fontFamily: 'var(--serif)', fontSize: '16px', margin: 0 }}>{layer.title}</h4>
                   <span style={{ fontSize: '10px', color: 'var(--muted)' }}>
-                    Topological Depth {layer.rank} · {visibleNodes.length} Monothematic Concepts
+                    {visibleNodes.length} lectures
                   </span>
                 </div>
               </div>
@@ -74,7 +76,7 @@ export function StratifiedTreeView({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))',
                 gap: '12px'
               }}
             >
@@ -88,7 +90,8 @@ export function StratifiedTreeView({
                     node={node}
                     readiness={readiness}
                     isSelected={isSelected}
-                    onClick={() => onSelectNode(node.id)}
+                    onExplore={() => onSelectNode(node.id)}
+                    onDetails={() => onShowDetails(node.id)}
                   />
                 );
               })}

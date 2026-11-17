@@ -8,6 +8,7 @@ interface Props {
   filteredNodeIds: Set<string>;
   selectedNodeId: string | null;
   onSelectNode: (id: string) => void;
+  onShowDetails: (id: string) => void;
   completedSet: Set<string>;
 }
 export function HierarchicalTopicGraph({
@@ -15,6 +16,7 @@ export function HierarchicalTopicGraph({
   filteredNodeIds,
   selectedNodeId,
   onSelectNode,
+  onShowDetails,
   completedSet
 }: Props) {
   const topics = useMemo(
@@ -111,7 +113,8 @@ export function HierarchicalTopicGraph({
                     node={node}
                     readiness={computeNodeReadiness(node.id, completedSet)}
                     isSelected={node.id === selectedNodeId}
-                    onClick={() => onSelectNode(node.id)}
+                    onExplore={() => onSelectNode(node.id)}
+                    onDetails={() => onShowDetails(node.id)}
                   />
                 ))}
               </div>

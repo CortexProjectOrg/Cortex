@@ -21,6 +21,7 @@ export function KnowledgeGraphView() {
   const completedSet = useMemo(() => new Set(data.completedLectures || []), [data.completedLectures]);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(focusId || null);
+  const [detailsNodeId, setDetailsNodeId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [topicFilter, setTopicFilter] = useState<string>('all');
@@ -33,8 +34,13 @@ export function KnowledgeGraphView() {
     }
   }, [focusId, dag]);
 
-  const selectedNode = selectedNodeId ? dag.nodes.get(selectedNodeId) || null : null;
-  const selectedReadiness = selectedNode ? computeNodeReadiness(selectedNode.id, completedSet) : null;
+  const detailsNode = detailsNodeId ? dag.nodes.get(detailsNodeId) || null : null;
+  const detailsReadiness = detailsNode ? computeNodeReadiness(detailsNode.id, completedSet) : null;
+
+  const exploreNode = (id: string) => {
+    setSelectedNodeId(id);
+    setViewMode('canvas');
+  };
 
   const toggleLectureMastery = (id: string) => update((cur) => toggleLecture(cur, id));
 
@@ -137,7 +143,8 @@ export function KnowledgeGraphView() {
               dag={dag}
               filteredNodeIds={filteredNodeIds}
               selectedNodeId={selectedNodeId}
-              onSelectNode={(id) => setSelectedNodeId(id)}
+              onSelectNode={exploreNode}
+              onShowDetails={setDetailsNodeId}
               completedSet={completedSet}
             />
           )}
@@ -147,7 +154,8 @@ export function KnowledgeGraphView() {
               dag={dag}
               filteredNodeIds={filteredNodeIds}
               selectedNodeId={selectedNodeId}
-              onSelectNode={(id) => setSelectedNodeId(id)}
+              onSelectNode={setSelectedNodeId}
+              onShowDetails={setDetailsNodeId}
               completedSet={completedSet}
               onSelectTopic={(tId) => setTopicFilter(tId)}
             />
@@ -159,7 +167,8 @@ export function KnowledgeGraphView() {
               selectedNodeId={
                 selectedNodeId && filteredNodeIds.has(selectedNodeId) ? selectedNodeId : filteredNodes[0].id
               }
-              onSelectNode={(id) => setSelectedNodeId(id)}
+              onSelectNode={setSelectedNodeId}
+              onShowDetails={setDetailsNodeId}
               filteredNodeIds={filteredNodeIds}
               completedSet={completedSet}
             />
@@ -171,21 +180,22 @@ export function KnowledgeGraphView() {
               filteredNodeIds={filteredNodeIds}
               nodeReadinessMap={nodeReadinessMap}
               selectedNodeId={selectedNodeId}
-              onSelectNode={(id) => setSelectedNodeId(id)}
+              onSelectNode={exploreNode}
+              onShowDetails={setDetailsNodeId}
             />
           )}
         </div>
 
         {/* Selected Node Inspector Drawer */}
-        {selectedNode && selectedReadiness && (
-          <Modal label="Lecture details" onClose={() => setSelectedNodeId(null)}>
+        {detailsNode && detailsReadiness && (
+          <Modal label="Lecture details" onClose={() => setDetailsNodeId(null)}>
             <LectureDetailDrawer
-              selectedNode={selectedNode}
-              selectedReadiness={selectedReadiness}
+              selectedNode={detailsNode}
+              selectedReadiness={detailsReadiness}
               dag={dag}
               completedSet={completedSet}
-              onSelectNode={(id) => setSelectedNodeId(id)}
-              onClose={() => setSelectedNodeId(null)}
+              onSelectNode={setDetailsNodeId}
+              onClose={() => setDetailsNodeId(null)}
               onToggleMastery={toggleLectureMastery}
             />
           </Modal>
