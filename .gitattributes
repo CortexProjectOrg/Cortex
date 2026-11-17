@@ -1,0 +1,4 @@
+# Keep the vendored upstream source byte-for-byte comparable on Windows and CI.
+vendor/picomatch/** text eol=lf
+# Unified diffs encode empty context lines with a leading space.
+vendor/picomatch/security.patch whitespace=-blank-at-eol,-blank-at-eof

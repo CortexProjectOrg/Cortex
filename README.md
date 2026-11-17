@@ -32,6 +32,8 @@ npm run preview        # production PWA at http://127.0.0.1:4173
 
 `npm test` prepares generated content automatically. The production service worker is disabled in the development server.
 
+The build tools temporarily use a [vendored picomatch security patch](vendor/picomatch/PATCH.md) for GHSA-fc5q-39xc-vjpf, which has no published upstream fix as of November 17, 2026. Dependency regression tests verify the installed copy and bound malicious matching attempts; npm audit cannot assess this private fork itself.
+
 ## Notes and synchronization
 
 - Anonymous and signed-in workspaces use separate browser storage keys. Export the anonymous workspace and explicitly import it into the signed-in account to transfer it.
