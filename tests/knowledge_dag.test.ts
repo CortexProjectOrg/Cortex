@@ -244,7 +244,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
 
   it('builds queryable topic macro graph with scalable entering and outgoing connections', () => {
     const { topicNodes, topicEdges, topicMap } = buildTopicMacroGraph(dag, new Set());
-    expect(topicNodes.length).toBe(10);
+    expect(topicNodes.length).toBe(14);
     expect(topicEdges.length).toBeGreaterThanOrEqual(10);
 
     // Topic 1 has 0 incoming topics (axiomatic bedrock)

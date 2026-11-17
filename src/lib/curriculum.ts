@@ -33,7 +33,7 @@ export interface Lecture {
   lectureNumber: number; // 1 to 60
   title: string;
   subtitle: string;
-  durationMinutes: number; // 60 min true effort
+  durationMinutes: number; // Estimated active study, including practice
   packNumber: number; // 1 to 15 (4-hour mastery packs)
   packSlot: number; // 1 to 4 (1-hour slots inside the pack)
   sundaySession?: number; // legacy alias for packNumber
@@ -71,7 +71,7 @@ export interface MasteryPack {
   packNumber: number;
   title: string;
   theme: string;
-  lectureIds: string[]; // 4 lectures per pack = 4h total
+  lectureIds: string[];
 }
 
 export interface StudyPath {
@@ -80,14 +80,14 @@ export interface StudyPath {
   subtitle: string;
   description: string;
   totalPacks: number; // 15
-  hoursPerPack: number; // 4
+  hoursPerPack?: number; // Legacy fixed-duration metadata
   totalLectures: number; // 60
   packs: MasteryPack[];
   weeks?: MasteryPack[]; // legacy alias
 }
 
 // 10 Comprehensive Topics
-export const TOPICS: Topic[] = [
+export const LEGACY_TOPICS: Topic[] = [
   {
     id: 'math-foundations',
     number: 1,
@@ -282,16 +282,120 @@ export const TOPICS: Topic[] = [
 
 // Detailed metadata with full theoretical citations for key lectures
 import { FULL_LECTURES_RECORD } from './curriculumData';
+import { FOUNDATION_LESSONS } from './foundationLessons';
+import { estimateStudyMinutes } from './studyTime';
+
+export const TOPICS: Topic[] = [
+  {
+    ...LEGACY_TOPICS[0],
+    title: 'Sets, maps, and proofs',
+    subtitle: '',
+    description: 'Functions, inverse maps, and proof techniques.',
+    lectureIds: ['L01-sets-maps-proofs']
+  },
+  {
+    ...LEGACY_TOPICS[0],
+    id: 'abstract-algebra',
+    title: 'Groups and fields',
+    subtitle: '',
+    description: 'Groups, modular arithmetic, and finite fields.',
+    lectureIds: ['L02-groups-modular-arithmetic', 'L03-finite-fields-gf2-gfp'],
+    prerequisites: ['math-foundations']
+  },
+  {
+    ...LEGACY_TOPICS[0],
+    id: 'linear-algebra',
+    title: 'Linear algebra',
+    subtitle: '',
+    description: 'Vector spaces, linear maps, spectral invariants, and inner products.',
+    lectureIds: [
+      'L04-vector-spaces-finite-fields',
+      'L05-linear-maps-matrices',
+      'L08-eigenvalues-without-diagonalization',
+      'L09-complex-inner-products-hilbert'
+    ],
+    prerequisites: ['abstract-algebra']
+  },
+  {
+    ...LEGACY_TOPICS[0],
+    id: 'symplectic-geometry',
+    title: 'Symplectic geometry',
+    subtitle: '',
+    description: 'Bilinear forms and the maps that preserve them.',
+    lectureIds: [
+      'L06-bilinear-symplectic-forms',
+      'L07-symplectic-group-sp2n',
+      'L24-symplectic-transvections'
+    ],
+    prerequisites: ['linear-algebra']
+  },
+  {
+    ...LEGACY_TOPICS[0],
+    id: 'graph-algorithms',
+    title: 'Graph algorithms',
+    subtitle: '',
+    description: 'Partitions, graph symmetries, and search.',
+    lectureIds: ['L41-partition-refinement-backtracking'],
+    prerequisites: ['abstract-algebra']
+  },
+  ...LEGACY_TOPICS.slice(1).map((topic) => ({
+    ...topic,
+    lectureIds: topic.lectureIds.filter(
+      (id) =>
+        ![
+          'L09-complex-inner-products-hilbert',
+          'L24-symplectic-transvections',
+          'L41-partition-refinement-backtracking'
+        ].includes(id)
+    ),
+    ...(topic.id === 'quantum-essentials' ? { prerequisites: ['linear-algebra'] } : {}),
+    ...(topic.id === 'lanczos-algorithm'
+      ? {
+          title: 'Numerical linear algebra',
+          subtitle: '',
+          description:
+            'Krylov spaces, Lanczos iteration, and numerical stability. Matrix-free applications have their own lecture.',
+          prerequisites: ['linear-algebra']
+        }
+      : {})
+  }))
+].map((topic, index) => ({ ...topic, number: index + 1 }));
+
+export const LEGACY_LECTURE_MAP = new Map(Object.values(FULL_LECTURES_RECORD).map((l) => [l.id, l]));
+const SPECIALIZED_TITLES: Record<string, string> = {
+  'L18-symplectic-product-commutation': 'Pauli commutation via the symplectic product',
+  'L35-circuit-peephole-rewrites': 'Quantum circuit peephole optimization',
+  'L38-symmetry-as-operator-commutation': 'Quantum operator symmetries',
+  'L42-term-fixers-exact-kernel': 'Pauli term fixers and commuting kernels',
+  'L50-commutation-graphs-clique-covers': 'Pauli commutation graphs and clique covers',
+  'L53-mcmc-covariance-integration': 'MCMC covariance for quantum measurements',
+  'L59-batched-cuda-covariance-offload': 'GPU covariance for quantum measurements'
+};
 
 // Generates all 60 lectures systematically
 export function getAllLectures(): Lecture[] {
   return TOPICS.flatMap((topic) =>
     topic.lectureIds.map((id) => {
       const lecture = FULL_LECTURES_RECORD[id];
-      if (!lecture || lecture.topicId !== topic.id) throw new Error(`Missing or mismatched lecture: ${id}`);
-      return lecture;
+      if (!lecture) throw new Error(`Missing lecture: ${id}`);
+      const revised = {
+        ...lecture,
+        ...FOUNDATION_LESSONS[id],
+        title: SPECIALIZED_TITLES[id] || lecture.title,
+        subtitle: FOUNDATION_LESSONS[id] ? '' : lecture.subtitle,
+        topicId: topic.id
+      };
+      return {
+        ...revised,
+        durationMinutes: estimateStudyMinutes(
+          Object.values(revised.content).flat().join(' '),
+          revised.content.reflectionPrompts.length,
+          Math.min(3, 1 + Math.floor(revised.prerequisites.length / 2)),
+          15
+        )
+      };
     })
-  );
+  ).sort((a, b) => a.lectureNumber - b.lectureNumber);
 }
 
 export const ALL_LECTURES = getAllLectures();
@@ -300,12 +404,11 @@ export const LECTURE_MAP = new Map(ALL_LECTURES.map((l) => [l.id, l]));
 // The 15 Four-Hour Mastery Packs Study Path
 export const FOUR_HOUR_MASTERY_PATH: StudyPath = {
   id: 'canonical-foundations-to-mastery',
-  title: 'Symplectic Quantum Computing: Foundations to Mastery',
-  subtitle: '15 Four-Hour Mastery Packs · 60 Focused 1-Hour Lectures',
+  title: 'Mathematics and quantum computing',
+  subtitle: '60 lectures in 15 study packs',
   description:
     'A universal, foundational curriculum from basic discrete mathematics and finite fields to Clifford normalizers, matrix-free Lanczos spectrum solvers, and Bayesian observable estimation.',
   totalPacks: 15,
-  hoursPerPack: 4,
   totalLectures: 60,
   packs: Array.from({ length: 15 }, (_, i) => {
     const packNumber = i + 1;

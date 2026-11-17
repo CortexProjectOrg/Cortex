@@ -13,9 +13,10 @@ interface MarkdownViewProps {
   source: string;
   doc?: StudyDocument;
   className?: string;
+  allowImages?: boolean;
 }
 
-export function MarkdownView({ source, doc, className = '' }: MarkdownViewProps) {
+export function MarkdownView({ source, doc, className = '', allowImages = true }: MarkdownViewProps) {
   const { openPaper } = usePdfViewer();
 
   return (
@@ -24,6 +25,9 @@ export function MarkdownView({ source, doc, className = '' }: MarkdownViewProps)
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeSlug, rehypeKatex]}
         components={{
+          img({ src, alt }) {
+            return allowImages ? <img src={src} alt={alt || ''} /> : <span>{alt || 'Image omitted'}</span>;
+          },
           a({ href = '', children }) {
             const target = doc?.links[href];
             if (target?.kind === 'unavailable') {

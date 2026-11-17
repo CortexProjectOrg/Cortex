@@ -75,7 +75,8 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
               <div>
                 <strong>{l.title}</strong>
                 <span>
-                  Pack {l.packNumber ?? l.sundaySession}, Slot {l.packSlot ?? l.sundaySlot} · 60 min
+                  Pack {l.packNumber ?? l.sundaySession}, Slot {l.packSlot ?? l.sundaySlot} · ~
+                  {l.durationMinutes} min
                 </span>
               </div>
               <ArrowUpRight size={17} />
