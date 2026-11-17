@@ -573,6 +573,21 @@ export function expandAllDescendants(
 }
 
 /**
+ * Expands all connected ancestors and descendants starting from a target node.
+ * Gathers the complete recursive dependency cone (upstream prerequisites and downstream unlocks).
+ */
+export function expandFullTreeFromNode(targetId: string, dag: KnowledgeDAG): Set<string> {
+  const result = new Set<string>([targetId]);
+  const node = dag.nodes.get(targetId);
+  if (!node) return result;
+
+  node.allPrerequisites.forEach((p) => result.add(p));
+  node.allUnlocked.forEach((u) => result.add(u));
+
+  return result;
+}
+
+/**
  * Prunes the visible set down to strictly the active focal node,
  * its visible upstream ancestors, and its visible downstream descendants.
  * Prunes unrelated side branches to ensure maximum sparsity and cognitive clarity.

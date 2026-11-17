@@ -123,4 +123,54 @@ describe('explicit graph card actions', () => {
     expect(graph.style.cursor).toBe('grab');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+
+  it('expands everything starting from a node using the toolbar Expand all control', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Graph' }));
+    const graph = screen.getByRole('group', { name: 'Lecture connections' });
+    // In 1-hop, fieldsTitle (L03) is not visible from rootTitle (L01)
+    expect(within(graph).queryByRole('article', { name: fieldsTitle })).toBeNull();
+
+    // Click Expand all
+    const expandAllBtn = screen.getByRole('button', { name: 'Expand all' });
+    fireEvent.click(expandAllBtn);
+
+    // Now distant nodes like fieldsTitle are visible in the graph
+    expect(within(graph).getByRole('article', { name: fieldsTitle })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Collapse to 1-hop' })).toBeTruthy();
+
+    // Collapse back to 1-hop
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse to 1-hop' }));
+    expect(within(graph).queryByRole('article', { name: fieldsTitle })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Expand all' })).toBeTruthy();
+  });
+
+  it('expands everything starting from a node using the node card Expand button', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Graph' }));
+    const graph = screen.getByRole('group', { name: 'Lecture connections' });
+    expect(within(graph).queryByRole('article', { name: fieldsTitle })).toBeNull();
+
+    // Click Expand on rootTitle card
+    const expandCardBtn = within(graph).getByRole('button', { name: `Expand ${rootTitle}` });
+    fireEvent.click(expandCardBtn);
+
+    // Graph expands, fieldsTitle is now visible
+    expect(within(graph).getByRole('article', { name: fieldsTitle })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Collapse to 1-hop' })).toBeTruthy();
+  });
+
+  it('expands full dependency tree starting from an intermediate node', () => {
+    mount('?focus=L03-finite-fields-gf2-gfp');
+    fireEvent.click(screen.getByRole('button', { name: 'Graph' }));
+    const graph = screen.getByRole('group', { name: 'Lecture connections' });
+
+    // Click Expand tree
+    const expandTreeBtn = screen.getByRole('button', { name: 'Expand tree' });
+    fireEvent.click(expandTreeBtn);
+
+    // Both ancestors (rootTitle) and descendants of fieldsTitle are visible
+    expect(within(graph).getByRole('article', { name: rootTitle })).toBeTruthy();
+    expect(within(graph).getByRole('article', { name: fieldsTitle })).toBeTruthy();
+  });
 });

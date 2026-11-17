@@ -1,4 +1,4 @@
-import { BookOpen, CheckCircle2, GitBranch, Info, Lock, Sparkles } from 'lucide-react';
+import { BookOpen, CheckCircle2, GitBranch, Info, Lock, Sparkles, UnfoldVertical } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { GraphNode, computeNodeReadiness } from '../../lib/knowledgeGraph';
 interface NodeCardProps {
@@ -7,6 +7,8 @@ interface NodeCardProps {
   isSelected: boolean;
   onExplore: () => void;
   onDetails: () => void;
+  onExpand?: () => void;
+  isExpanded?: boolean;
   context?: string;
   variant?: 'list' | 'canvas';
 }
@@ -16,6 +18,8 @@ export function NodeCard({
   isSelected,
   onExplore,
   onDetails,
+  onExpand,
+  isExpanded = false,
   context,
   variant = 'list'
 }: NodeCardProps) {
@@ -54,6 +58,15 @@ export function NodeCard({
         <button type="button" onClick={onExplore} aria-label={`Explore ${node.title}`}>
           <GitBranch size={14} /> Explore
         </button>
+        {onExpand && (
+          <button
+            type="button"
+            onClick={onExpand}
+            aria-label={isExpanded ? `Collapse ${node.title} to 1-hop` : `Expand ${node.title}`}
+          >
+            <UnfoldVertical size={14} /> {isExpanded ? '1-Hop' : 'Expand'}
+          </button>
+        )}
         <button type="button" onClick={onDetails} aria-label={`Details for ${node.title}`}>
           <Info size={14} /> Details
         </button>

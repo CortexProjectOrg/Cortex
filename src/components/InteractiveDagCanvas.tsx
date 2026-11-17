@@ -1,9 +1,15 @@
-import { CornerDownRight, GitBranch, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { CornerDownRight, GitBranch, GitFork, Maximize2, Network, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TOPICS } from '../lib/curriculumCatalog';
-import { computeTopDownDagLayout, getOneHopNeighborhood } from '../lib/dagLayoutEngine';
+import {
+  computeTopDownDagLayout,
+  expandFullTreeFromNode,
+  getOneHopNeighborhood
+} from '../lib/dagLayoutEngine';
 import { computeNodeReadiness, type KnowledgeDAG } from '../lib/knowledgeGraph';
 import { NodeCard } from './graph/NodeCard';
+
+export type CanvasExpansionMode = 'one-hop' | 'tree' | 'all';
 
 interface Point {
   x: number;
@@ -66,13 +72,31 @@ export function InteractiveDagCanvas({
   // Toggle to optionally show derived (indirect / transitive) dependencies
   const [showDerived, setShowDerived] = useState(false);
 
-  // 1-Hop Neighborhood is the exclusive exploration model
-  // Deterministically contains focal node + direct prerequisites + direct unlocks
-  // (plus derived dependencies when showDerived is enabled)
+  // Expansion mode: 'one-hop' (default 1-hop focus), 'tree' (ancestors + descendants of focal), 'all' (entire DAG)
+  const [expansionMode, setExpansionMode] = useState<CanvasExpansionMode>('one-hop');
+
   const visibleNodeIds = useMemo(() => {
-    const neighborhood = getOneHopNeighborhood(focalId, dag, showDerived);
-    return filteredNodeIds.size === dag.nodeList.length ? neighborhood : new Set(filteredNodeIds);
-  }, [focalId, dag, showDerived, filteredNodeIds]);
+    let baseSet: Set<string>;
+    if (expansionMode === 'all') {
+      baseSet = new Set(dag.nodeList.map((n) => n.id));
+    } else if (expansionMode === 'tree') {
+      baseSet = expandFullTreeFromNode(focalId, dag);
+    } else {
+      baseSet = getOneHopNeighborhood(focalId, dag, showDerived);
+    }
+
+    if (filteredNodeIds.size === dag.nodeList.length) {
+      return baseSet;
+    }
+
+    const filtered = new Set<string>();
+    baseSet.forEach((id) => {
+      if (filteredNodeIds.has(id)) {
+        filtered.add(id);
+      }
+    });
+    return filtered.size > 0 ? filtered : new Set(filteredNodeIds);
+  }, [focalId, dag, showDerived, expansionMode, filteredNodeIds]);
 
   const visibleNodes = useMemo(() => {
     return dag.nodeList.filter((n) => visibleNodeIds.has(n.id));
@@ -110,7 +134,7 @@ export function InteractiveDagCanvas({
 
     const scaleX = (container.width - padX * 2) / Math.max(1, bounds.width);
     const scaleY = (container.height - padY * 2) / Math.max(1, bounds.height);
-    const newZoom = Math.max(0.65, Math.min(1, Math.min(scaleX, scaleY)));
+    const newZoom = Math.max(0.18, Math.min(1.2, Math.min(scaleX, scaleY)));
 
     const centerX = bounds.minX + bounds.width / 2;
     const centerY = bounds.minY + bounds.height / 2;
@@ -122,10 +146,10 @@ export function InteractiveDagCanvas({
     setPan({ x: newPanX, y: newPanY });
   }, [bounds]);
 
-  // Automatically center whenever focal node changes
+  // Automatically center whenever focal node, derived toggle, or expansion mode changes
   useEffect(() => {
     fitToCurrentBounds();
-  }, [focalId, showDerived, fitToCurrentBounds]);
+  }, [focalId, showDerived, expansionMode, fitToCurrentBounds]);
 
   useEffect(() => {
     if (!containerRef.current || typeof ResizeObserver === 'undefined') return;
@@ -168,7 +192,7 @@ export function InteractiveDagCanvas({
       event.preventDefault();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const newZoom = Math.max(0.3, Math.min(2.2, zoom * (event.deltaY > 0 ? 0.9 : 1.1)));
+      const newZoom = Math.max(0.15, Math.min(2.2, zoom * (event.deltaY > 0 ? 0.9 : 1.1)));
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       setPan({ x: x - (x - pan.x) * (newZoom / zoom), y: y - (y - pan.y) * (newZoom / zoom) });
@@ -297,6 +321,25 @@ export function InteractiveDagCanvas({
           <button
             type="button"
             className="button small secondary"
+            aria-pressed={expansionMode === 'all'}
+            onClick={() => setExpansionMode((prev) => (prev === 'all' ? 'one-hop' : 'all'))}
+            aria-label={expansionMode === 'all' ? 'Collapse to 1-hop' : 'Expand all'}
+          >
+            <Network size={14} /> {expansionMode === 'all' ? '1-Hop' : 'Expand all'}
+          </button>
+          <button
+            type="button"
+            className="button small secondary"
+            aria-pressed={expansionMode === 'tree'}
+            onClick={() => setExpansionMode((prev) => (prev === 'tree' ? 'one-hop' : 'tree'))}
+            aria-label={expansionMode === 'tree' ? 'Collapse to 1-hop' : 'Expand tree'}
+            title={`Expand full dependency tree from ${focalNode?.title || 'selected node'}`}
+          >
+            <GitFork size={14} /> {expansionMode === 'tree' ? '1-Hop' : 'Expand tree'}
+          </button>
+          <button
+            type="button"
+            className="button small secondary"
             aria-pressed={showDerived}
             onClick={() => setShowDerived((value) => !value)}
           >
@@ -314,7 +357,7 @@ export function InteractiveDagCanvas({
             type="button"
             className="icon-button"
             aria-label="Zoom out"
-            onClick={() => setZoom((value) => Math.max(0.3, value - 0.15))}
+            onClick={() => setZoom((value) => Math.max(0.15, value - 0.15))}
           >
             <ZoomOut size={16} />
           </button>
@@ -494,6 +537,7 @@ export function InteractiveDagCanvas({
                         node={node}
                         readiness={computeNodeReadiness(node.id, completedSet)}
                         isSelected={isFocal}
+                        isExpanded={expansionMode !== 'one-hop' && isFocal}
                         variant="canvas"
                         context={
                           isFocal
@@ -502,9 +546,19 @@ export function InteractiveDagCanvas({
                               ? 'Prerequisite'
                               : isDirectUnlock
                                 ? 'Next lecture'
-                                : 'Indirect'
+                                : isDerivedPrereq || isDerivedUnlock
+                                  ? 'Indirect'
+                                  : undefined
                         }
                         onExplore={() => onSelectNode(node.id)}
+                        onExpand={() => {
+                          if (isFocal && expansionMode !== 'one-hop') {
+                            setExpansionMode('one-hop');
+                          } else {
+                            onSelectNode(node.id);
+                            setExpansionMode('all');
+                          }
+                        }}
                         onDetails={() => onShowDetails(node.id)}
                       />
                     </foreignObject>
