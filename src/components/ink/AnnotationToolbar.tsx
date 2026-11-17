@@ -261,7 +261,7 @@ export function AnnotationToolbar({
           }}
           title={
             palmRejection
-              ? 'Palm Rejection ON: Stylus/pen draws, finger touch scrolls'
+              ? 'Palm Rejection ON: Stylus/pen only (finger touch ignored)'
               : 'Palm Rejection OFF: Finger touch also draws'
           }
           onClick={() => setPalmRejection(!palmRejection)}
