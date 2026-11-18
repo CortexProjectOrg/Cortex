@@ -50,7 +50,10 @@ describe('Google signature and claim verification', () => {
     vi.stubEnv('GOOGLE_CLIENT_ID', audience);
     const token = await sign();
     const parts = token.split('.');
-    parts[2] = 'X' + parts[2].slice(1);
+    const signature = parts[2];
+    const tampered = (signature[0] === 'a' ? 'b' : 'a') + signature.slice(1);
+    expect(tampered).not.toBe(signature);
+    parts[2] = tampered;
     expect(await verifyGoogleToken(parts.join('.'), keys)).toBeNull();
   });
   it('extracts only bearer credentials', () => {
