@@ -1,0 +1,138 @@
+.quantum-visual {
+  margin: 0 0 24px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.quantum-visual summary {
+  padding: 16px 20px;
+  cursor: pointer;
+  font-weight: 650;
+}
+.quantum-visual-body {
+  max-width: 680px;
+  margin: auto;
+  padding: 0 20px 20px;
+}
+.quantum-visual-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+.quantum-visual-control input {
+  flex: 1 1 150px;
+  width: 150px;
+  min-height: 44px;
+  accent-color: var(--accent);
+}
+.quantum-visual-control select {
+  min-height: 44px;
+  padding: 4px 12px;
+  width: auto;
+}
+.quantum-visual-control output {
+  min-width: 48px;
+  font-variant-numeric: tabular-nums;
+}
+.quantum-visual figure {
+  margin: 12px 0;
+}
+.quantum-visual svg {
+  display: block;
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+  margin: auto;
+}
+.quantum-visual svg text {
+  font:
+    17px system-ui,
+    sans-serif;
+  fill: var(--ink);
+}
+.quantum-visual figcaption {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.visual-outline {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.visual-axis {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+.visual-curve {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}
+.visual-vector {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.visual-dot {
+  fill: var(--accent);
+}
+.visual-secondary {
+  fill: #b0782a;
+}
+.visual-discarded {
+  fill: #9aa3ac;
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+}
+.visual-tensor {
+  fill: var(--soft);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.quantum-visual-values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+}
+.quantum-visual-values div {
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 6px;
+}
+.quantum-visual-values dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.quantum-visual-values dd {
+  margin: 6px 0 0;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.quantum-visual-formula {
+  font: 19px/1.5 var(--serif);
+  text-align: center;
+}
+.quantum-visual-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding-left: 24px;
+  font-size: 14px;
+}
+@media (max-width: 480px) {
+  .quantum-visual summary {
+    padding: 14px;
+  }
+  .quantum-visual-body {
+    padding: 0 14px 14px;
+  }
+  .quantum-visual-values {
+    grid-template-columns: 1fr;
+  }
+}

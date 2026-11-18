@@ -11,6 +11,7 @@ export interface PaperReference {
   authors: string;
   citation: string;
   arxivUrl?: string;
+  sourceUrl?: string;
   doi?: string;
   relevantSections: string;
 }
@@ -30,12 +31,12 @@ export interface SoftLink {
 export interface Lecture {
   id: string;
   topicId: string;
-  lectureNumber: number; // 1 to 60
+  lectureNumber: number;
   title: string;
   subtitle: string;
   durationMinutes: number; // Estimated active study, including practice
-  packNumber: number; // 1 to 15 (4-hour mastery packs)
-  packSlot: number; // 1 to 4 (1-hour slots inside the pack)
+  packNumber: number;
+  packSlot: number; // Position within a four-lecture study pack
   sundaySession?: number; // legacy alias for packNumber
   sundaySlot?: number; // legacy alias for packSlot
   question: string;
@@ -79,9 +80,9 @@ export interface StudyPath {
   title: string;
   subtitle: string;
   description: string;
-  totalPacks: number; // 15
+  totalPacks: number;
   hoursPerPack?: number; // Legacy fixed-duration metadata
-  totalLectures: number; // 60
+  totalLectures: number;
   packs: MasteryPack[];
   weeks?: MasteryPack[]; // legacy alias
 }
@@ -284,6 +285,7 @@ export const LEGACY_TOPICS: Topic[] = [
 import { FULL_LECTURES_RECORD } from './curriculumData';
 import { FOUNDATION_LESSONS } from './foundationLessons';
 import { estimateStudyMinutes } from './studyTime';
+import { QUANTUM_SIMULATION_LECTURES, QUANTUM_SIMULATION_TOPICS } from './quantumSimulationLessons';
 
 export const TOPICS: Topic[] = [
   {
@@ -358,7 +360,8 @@ export const TOPICS: Topic[] = [
           prerequisites: ['linear-algebra']
         }
       : {})
-  }))
+  })),
+  ...QUANTUM_SIMULATION_TOPICS
 ].map((topic, index) => ({ ...topic, number: index + 1 }));
 
 export const LEGACY_LECTURE_MAP = new Map(Object.values(FULL_LECTURES_RECORD).map((l) => [l.id, l]));
@@ -372,11 +375,11 @@ const SPECIALIZED_TITLES: Record<string, string> = {
   'L59-batched-cuda-covariance-offload': 'GPU covariance for quantum measurements'
 };
 
-// Generates all 60 lectures systematically
+// Preserve stable lecture identifiers and append new study packs.
 export function getAllLectures(): Lecture[] {
   return TOPICS.flatMap((topic) =>
     topic.lectureIds.map((id) => {
-      const lecture = FULL_LECTURES_RECORD[id];
+      const lecture = FULL_LECTURES_RECORD[id] || QUANTUM_SIMULATION_LECTURES[id];
       if (!lecture) throw new Error(`Missing lecture: ${id}`);
       const revised = {
         ...lecture,
@@ -387,12 +390,14 @@ export function getAllLectures(): Lecture[] {
       };
       return {
         ...revised,
-        durationMinutes: estimateStudyMinutes(
-          Object.values(revised.content).flat().join(' '),
-          revised.content.reflectionPrompts.length,
-          Math.min(3, 1 + Math.floor(revised.prerequisites.length / 2)),
-          15
-        )
+        durationMinutes:
+          QUANTUM_SIMULATION_LECTURES[id]?.durationMinutes ??
+          estimateStudyMinutes(
+            Object.values(revised.content).flat().join(' '),
+            revised.content.reflectionPrompts.length,
+            Math.min(3, 1 + Math.floor(revised.prerequisites.length / 2)),
+            15
+          )
       };
     })
   ).sort((a, b) => a.lectureNumber - b.lectureNumber);
@@ -401,16 +406,16 @@ export function getAllLectures(): Lecture[] {
 export const ALL_LECTURES = getAllLectures();
 export const LECTURE_MAP = new Map(ALL_LECTURES.map((l) => [l.id, l]));
 
-// The 15 Four-Hour Mastery Packs Study Path
+// Keep legacy exports while deriving path size from the current catalog.
 export const FOUR_HOUR_MASTERY_PATH: StudyPath = {
   id: 'canonical-foundations-to-mastery',
-  title: 'Mathematics and quantum computing',
-  subtitle: '60 lectures in 15 study packs',
+  title: 'Mathematics and quantum simulation',
+  subtitle: '',
   description:
-    'A universal, foundational curriculum from basic discrete mathematics and finite fields to Clifford normalizers, matrix-free Lanczos spectrum solvers, and Bayesian observable estimation.',
-  totalPacks: 15,
-  totalLectures: 60,
-  packs: Array.from({ length: 15 }, (_, i) => {
+    'Mathematical foundations, quantum computing, and simulation methods, including open-system dynamics and tensor networks.',
+  totalPacks: Math.ceil(ALL_LECTURES.length / 4),
+  totalLectures: ALL_LECTURES.length,
+  packs: Array.from({ length: Math.ceil(ALL_LECTURES.length / 4) }, (_, i) => {
     const packNumber = i + 1;
     const startIdx = i * 4;
     const packLectures = ALL_LECTURES.slice(startIdx, startIdx + 4);

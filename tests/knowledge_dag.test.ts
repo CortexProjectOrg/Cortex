@@ -24,10 +24,10 @@ import { buildTopicMacroGraph, findLearningPath } from '../src/lib/knowledgeGrap
 describe('Knowledge DAG & Dependency Tree Invariants', () => {
   const dag = getKnowledgeDAG();
 
-  it('contains all 60 monothematic lectures as graph nodes', () => {
-    expect(dag.nodes.size).toBe(60);
-    expect(dag.nodeList.length).toBe(60);
-    expect(ALL_LECTURES.length).toBe(60);
+  it('contains all 68 monothematic lectures as graph nodes', () => {
+    expect(dag.nodes.size).toBe(68);
+    expect(dag.nodeList.length).toBe(68);
+    expect(ALL_LECTURES.length).toBe(68);
 
     ALL_LECTURES.forEach((l) => {
       expect(dag.nodes.has(l.id)).toBe(true);
@@ -41,11 +41,11 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
   it('strictly satisfies the DAG condition: Kahn algorithm detects ZERO cycles', () => {
     expect(dag.isAcyclic).toBe(true);
     expect(dag.cycleNodes).toBeUndefined();
-    expect(dag.topologicalOrder.length).toBe(60);
+    expect(dag.topologicalOrder.length).toBe(68);
 
     // Verify all unique nodes appear in topological order
     const topoSet = new Set(dag.topologicalOrder);
-    expect(topoSet.size).toBe(60);
+    expect(topoSet.size).toBe(68);
   });
 
   it('ensures every prerequisite ID exists in the lecture registry (Referential Integrity)', () => {
@@ -67,7 +67,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     expect(rootNodes[0].id).toBe('L01-sets-maps-proofs');
     expect(rootNodes[0].topologicalRank).toBe(0);
 
-    // All other 59 lectures must have at least one prerequisite
+    // Every other lecture must have at least one prerequisite
     const nonRootNodes = dag.nodeList.filter((n) => n.id !== 'L01-sets-maps-proofs');
     nonRootNodes.forEach((node) => {
       expect(node.prerequisites.length).toBeGreaterThanOrEqual(1);
@@ -126,7 +126,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     const rootNode = dag.nodes.get('L01-sets-maps-proofs')!;
     expect(rootNode.allPrerequisites.length).toBe(0);
     // L01 should transitively unlock all or nearly all curriculum nodes
-    expect(rootNode.allUnlocked.length).toBe(59);
+    expect(rootNode.allUnlocked.length).toBe(dag.nodeList.length - 1);
 
     // Advanced node: L57 (Quantum Error-Correcting Stabilizer Codes)
     const l57 = dag.nodes.get('L57-qec-stabilizer-codes-automorphisms')!;
@@ -245,7 +245,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
 
   it('builds queryable topic macro graph with scalable entering and outgoing connections', () => {
     const { topicNodes, topicEdges, topicMap } = buildTopicMacroGraph(dag, new Set());
-    expect(topicNodes.length).toBe(14);
+    expect(topicNodes.length).toBe(16);
     expect(topicEdges.length).toBeGreaterThanOrEqual(10);
 
     // Topic 1 has 0 incoming topics (axiomatic bedrock)
@@ -483,7 +483,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     it('expands full dependency tree from any node including ancestors and descendants', () => {
       const rootId = 'L01-sets-maps-proofs';
       const rootTree = expandFullTreeFromNode(rootId, dag);
-      expect(rootTree.size).toBe(60); // Root unlocks all 59 other lectures
+      expect(rootTree.size).toBe(68); // Root unlocks all 67 other lectures
 
       const intermediateId = 'L03-finite-fields-gf2-gfp';
       const intermediateTree = expandFullTreeFromNode(intermediateId, dag);
