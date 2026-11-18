@@ -1,6 +1,12 @@
 # AINotes
 
-A study notebook for mathematics, quantum computing, and simulation systems: 60 lectures, 14 topics, 15 study packs, and paper-based prerequisite trees.
+A study notebook for mathematics, quantum computing, and simulation systems: 68 lectures, 16 topics, 17 study packs, and paper-based prerequisite trees.
+
+## Quantum simulation lessons
+
+The open-system and tensor-network topics add eight lessons on channels, noise, Lindblad evolution, quantum trajectories, Schmidt decomposition, MPS, TEBD, and DMRG. Each includes prerequisites, a worked example, exercises, source references, and a content-specific study estimate.
+
+Four interactive SVG visuals explain amplitude damping, entanglement, bond-dimension capacity, and Schmidt truncation. They run locally and work offline. Expand or collapse the visual above the lecture; it is outside the annotation sheet so its controls do not move existing handwritten notes.
 
 ## Study a paper
 

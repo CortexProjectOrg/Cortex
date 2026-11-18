@@ -22,7 +22,9 @@ export function PrimaryLiteraturePanel({
       </h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {paperReferences.map((p, i) => {
-          const resolved = resolvePaperUrls(p.arxivUrl, p.citation, p.title);
+          const sourceUrl = p.sourceUrl || p.arxivUrl;
+          const resolved = resolvePaperUrls(sourceUrl, p.citation, p.title);
+          const sourceLabel = resolved?.arxivId ? 'Open on arXiv' : 'Open source';
           return (
             <div
               key={i}
@@ -71,15 +73,15 @@ export function PrimaryLiteraturePanel({
                         rel="noreferrer"
                         className="icon-button small"
                         style={{ width: '32px', height: '32px' }}
-                        title="Open on arXiv (new tab)"
-                        aria-label="Open on arXiv"
+                        title={`${sourceLabel} (new tab)`}
+                        aria-label={sourceLabel}
                       >
                         <ExternalLink size={13} />
                       </a>
                     </>
-                  ) : p.arxivUrl ? (
+                  ) : sourceUrl ? (
                     <a
-                      href={p.arxivUrl}
+                      href={sourceUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="button small secondary"

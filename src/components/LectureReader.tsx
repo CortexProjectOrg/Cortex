@@ -18,6 +18,7 @@ import { LectureScratchpadPanel } from './reader/LectureScratchpadPanel';
 import { PrimaryLiteraturePanel } from './reader/PrimaryLiteraturePanel';
 import { SystemsArchitecturePanel } from './reader/SystemsArchitecturePanel';
 import { TheoreticalCitationsPanel } from './reader/TheoreticalCitationsPanel';
+import { QuantumVisual } from './reader/QuantumVisual';
 
 export function LectureReader() {
   const { topicId, lectureId } = useParams();
@@ -46,7 +47,7 @@ function LectureReaderContent() {
   const inkVersion = attachedNote?.lectureInk
     ? parseInkData(attachedNote.lectureInk)?.visualization?.version || 1
     : 4;
-  const originalContent = inkVersion < 4;
+  const originalContent = inkVersion < 4 && LEGACY_LECTURE_MAP.has(currentLecture.id);
   const lecture = originalContent ? LEGACY_LECTURE_MAP.get(currentLecture.id)! : currentLecture;
   const topic = (originalContent ? LEGACY_TOPICS : TOPICS).find((t) => t.id === lecture.topicId) || TOPICS[0];
   const dag = useMemo(
@@ -221,7 +222,9 @@ function LectureReaderContent() {
           </div>
         </div>
 
-        {/* Canonical Academic Reading Sheet with Fluid Ink Overlay & Preserved Marginalia */}
+        <QuantumVisual lectureId={lecture.id} />
+
+        {/* Keep interactive visuals outside the fixed annotation coordinate system. */}
         <DocumentInkOverlay
           key={lecture.id}
           initialData={activeNote.lectureInk}

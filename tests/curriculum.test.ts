@@ -3,7 +3,7 @@ import { ALL_LECTURES, LECTURE_MAP, MASTERY_PACKS, TOPICS } from '../src/lib/cur
 
 describe('Curriculum Structure & Academic Invariants', () => {
   it('defines focused topics with sequential numbering', () => {
-    expect(TOPICS.length).toBe(14);
+    expect(TOPICS.length).toBe(16);
     TOPICS.forEach((topic, index) => {
       expect(topic.number).toBe(index + 1);
       expect(topic.id).toBeTruthy();
@@ -13,19 +13,19 @@ describe('Curriculum Structure & Academic Invariants', () => {
     });
 
     const totalTopicLectures = TOPICS.reduce((acc, t) => acc + t.lectureIds.length, 0);
-    expect(totalTopicLectures).toBe(60);
+    expect(totalTopicLectures).toBe(68);
   });
 
-  it('contains exactly 60 lectures across the curriculum', () => {
-    expect(ALL_LECTURES.length).toBe(60);
-    expect(LECTURE_MAP.size).toBe(60);
+  it('contains exactly 68 lectures across the curriculum', () => {
+    expect(ALL_LECTURES.length).toBe(68);
+    expect(LECTURE_MAP.size).toBe(68);
 
     const uniqueIds = new Set(ALL_LECTURES.map((l) => l.id));
-    expect(uniqueIds.size).toBe(60);
+    expect(uniqueIds.size).toBe(68);
   });
 
-  it('organizes lectures into 15 study packs with 4 slots each', () => {
-    expect(MASTERY_PACKS.length).toBe(15);
+  it('organizes lectures into 17 study packs with 4 slots each', () => {
+    expect(MASTERY_PACKS.length).toBe(17);
 
     MASTERY_PACKS.forEach((pack, packIndex) => {
       expect(pack.packNumber).toBe(packIndex + 1);
