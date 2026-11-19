@@ -63,8 +63,7 @@ function LectureReaderContent() {
   const [notesWidth, setNotesWidth] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved =
-        localStorage.getItem('cortex_side_notes_width') ??
-        localStorage.getItem('ainotes_side_notes_width');
+        localStorage.getItem('cortex_side_notes_width') ?? localStorage.getItem('ainotes_side_notes_width');
       if (saved) {
         const parsed = parseInt(saved, 10);
         if (!isNaN(parsed) && parsed >= 320 && parsed <= 850) {

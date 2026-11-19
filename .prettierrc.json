@@ -1,1 +1,1 @@
-{ "singleQuote": true, "printWidth": 110, "trailingComma": "none" }
+{ "singleQuote": true, "printWidth": 110, "trailingComma": "none", "endOfLine": "auto" }
