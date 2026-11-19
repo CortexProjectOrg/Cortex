@@ -78,7 +78,7 @@ it('updates the retained and discarded parts of the Schmidt spectrum', () => {
 
 it('connects each visual to a real lecture and leaves other lessons unchanged', () => {
   Object.keys(LECTURE_WIDGETS).forEach((id) => expect(LECTURE_MAP.has(id), id).toBe(true));
-  const { container } = render(<LectureWidget lectureId="L60-qudit-algebra-mixed-dimension-registers" />);
+  const { container } = render(<LectureWidget lectureId="unknown-lecture" />);
   expect(container.childElementCount).toBe(0);
 });
 

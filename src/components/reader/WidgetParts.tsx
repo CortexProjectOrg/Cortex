@@ -11,6 +11,37 @@ export interface WidgetSpec {
   check: WidgetCheck;
 }
 
+export function WidgetSelect<T extends string | number>({
+  label,
+  options,
+  value,
+  onChange
+}: {
+  label: string;
+  options: readonly (readonly [T, string])[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <label className="lesson-widget-control">
+      <span>{label}</span>
+      <select
+        value={String(value)}
+        onChange={(event) => {
+          const option = options.find(([key]) => String(key) === event.target.value);
+          if (option) onChange(option[0]);
+        }}
+      >
+        {options.map(([key, name]) => (
+          <option key={key} value={String(key)}>
+            {name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function QuickCheck({ question, options }: WidgetCheck) {
   const [answer, setAnswer] = useState<number | null>(null);
   const selected = answer === null ? undefined : options[answer];
@@ -88,7 +119,7 @@ export function WidgetValues({ values }: { values: [string, ReactNode][] }) {
   );
 }
 
-const point = ([x, y]: Vec2) => [180 + x * 32, 160 - y * 32];
+export const planePoint = ([x, y]: Vec2) => [180 + x * 32, 160 - y * 32];
 export function PlaneArrow({
   from = [0, 0],
   to,
@@ -98,8 +129,8 @@ export function PlaneArrow({
   to: Vec2;
   secondary?: boolean;
 }) {
-  const [x1, y1] = point(from);
-  const [x2, y2] = point(to);
+  const [x1, y1] = planePoint(from);
+  const [x2, y2] = planePoint(to);
   const angle = Math.atan2(y2 - y1, x2 - x1);
   const head = [
     x2,
@@ -148,5 +179,5 @@ export function VectorPlane({ label, children }: { label: string; children: Reac
 }
 
 export function planePolygon(points: Vec2[]) {
-  return points.map((p) => point(p).join(',')).join(' ');
+  return points.map((p) => planePoint(p).join(',')).join(' ');
 }
