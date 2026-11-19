@@ -1,4 +1,4 @@
-# AINotes
+# Cortex
 
 A study notebook for mathematics, quantum computing, and simulation systems: 68 lectures, 16 topics, 17 study packs, and paper-based prerequisite trees.
 
@@ -12,7 +12,7 @@ The widgets sit outside the annotation sheet to keep handwriting aligned. Explor
 
 ## Study a paper
 
-Open **Paper study**, upload a PDF (up to 8 MB) or supply text/Markdown/LaTeX (up to 150,000 characters), and enter your own Gemini API key. You can select a theorem by label; otherwise the model identifies the main theorem. Generation sends the paper directly from your browser to Google and uses your API quota. The key stays in component memory, is cleared on navigation, and is never stored in notes, browser storage, the AINotes API, or exports. Google sign-in is not required.
+Open **Paper study**, upload a PDF (up to 8 MB) or supply text/Markdown/LaTeX (up to 150,000 characters), and enter your own Gemini API key. You can select a theorem by label; otherwise the model identifies the main theorem. Generation sends the paper directly from your browser to Google and uses your API quota. The key stays in component memory, is cleared on navigation, and is never stored in notes, browser storage, the Cortex API, or exports. Google sign-in is not required.
 
 The client uses Gemini's [structured-output API](https://aistudio.google.com/api-reference/generate-content), with `gemini-3.5-flash-lite` as the editable default. It proposes a bounded concept graph with source evidence, explanations, examples, and exercises. Deterministic title/alias retrieval links relevant existing lectures; DFS expands their prerequisite closure, deduplicates shared lessons, rejects cycles and missing references, and orders foundations before dependent lessons. Catalog matching is conservative: unmatched concepts remain labeled AI drafts. This is local catalog search, not an internet literature search or proof verifier.
 

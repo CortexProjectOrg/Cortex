@@ -1,5 +1,5 @@
 {
-  "name": "ainotes",
+  "name": "cortex",
   "description": "Cross-device foundational learning notebook and fluid stylus annotation PWA with LaTeX and Neon PostgreSQL sync",
   "private": true,
   "version": "1.0.0",

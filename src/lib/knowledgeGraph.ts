@@ -1,5 +1,5 @@
 /**
- * Knowledge DAG & Dependency Graph for AINotes Monothematic Lectures
+ * Knowledge DAG & Dependency Graph for Cortex Monothematic Lectures
  *
  * Implements a strict Directed Acyclic Graph (DAG) for all 60 foundational lectures.
  * Every lecture has explicit hard dependencies (prerequisites) guaranteed to be cycle-free

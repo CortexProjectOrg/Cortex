@@ -10,8 +10,8 @@ export default defineConfig({
       includeAssets: ['icon.svg', 'apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png'],
       manifest: {
         id: '/',
-        name: 'AINotes Study',
-        short_name: 'AINotes',
+        name: 'Cortex',
+        short_name: 'Cortex',
         description:
           'Foundational study room for discrete mathematics, symplectic algebra, and quantum simulation.',
         theme_color: '#f6f5f0',

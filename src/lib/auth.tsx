@@ -21,7 +21,7 @@ interface AuthContextType {
   renderGoogleButton: (element: HTMLElement) => void;
 }
 const AuthContext = createContext<AuthContextType | null>(null);
-const SESSION_KEY = 'ainotes-session';
+const SESSION_KEY = 'cortex-session';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -120,9 +120,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [retry, acceptCredential]);
   useEffect(() => {
     try {
-      const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-      const legacyToken = localStorage.getItem('ainotes-google-token');
+      const saved =
+        JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null') ??
+        JSON.parse(sessionStorage.getItem('ainotes-session') || 'null');
+      sessionStorage.removeItem('ainotes-session');
+      const legacyToken =
+        localStorage.getItem('cortex-google-token') ?? localStorage.getItem('ainotes-google-token');
       localStorage.removeItem('ainotes-google-token');
+      localStorage.removeItem('cortex-google-token');
       if (saved?.token || legacyToken)
         void acceptCredential(
           saved?.token || legacyToken,

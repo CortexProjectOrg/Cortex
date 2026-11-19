@@ -62,7 +62,9 @@ function LectureReaderContent() {
   const [notesOpen, setNotesOpen] = useState(false);
   const [notesWidth, setNotesWidth] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ainotes_side_notes_width');
+      const saved =
+        localStorage.getItem('cortex_side_notes_width') ??
+        localStorage.getItem('ainotes_side_notes_width');
       if (saved) {
         const parsed = parseInt(saved, 10);
         if (!isNaN(parsed) && parsed >= 320 && parsed <= 850) {
@@ -96,7 +98,7 @@ function LectureReaderContent() {
 
     const handlePointerUp = () => {
       setIsResizingNotes(false);
-      localStorage.setItem('ainotes_side_notes_width', String(notesWidth));
+      localStorage.setItem('cortex_side_notes_width', String(notesWidth));
     };
 
     window.addEventListener('pointermove', handlePointerMove);

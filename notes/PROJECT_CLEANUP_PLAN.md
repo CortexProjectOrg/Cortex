@@ -1,4 +1,4 @@
-# AINotes project review and cleanup plan
+# Cortex project review and cleanup plan
 
 Reviewed: 16 November 2026 · Baseline: `main` at `b2fa740`
 
