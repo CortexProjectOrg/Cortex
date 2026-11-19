@@ -69,7 +69,7 @@ function Logo({ small = false }: { small?: boolean }) {
   return (
     <span className={join('brand', small && 'small')}>
       <img src="/icon.svg" alt="" width="38" height="38" />
-      <span>AINotes</span>
+      <span>Cortex</span>
     </span>
   );
 }
@@ -110,7 +110,10 @@ export default function App() {
   useDrawerFocus(navigationRef, compact && menuOpen, () => setMenuOpen(false));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('ainotes_sidebar_collapsed') === 'true';
+      return (
+        (localStorage.getItem('cortex_sidebar_collapsed') ??
+          localStorage.getItem('ainotes_sidebar_collapsed')) === 'true'
+      );
     }
     return false;
   });
@@ -219,7 +222,7 @@ export default function App() {
               <X size={20} />
             </button>
           )}
-          <Link to="/" className="brand-link" aria-label="AINotes home">
+          <Link to="/" className="brand-link" aria-label="Cortex home">
             <Logo />
           </Link>
 
@@ -290,7 +293,7 @@ export default function App() {
                 onClick={() => {
                   setSidebarCollapsed((c) => {
                     const next = !c;
-                    localStorage.setItem('ainotes_sidebar_collapsed', String(next));
+                    localStorage.setItem('cortex_sidebar_collapsed', String(next));
                     return next;
                   });
                 }}

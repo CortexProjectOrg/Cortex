@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const cache = resolve(root, 'node_modules/.cache');
 await mkdir(cache, { recursive: true });
-const output = await mkdtemp(join(cache, 'ainotes-api-'));
-if (!output.startsWith(cache + '/ainotes-api-') && !output.startsWith(cache + '\\ainotes-api-'))
+const output = await mkdtemp(join(cache, 'cortex-api-'));
+if (!output.startsWith(cache + '/cortex-api-') && !output.startsWith(cache + '\\cortex-api-'))
   throw new Error('Unexpected runtime test directory.');
 try {
   execFileSync(

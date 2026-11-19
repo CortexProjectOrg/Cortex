@@ -36,9 +36,9 @@ describe('Model & Workspace Integrity', () => {
   });
 
   it('validates and sanitizes corrupt or incomplete workspace inputs', () => {
-    expect(() => validateWorkspace(null)).toThrow('This file is not a valid AINotes backup.');
+    expect(() => validateWorkspace(null)).toThrow('This file is not a valid Cortex backup.');
     expect(() => validateWorkspace({ version: 99, notes: [] })).toThrow(
-      'This file is not a valid AINotes backup.'
+      'This file is not a valid Cortex backup.'
     );
 
     const fallback = emptyWorkspace();

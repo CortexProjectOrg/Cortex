@@ -56,7 +56,7 @@ export function SettingsModal({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ainotes-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `cortex-backup-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     onShowToast('Workspace backup exported successfully.');
@@ -283,7 +283,7 @@ export function SettingsModal({
             <ArrowDownToLine size={17} /> Install app
           </div>
           <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
-            {installed ? 'AINotes is installed.' : 'Add AINotes to your home screen from your browser menu.'}
+            {installed ? 'Cortex is installed.' : 'Add Cortex to your home screen from your browser menu.'}
           </p>
           {installEvent && !installed && (
             <button
@@ -294,7 +294,7 @@ export function SettingsModal({
                 await installEvent.userChoice;
               }}
             >
-              Install AINotes App
+              Install Cortex App
             </button>
           )}
           <div className="offline-setting" style={{ marginTop: '10px' }}>

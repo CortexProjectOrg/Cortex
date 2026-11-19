@@ -71,7 +71,14 @@ export function ReferenceReader() {
           /* Ignore malformed anchors. */
         }
       } else {
-        window.scrollTo(0, Number(localStorage.getItem(`ainotes-position:${id}`) ?? 0));
+        window.scrollTo(
+          0,
+          Number(
+            localStorage.getItem(`cortex-position:${id}`) ??
+              localStorage.getItem(`ainotes-position:${id}`) ??
+              0
+          )
+        );
       }
     }, 80);
     return () => clearTimeout(timeout);
@@ -80,7 +87,7 @@ export function ReferenceReader() {
   useEffect(() => {
     const save = () => {
       try {
-        localStorage.setItem(`ainotes-position:${id}`, String(Math.round(window.scrollY)));
+        localStorage.setItem(`cortex-position:${id}`, String(Math.round(window.scrollY)));
       } catch {}
     };
     window.addEventListener('scroll', save, { passive: true });

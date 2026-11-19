@@ -100,7 +100,7 @@ export function parseWorkspace(value: unknown): Workspace {
   }
   const result = workspaceSchema.safeParse(value);
   if (!result.success)
-    throw new Error('This workspace contains invalid or unsupported data. Restore a valid AINotes backup.');
+    throw new Error('This workspace contains invalid or unsupported data. Restore a valid Cortex backup.');
   return result.data;
 }
 
@@ -114,7 +114,7 @@ export function validateWorkspace(value: unknown): Workspace {
     !('notes' in value) ||
     !Array.isArray(value.notes)
   )
-    throw new Error('This file is not a valid AINotes backup.');
+    throw new Error('This file is not a valid Cortex backup.');
   const input = value as Record<string, unknown>;
   const plan =
     input.studyPlan && typeof input.studyPlan === 'object'

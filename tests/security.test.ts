@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { extractBearerToken, verifyGoogleToken } from '../api/lib/auth';
 import { emptyWorkspace, parseWorkspace } from '../shared/workspace';
 import { inkToSvgString } from '../src/lib/ink';
-const audience = 'ainotes.apps.googleusercontent.com';
+const audience = 'cortex.apps.googleusercontent.com';
 let pair: Awaited<ReturnType<typeof generateKeyPair>>;
 let keys: ReturnType<typeof createLocalJWKSet>;
 beforeAll(async () => {

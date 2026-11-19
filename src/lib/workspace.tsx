@@ -16,7 +16,7 @@ type Context = SessionState & {
 const WorkspaceContext = createContext<Context | null>(null);
 let dbPromise: ReturnType<typeof openDB> | undefined;
 function database() {
-  return (dbPromise ??= openDB('ainotes-workspace', 1, {
+  return (dbPromise ??= openDB('cortex-workspace', 1, {
     upgrade(db) {
       if (!db.objectStoreNames.contains('workspace')) db.createObjectStore('workspace');
     }
