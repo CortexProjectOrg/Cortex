@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { QuantumVisual, LECTURE_VISUALS } from '../src/components/reader/QuantumVisual';
+import { LectureWidget, LECTURE_WIDGETS } from '../src/components/reader/LectureWidget';
 import { LectureReader } from '../src/components/LectureReader';
 import { PrimaryLiteraturePanel } from '../src/components/reader/PrimaryLiteraturePanel';
 import { emptyWorkspace } from '../src/lib/model';
@@ -37,8 +37,8 @@ afterEach(() => {
 
 it('updates damping probabilities and purity without a network request', () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch');
-  render(<QuantumVisual lectureId="L62-quantum-noise-channels" />);
-  fireEvent.click(screen.getByText('Visual: Amplitude damping'));
+  render(<LectureWidget lectureId="L62-quantum-noise-channels" />);
+  fireEvent.click(screen.getByText('Explore: Amplitude damping'));
   fireEvent.change(screen.getByRole('slider', { name: 'Damping strength γ' }), { target: { value: '1' } });
   expect(screen.getByText('100.0%')).toBeTruthy();
   expect(screen.getByText('0.0%')).toBeTruthy();
@@ -48,8 +48,8 @@ it('updates damping probabilities and purity without a network request', () => {
 });
 
 it('updates the entropy from a product state to a Bell state', () => {
-  render(<QuantumVisual lectureId="L65-schmidt-quantum-entanglement" />);
-  fireEvent.click(screen.getByText('Visual: Schmidt weights and entanglement'));
+  render(<LectureWidget lectureId="L65-schmidt-quantum-entanglement" />);
+  fireEvent.click(screen.getByText('Explore: Schmidt weights and entanglement'));
   const slider = screen.getByRole('slider', { name: 'Entanglement angle θ' });
   fireEvent.change(slider, { target: { value: '0' } });
   expect(screen.getByText('0.000 bits')).toBeTruthy();
@@ -58,16 +58,16 @@ it('updates the entropy from a product state to a Bell state', () => {
 });
 
 it('labels bond dimension as an entropy bound rather than an actual state entropy', () => {
-  render(<QuantumVisual lectureId="L66-matrix-product-quantum-states" />);
-  fireEvent.click(screen.getByText('Visual: Bond dimension'));
+  render(<LectureWidget lectureId="L66-matrix-product-quantum-states" />);
+  fireEvent.click(screen.getByText('Explore: Bond dimension'));
   fireEvent.change(screen.getByRole('combobox', { name: 'Bond dimension χ' }), { target: { value: '8' } });
   expect(screen.getByText('Entropy upper bound')).toBeTruthy();
   expect(screen.getByText('3 bits')).toBeTruthy();
 });
 
 it('updates the retained and discarded parts of the Schmidt spectrum', () => {
-  render(<QuantumVisual lectureId="L67-tebd-quantum-time-evolution" />);
-  fireEvent.click(screen.getByText('Visual: Schmidt truncation'));
+  render(<LectureWidget lectureId="L67-tebd-quantum-time-evolution" />);
+  fireEvent.click(screen.getByText('Explore: Schmidt truncation'));
   expect(screen.getByText('10.0%')).toBeTruthy();
   fireEvent.change(screen.getByRole('slider', { name: 'Retained Schmidt terms χ' }), {
     target: { value: '3' }
@@ -77,8 +77,8 @@ it('updates the retained and discarded parts of the Schmidt spectrum', () => {
 });
 
 it('connects each visual to a real lecture and leaves other lessons unchanged', () => {
-  Object.keys(LECTURE_VISUALS).forEach((id) => expect(LECTURE_MAP.has(id), id).toBe(true));
-  const { container } = render(<QuantumVisual lectureId="L01-sets-maps-proofs" />);
+  Object.keys(LECTURE_WIDGETS).forEach((id) => expect(LECTURE_MAP.has(id), id).toBe(true));
+  const { container } = render(<LectureWidget lectureId="L60-qudit-algebra-mixed-dimension-registers" />);
   expect(container.childElementCount).toBe(0);
 });
 
@@ -90,8 +90,8 @@ it('keeps interactive controls outside the existing annotation sheet and content
       </Routes>
     </MemoryRouter>
   );
-  expect(screen.getByText('Visual: Schmidt weights and entanglement').closest('details')?.open).toBe(false);
-  fireEvent.click(screen.getByText('Visual: Schmidt weights and entanglement'));
+  expect(screen.getByText('Explore: Schmidt weights and entanglement').closest('details')?.open).toBe(false);
+  fireEvent.click(screen.getByText('Explore: Schmidt weights and entanglement'));
   const slider = screen.getByRole('slider', { name: 'Entanglement angle θ' });
   const sheet = screen.getByTestId('annotation-sheet');
   expect(sheet.contains(slider)).toBe(false);

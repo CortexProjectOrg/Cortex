@@ -6,7 +6,9 @@ A study notebook for mathematics, quantum computing, and simulation systems: 68 
 
 The open-system and tensor-network topics add eight lessons on channels, noise, Lindblad evolution, quantum trajectories, Schmidt decomposition, MPS, TEBD, and DMRG. Each includes prerequisites, a worked example, exercises, source references, and a content-specific study estimate.
 
-Four interactive SVG visuals explain amplitude damping, entanglement, bond-dimension capacity, and Schmidt truncation. They run locally and work offline. Expand or collapse the visual above the lecture; it is outside the annotation sheet so its controls do not move existing handwritten notes.
+Ten interactive SVG widgets appear in 14 relevant lessons. Explore map arrows, modular clocks, vector combinations, matrix transformations, quantum gates, measurement sampling, amplitude damping, entanglement, bond dimension, and Schmidt truncation. Each includes a short prediction question with explanatory feedback and a reset control.
+
+Open **Explore** above a lesson to try its widget. Controls work with a keyboard or touch, run locally, and remain available offline. General mathematics stays in the foundation lessons; quantum examples stay in quantum lessons. The widgets sit outside the annotation sheet, so their controls do not move existing handwritten notes. Exploration and answer state reset when leaving the lesson and do not affect study completion.
 
 ## Study a paper
 
