@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { bondEntropyBound, dampedPlusState, entangledPair, truncateSchmidt } from '../../lib/quantumVisuals';
-import './quantumVisual.css';
+import { WidgetRange, type WidgetSpec } from './WidgetParts';
 
 const percent = (value: number) => `${(100 * value).toFixed(1)}%`;
 
@@ -13,19 +13,15 @@ function DampingVisual() {
   }).join(' ');
   return (
     <>
-      <label className="quantum-visual-control">
-        Damping strength γ
-        <input
-          type="range"
-          aria-label="Damping strength γ"
-          min="0"
-          max="1"
-          step="0.01"
-          value={gamma}
-          onChange={(event) => setGamma(Number(event.target.value))}
-        />
-        <output>{gamma.toFixed(2)}</output>
-      </label>
+      <WidgetRange
+        label="Damping strength γ"
+        min={0}
+        max={1}
+        step={0.01}
+        value={gamma}
+        onChange={setGamma}
+        formatValue={(value) => value.toFixed(2)}
+      />
       <figure>
         <svg
           viewBox="0 0 360 270"
@@ -55,7 +51,7 @@ function DampingVisual() {
           the ground state is approached.
         </figcaption>
       </figure>
-      <dl className="quantum-visual-values" aria-live="polite">
+      <dl className="lesson-widget-values" aria-live="polite">
         <div>
           <dt>Ground population</dt>
           <dd>{percent(state.ground)}</dd>
@@ -78,20 +74,16 @@ function EntanglementVisual() {
   const pair = entangledPair(degrees);
   return (
     <>
-      <p className="quantum-visual-formula">|ψ⟩ = cos θ |00⟩ + sin θ |11⟩</p>
-      <label className="quantum-visual-control">
-        Entanglement angle θ
-        <input
-          type="range"
-          aria-label="Entanglement angle θ"
-          min="0"
-          max="45"
-          step="0.5"
-          value={degrees}
-          onChange={(event) => setDegrees(Number(event.target.value))}
-        />
-        <output>{degrees.toFixed(1)}°</output>
-      </label>
+      <p className="lesson-widget-formula">|ψ⟩ = cos θ |00⟩ + sin θ |11⟩</p>
+      <WidgetRange
+        label="Entanglement angle θ"
+        min={0}
+        max={45}
+        step={0.5}
+        value={degrees}
+        onChange={setDegrees}
+        formatValue={(value) => `${value.toFixed(1)}°`}
+      />
       <figure>
         <svg
           viewBox="0 0 360 235"
@@ -125,7 +117,7 @@ function EntanglementVisual() {
           entanglement entropy.
         </figcaption>
       </figure>
-      <dl className="quantum-visual-values" aria-live="polite">
+      <dl className="lesson-widget-values" aria-live="polite">
         <div>
           <dt>Weight of |00⟩</dt>
           <dd>{percent(pair.p00)}</dd>
@@ -148,7 +140,7 @@ function BondVisual() {
   const entropyBound = bondEntropyBound(chi, 3, 3);
   return (
     <>
-      <label className="quantum-visual-control">
+      <label className="lesson-widget-control">
         Bond dimension χ
         <select value={chi} onChange={(event) => setChi(Number(event.target.value))}>
           {[1, 2, 4, 8].map((value) => (
@@ -193,7 +185,7 @@ function BondVisual() {
           force the represented state to become more entangled.
         </figcaption>
       </figure>
-      <dl className="quantum-visual-values" aria-live="polite">
+      <dl className="lesson-widget-values" aria-live="polite">
         <div>
           <dt>Maximum Schmidt rank at this cut</dt>
           <dd>{Math.min(chi, 8)}</dd>
@@ -215,24 +207,12 @@ function TruncationVisual() {
   const result = truncateSchmidt(spectrum, keep);
   return (
     <>
-      <ol className="quantum-visual-steps" aria-label="Two-site TEBD update">
+      <ol className="lesson-widget-steps" aria-label="Two-site TEBD update">
         <li>Apply gate</li>
         <li>Split with SVD</li>
         <li>Keep χ terms</li>
       </ol>
-      <label className="quantum-visual-control">
-        Retained Schmidt terms χ
-        <input
-          type="range"
-          aria-label="Retained Schmidt terms χ"
-          min="1"
-          max="4"
-          step="1"
-          value={keep}
-          onChange={(event) => setKeep(Number(event.target.value))}
-        />
-        <output>{keep}</output>
-      </label>
+      <WidgetRange label="Retained Schmidt terms χ" min={1} max={4} value={keep} onChange={setKeep} />
       <figure>
         <svg
           viewBox="0 0 360 235"
@@ -270,7 +250,7 @@ function TruncationVisual() {
           truncations.
         </figcaption>
       </figure>
-      <dl className="quantum-visual-values" aria-live="polite">
+      <dl className="lesson-widget-values" aria-live="polite">
         <div>
           <dt>Discarded weight</dt>
           <dd>{percent(result.discarded)}</dd>
@@ -284,31 +264,75 @@ function TruncationVisual() {
   );
 }
 
-const visuals = {
-  damping: { title: 'Amplitude damping', Component: DampingVisual },
-  entanglement: { title: 'Schmidt weights and entanglement', Component: EntanglementVisual },
-  bond: { title: 'Bond dimension', Component: BondVisual },
-  truncation: { title: 'Schmidt truncation', Component: TruncationVisual }
-};
-export const LECTURE_VISUALS: Record<string, keyof typeof visuals> = {
-  'L12-multi-qubit-systems-entanglement': 'entanglement',
-  'L13-density-matrices-mixed-states': 'damping',
-  'L62-quantum-noise-channels': 'damping',
-  'L65-schmidt-quantum-entanglement': 'entanglement',
-  'L66-matrix-product-quantum-states': 'bond',
-  'L67-tebd-quantum-time-evolution': 'truncation'
-};
-
-export function QuantumVisual({ lectureId }: { lectureId: string }) {
-  const visual = visuals[LECTURE_VISUALS[lectureId]];
-  if (!visual) return null;
-  const { title, Component } = visual;
-  return (
-    <details className="quantum-visual">
-      <summary>Visual: {title}</summary>
-      <div className="quantum-visual-body">
-        <Component key={lectureId} />
-      </div>
-    </details>
-  );
-}
+export const QUANTUM_WIDGETS = {
+  damping: {
+    title: 'Amplitude damping',
+    Component: DampingVisual,
+    check: {
+      question: 'At complete damping (γ = 1), where does the initial |+⟩ state end up?',
+      options: [
+        {
+          label: 'The pure ground state |0⟩',
+          correct: true,
+          feedback:
+            'All population ends in |0⟩, so the final purity is one. Dissipation need not always lower purity.'
+        },
+        {
+          label: 'The maximally mixed state',
+          feedback:
+            'Check the ground population at γ = 1. Relaxation transfers population as well as reducing coherence.'
+        }
+      ]
+    }
+  },
+  entanglement: {
+    title: 'Schmidt weights and entanglement',
+    Component: EntanglementVisual,
+    check: {
+      question: 'When is this two-qubit pure state maximally entangled?',
+      options: [
+        { label: 'At θ = 0°', feedback: 'That is |00⟩, a product state with zero entanglement entropy.' },
+        {
+          label: 'At θ = 45°',
+          correct: true,
+          feedback: 'Equal Schmidt weights give a Bell state and one bit of entanglement entropy.'
+        }
+      ]
+    }
+  },
+  bond: {
+    title: 'Bond dimension',
+    Component: BondVisual,
+    check: {
+      question: 'If χ = 4 at this cut, must the entropy be 2 bits?',
+      options: [
+        {
+          label: 'Yes',
+          feedback:
+            'Bond dimension gives capacity. A product state can still have zero entropy inside that representation.'
+        },
+        {
+          label: 'No, that is an upper bound',
+          correct: true,
+          feedback: 'The actual Schmidt spectrum determines the entropy; χ only limits the rank.'
+        }
+      ]
+    }
+  },
+  truncation: {
+    title: 'Schmidt truncation',
+    Component: TruncationVisual,
+    check: {
+      question: 'How many terms keep discarded weight at or below 3%?',
+      options: [
+        { label: 'Two', feedback: 'Keeping 0.70 and 0.20 discards 0.10, or 10%.' },
+        {
+          label: 'Three',
+          correct: true,
+          feedback: 'Keeping the first three weights leaves only 0.02, or 2%, discarded.'
+        },
+        { label: 'One', feedback: 'Keeping only 0.70 discards the remaining 30%.' }
+      ]
+    }
+  }
+} satisfies Record<string, WidgetSpec>;

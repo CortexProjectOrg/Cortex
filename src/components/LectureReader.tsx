@@ -18,7 +18,7 @@ import { LectureScratchpadPanel } from './reader/LectureScratchpadPanel';
 import { PrimaryLiteraturePanel } from './reader/PrimaryLiteraturePanel';
 import { SystemsArchitecturePanel } from './reader/SystemsArchitecturePanel';
 import { TheoreticalCitationsPanel } from './reader/TheoreticalCitationsPanel';
-import { QuantumVisual } from './reader/QuantumVisual';
+import { LectureWidget } from './reader/LectureWidget';
 
 export function LectureReader() {
   const { topicId, lectureId } = useParams();
@@ -222,7 +222,7 @@ function LectureReaderContent() {
           </div>
         </div>
 
-        <QuantumVisual lectureId={lecture.id} />
+        <LectureWidget lectureId={lecture.id} />
 
         {/* Keep interactive visuals outside the fixed annotation coordinate system. */}
         <DocumentInkOverlay
