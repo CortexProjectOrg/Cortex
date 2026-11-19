@@ -2,17 +2,88 @@
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
-import { LectureWidget } from '../src/components/reader/LectureWidget';
+import { LectureWidget, LECTURE_WIDGETS } from '../src/components/reader/LectureWidget';
+import { LECTURE_DIAGRAMS } from '../src/components/reader/lectureDiagrams';
+import { ALL_LECTURES } from '../src/lib/curriculum';
 
 afterEach(cleanup);
-function open(id: string) {
+function open(id: string, summary: string | RegExp = /^Explore:/) {
   const view = render(<LectureWidget lectureId={id} />);
-  fireEvent.click(screen.getByText(/^Explore:/));
+  fireEvent.click(screen.getByText(summary));
   return view;
 }
 function value(label: string) {
   return screen.getByText(label, { selector: 'dt' }).nextElementSibling?.textContent;
 }
+
+it('assigns one or two visuals to every catalog lecture and renders them through the shared reader panel', () => {
+  const { container, rerender } = render(<LectureWidget lectureId="unknown-lecture" />);
+  const assigned = new Set([...Object.keys(LECTURE_WIDGETS), ...Object.keys(LECTURE_DIAGRAMS)]);
+  expect(assigned).toEqual(new Set(ALL_LECTURES.map(({ id }) => id)));
+  for (const { id } of ALL_LECTURES) {
+    rerender(<LectureWidget lectureId={id} />);
+    const panels = container.querySelectorAll('.lesson-widget');
+    expect(panels.length, id).toBeGreaterThanOrEqual(1);
+    expect(panels.length, id).toBeLessThanOrEqual(2);
+    for (const panel of panels) {
+      expect(panel.hasAttribute('open'), id).toBe(false);
+      expect(panel.querySelector('summary')?.textContent, id).toMatch(/^(Explore|Diagram): \S/);
+    }
+  }
+});
+
+it('switches examples and restores the original example when navigating or resetting', () => {
+  const { rerender } = open('L60-qudit-algebra-mixed-dimension-registers');
+  const select = screen.getByRole('combobox', { name: 'Example' });
+  expect(value('Steps to return')).toBe('3');
+  fireEvent.change(select, { target: { value: '1' } });
+  expect(value('Steps to return')).toBe('2');
+  fireEvent.click(screen.getByRole('button', { name: 'Reset example' }));
+  expect(value('Steps to return')).toBe('3');
+  fireEvent.change(select, { target: { value: '1' } });
+  rerender(<LectureWidget lectureId="L61-quantum-channels-kraus" />);
+  expect(screen.getByText('Explore: Keep or forget the measurement record').closest('details')?.open).toBe(
+    false
+  );
+  rerender(<LectureWidget lectureId="L60-qudit-algebra-mixed-dimension-registers" />);
+  expect(value('Steps to return')).toBe('3');
+});
+
+it('shows that 3 has an inverse modulo 5 and becomes a zero divisor modulo 6', () => {
+  open('L03-finite-fields-gf2-gfp');
+  expect(value('Inverse of 3')).toBe('2');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Modulus' }), { target: { value: '6' } });
+  expect(value('Inverse of 3')).toBe('None');
+  expect(value('Distinct products')).toBe('2 of 6');
+});
+
+it('recalculates Pauli commutation when a second local minus sign is removed', () => {
+  open('L18-symplectic-product-commutation');
+  expect(value('Result')).toBe('Commute (+1)');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Site 2' }), { target: { value: 'I' } });
+  expect(value('Result')).toBe('Anticommute (−1)');
+});
+
+it('shows the invalid Euler result while retaining the exact positive population', () => {
+  open('L63-lindblad-quantum-dynamics');
+  fireEvent.change(screen.getByRole('slider', { name: 'Time step Δt' }), { target: { value: '0.6' } });
+  expect(value('Euler population')).toBe('-0.200');
+  expect(value('Exact population')).toBe('0.301');
+  expect(value('Euler state')).toBe('Negative population');
+});
+
+it('finds the lower shot-budget error and the singlet energy at the planned examples', () => {
+  const { rerender } = open('L49-quantum-observable-estimation-budget');
+  expect(value('Standard error of A + B')).toBe('0.2887');
+  fireEvent.change(screen.getByRole('slider', { name: 'Shots for estimate A' }), { target: { value: '40' } });
+  expect(value('Standard error of A + B')).toBe('0.2739');
+  rerender(<LectureWidget lectureId="L68-dmrg-quantum-ground-states" />);
+  fireEvent.click(screen.getByText(/^Explore:/));
+  expect(value('Trial energy')).toBe('-1.000');
+  fireEvent.change(screen.getByRole('slider', { name: 'Mixing angle θ' }), { target: { value: '45' } });
+  expect(value('Trial energy')).toBe('-3.000');
+  expect(value('Schmidt rank')).toBe('2');
+});
 
 it('updates map arrows and classifications when adding an unused target', () => {
   open('L01-sets-maps-proofs');
@@ -38,7 +109,7 @@ it('changes the modular orbit and safely resets steps when changing clock size',
 });
 
 it('reaches the vector target by reversing one basis vector', () => {
-  open('L04-vector-spaces-finite-fields');
+  open('L04-vector-spaces-finite-fields', 'Explore: Build a vector');
   fireEvent.change(screen.getByRole('slider', { name: 'Coefficient a' }), { target: { value: '-1' } });
   fireEvent.change(screen.getByRole('slider', { name: 'Coefficient b' }), { target: { value: '2' } });
   expect(value('a u + b v')).toBe('(1, 2)');
