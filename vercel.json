@@ -29,7 +29,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!api/|assets/|sw\\.js|workbox-|registerSW|manifest\\.webmanifest|pwa-|apple-touch-icon|icon\\.svg).*)",
+      "source": "/((?!api/|_vercel/|assets/|sw\\.js|workbox-|registerSW|manifest\\.webmanifest|pwa-|apple-touch-icon|icon\\.svg).*)",
       "destination": "/index.html"
     }
   ]
