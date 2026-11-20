@@ -1,10 +1,56 @@
 import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import rehypeSlug from 'rehype-slug';
 import { MarkdownView } from '../src/components/MarkdownView';
 import { MathFormula } from '../src/components/MathFormula';
+import { ALL_LECTURES, LEGACY_LECTURE_MAP } from '../src/lib/curriculum';
+import { lectureVisualPlacements } from '../src/lib/lectureVisualPlacements';
 
 describe('MarkdownView Math & KaTeX Formula Rendering', () => {
+  it('places an insertion after a complete subsection, including nested headings and equations', () => {
+    const source = '### First\n\nExplanation.\n\n#### Detail\n\n$$\nx^2\n$$\n\n### Next\n\nMore text.';
+    const html = renderToString(
+      React.createElement(MarkdownView, {
+        source,
+        insertions: [{ afterHeading: 'first', content: React.createElement('aside', null, 'Try it') }]
+      })
+    );
+    expect(html).toMatch(
+      /id="detail"[\s\S]*class="katex-display"[\s\S]*<aside>Try it<\/aside>\s*<h3 id="next"/
+    );
+  });
+
+  it('resolves the authored visual anchors for current and preserved lecture text', () => {
+    // Heading IDs are assigned before KaTeX renders the math.
+    const parser = unified()
+      .use(remarkParse)
+      .use(remarkGfm)
+      .use(remarkMath)
+      .use(remarkRehype)
+      .use(rehypeSlug);
+    for (const lecture of ALL_LECTURES) {
+      const legacy = LEGACY_LECTURE_MAP.get(lecture.id);
+      for (const version of [
+        lecture,
+        ...(legacy && legacy.content.theory !== lecture.content.theory ? [legacy] : [])
+      ]) {
+        const placements = lectureVisualPlacements(lecture.id, version !== lecture);
+        const theoryAnchors = placements.flatMap(({ afterHeading }) => (afterHeading ? [afterHeading] : []));
+        if (!theoryAnchors.length) continue;
+        const tree = parser.runSync(parser.parse(version.content.theory));
+        const headings = tree.children.flatMap((node) =>
+          node.type === 'element' && /^h[1-6]$/.test(node.tagName) ? [node.properties.id] : []
+        );
+        for (const id of theoryAnchors) expect(headings, `${version.id}: ${id}`).toContain(id);
+      }
+    }
+  });
   it('renders inline math with KaTeX markup', () => {
     const source = 'The inner product is $\\langle u, v \\rangle = u_z v_x - u_x v_z$.';
     const html = renderToString(React.createElement(MarkdownView, { source }));

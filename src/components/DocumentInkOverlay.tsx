@@ -94,7 +94,9 @@ export function DocumentInkOverlay({
   useEffect(() => {
     const sheet = activeSheetRef.current;
     if (!sheet) return;
-    for (const detail of sheet.querySelectorAll('details')) detail.open = annotationMode;
+    for (const detail of sheet.querySelectorAll('details')) {
+      if (!detail.closest('[data-reading-only]')) detail.open = annotationMode;
+    }
   }, [annotationMode, activeSheetRef]);
 
   // Track sheet height while preserving invariant canonical 960px width

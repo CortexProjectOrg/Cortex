@@ -10,6 +10,7 @@ import { lectureRoute, makeNote } from '../lib/model';
 import { usePdfViewer } from '../lib/pdfViewerContext';
 import { toggleLecture } from '../lib/progress';
 import { useWorkspace } from '../lib/workspace';
+import { lectureVisualPlacements, type LectureVisualSection } from '../lib/lectureVisualPlacements';
 import { DocumentInkOverlay } from './DocumentInkOverlay';
 import { MarkdownView } from './MarkdownView';
 import { LectureDagPanel } from './reader/LectureDagPanel';
@@ -49,6 +50,14 @@ function LectureReaderContent() {
     : 4;
   const originalContent = inkVersion < 4 && LEGACY_LECTURE_MAP.has(currentLecture.id);
   const lecture = originalContent ? LEGACY_LECTURE_MAP.get(currentLecture.id)! : currentLecture;
+  const visuals = lectureVisualPlacements(lecture.id, originalContent);
+  const visualInsertions = (section: LectureVisualSection) =>
+    visuals
+      .filter((placement) => placement.section === section)
+      .map(({ kind, afterHeading }) => ({
+        afterHeading,
+        content: <LectureWidget lectureId={lecture.id} kind={kind} />
+      }));
   const topic = (originalContent ? LEGACY_TOPICS : TOPICS).find((t) => t.id === lecture.topicId) || TOPICS[0];
   const dag = useMemo(
     () =>
@@ -143,14 +152,19 @@ function LectureReaderContent() {
   // Keyboard shortcut: toggle notes panel with 'N'
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || target.closest('input, textarea, select'))
+      )
+        return;
       if (
         (e.key === 'n' || e.key === 'N') &&
+        !e.defaultPrevented &&
         !e.ctrlKey &&
         !e.metaKey &&
         !e.altKey &&
-        !document.querySelector('dialog[open]') &&
-        !(e.target instanceof HTMLElement && e.target.isContentEditable) &&
-        !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
+        !document.querySelector('dialog[open]')
       ) {
         e.preventDefault();
         setNotesOpen((prev) => !prev);
@@ -223,9 +237,6 @@ function LectureReaderContent() {
           </div>
         </div>
 
-        <LectureWidget lectureId={lecture.id} />
-
-        {/* Keep interactive visuals outside the fixed annotation coordinate system. */}
         <DocumentInkOverlay
           key={lecture.id}
           initialData={activeNote.lectureInk}
@@ -358,7 +369,7 @@ function LectureReaderContent() {
               <h2 style={{ fontFamily: 'var(--serif)', fontSize: '24px', marginBottom: '16px' }}>
                 {legacyLayout ? '2. Theory & Formal Derivations' : 'Theory'}
               </h2>
-              <MarkdownView source={lecture.content.theory} />
+              <MarkdownView source={lecture.content.theory} insertions={visualInsertions('theory')} />
             </section>
 
             {/* Section 3: Worked Example */}
@@ -374,7 +385,10 @@ function LectureReaderContent() {
               <h2 style={{ fontFamily: 'var(--serif)', fontSize: '22px', marginBottom: '14px' }}>
                 {legacyLayout ? '3. Step-by-Step Worked Example' : 'Worked example'}
               </h2>
-              <MarkdownView source={lecture.content.workedExample} />
+              <MarkdownView
+                source={lecture.content.workedExample}
+                insertions={visualInsertions('workedExample')}
+              />
             </section>
 
             {/* Section 4: Canonical Systems Architecture */}

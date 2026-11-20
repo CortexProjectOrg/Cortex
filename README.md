@@ -6,9 +6,9 @@ A study notebook for mathematics, quantum computing, and simulation systems: 68 
 
 The open-system and tensor-network topics add eight lessons on channels, noise, Lindblad evolution, quantum trajectories, Schmidt decomposition, MPS, TEBD, and DMRG. Each includes prerequisites, a worked example, exercises, source references, and a content-specific study estimate.
 
-Open **Explore** above any of the 68 lectures. Some panels let you switch between labeled examples. Others offer sliders or buttons to manipulate a diagram, followed by a prediction question and feedback. The controls work with a keyboard or touch and remain available offline.
+Open **Explore** beside the relevant explanation or worked example in any of the 68 lectures. Some panels let you switch between labeled examples. Others offer sliders or buttons to manipulate a diagram, followed by a prediction question and feedback. The controls work with a keyboard or touch and remain available offline.
 
-The widgets sit outside the annotation sheet to keep handwriting aligned. Exploration and answer state reset when you leave the lecture.
+Annotation mode hides the widgets to keep the sheet the same size and handwriting aligned. Exploration and answer state reset when you leave the lecture.
 
 ## Study a paper
 
