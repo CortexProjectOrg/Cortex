@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-const rootTitle = 'Sets, Maps, and Mathematical Proof Patterns';
+const rootTitle = 'Sets, Maps, and Inverses';
 const groupsTitle = 'Groups, Monoids, and Modular Arithmetic';
 const fieldsTitle = 'Finite Fields: GF(2) and GF(p)';
 

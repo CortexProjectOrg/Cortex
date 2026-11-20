@@ -25,9 +25,9 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
   const dag = getKnowledgeDAG();
 
   it('contains all 68 monothematic lectures as graph nodes', () => {
-    expect(dag.nodes.size).toBe(68);
-    expect(dag.nodeList.length).toBe(68);
-    expect(ALL_LECTURES.length).toBe(68);
+    expect(dag.nodes.size).toBe(84);
+    expect(dag.nodeList.length).toBe(84);
+    expect(ALL_LECTURES.length).toBe(84);
 
     ALL_LECTURES.forEach((l) => {
       expect(dag.nodes.has(l.id)).toBe(true);
@@ -41,11 +41,11 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
   it('strictly satisfies the DAG condition: Kahn algorithm detects ZERO cycles', () => {
     expect(dag.isAcyclic).toBe(true);
     expect(dag.cycleNodes).toBeUndefined();
-    expect(dag.topologicalOrder.length).toBe(68);
+    expect(dag.topologicalOrder.length).toBe(84);
 
     // Verify all unique nodes appear in topological order
     const topoSet = new Set(dag.topologicalOrder);
-    expect(topoSet.size).toBe(68);
+    expect(topoSet.size).toBe(84);
   });
 
   it('ensures every prerequisite ID exists in the lecture registry (Referential Integrity)', () => {
@@ -245,7 +245,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
 
   it('builds queryable topic macro graph with scalable entering and outgoing connections', () => {
     const { topicNodes, topicEdges, topicMap } = buildTopicMacroGraph(dag, new Set());
-    expect(topicNodes.length).toBe(16);
+    expect(topicNodes.length).toBe(20);
     expect(topicEdges.length).toBeGreaterThanOrEqual(10);
 
     // Topic 1 has 0 incoming topics (axiomatic bedrock)
@@ -447,8 +447,11 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
       // Derived prerequisites contain L01
       expect(l03.derivedPrerequisites).toEqual(['L01-sets-maps-proofs']);
 
-      // L01 direct unlocked contains ONLY L02
-      expect(l01.unlockedLectures).toEqual(['L02-groups-modular-arithmetic']);
+      // The first proof lesson is a separate direct branch from L01.
+      expect(l01.unlockedLectures).toEqual([
+        'L02-groups-modular-arithmetic',
+        'L69-quantifiers-counterexamples'
+      ]);
 
       // L01 derived unlocked contains L03, L04, L09
       expect(l01.derivedUnlocked).toContain('L03-finite-fields-gf2-gfp');
@@ -483,7 +486,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     it('expands full dependency tree from any node including ancestors and descendants', () => {
       const rootId = 'L01-sets-maps-proofs';
       const rootTree = expandFullTreeFromNode(rootId, dag);
-      expect(rootTree.size).toBe(68); // Root unlocks all 67 other lectures
+      expect(rootTree.size).toBe(84); // Root unlocks all 83 other lectures
 
       const intermediateId = 'L03-finite-fields-gf2-gfp';
       const intermediateTree = expandFullTreeFromNode(intermediateId, dag);

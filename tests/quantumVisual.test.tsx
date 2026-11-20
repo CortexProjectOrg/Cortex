@@ -116,7 +116,7 @@ it('renders the visual after the matching explanation and preserves its state ac
   expect((slider as HTMLInputElement).value).toBe('45');
 });
 
-it.each([2, 3, 4])(
+it.each([2, 3, 4, 5])(
   'keeps revision %i saved ink and its lecture text when using an inline visual',
   (version) => {
     const id = 'L01-sets-maps-proofs';
@@ -133,12 +133,19 @@ it.each([2, 3, 4])(
     workspace.notes = [{ ...makeNote('Saved ink', undefined, id), lectureInk }];
     const { container } = openLecture(`/topics/math-foundations/${id}`);
     const summary = screen.getByText('Explore: Maps and inverses');
-    expect(summary.closest('details')?.nextElementSibling?.id).toBe(
-      version < 4 ? '3-proof-patterns-in-discrete-quantum-algebra' : 'proof-choices'
-    );
+    if (version === 5) {
+      expect(screen.getByRole('heading', { name: 'A map has a domain and a codomain' })).toBeTruthy();
+      expect(screen.queryByRole('heading', { name: 'Proof choices' })).toBeNull();
+    } else {
+      expect(summary.closest('details')?.nextElementSibling?.id).toBe(
+        version < 4 ? '3-proof-patterns-in-discrete-quantum-algebra' : 'proof-choices'
+      );
+    }
     fireEvent.click(summary);
     fireEvent.change(screen.getByRole('combobox', { name: 'Codomain size' }), { target: { value: '4' } });
     fireEvent.click(screen.getByRole('button', { name: 'Annotate' }));
+    const newPrerequisiteLink = screen.queryByRole('link', { name: /^L69: Quantifiers/ });
+    expect(Boolean(newPrerequisiteLink)).toBe(version === 5);
     const savedPath = container.querySelector('.document-ink-overlay-svg path');
     expect(savedPath?.getAttribute('d')).toBe(renderStrokeToPath(stroke));
     expect(workspace.notes[0].lectureInk).toBe(lectureInk);

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { LectureVisualKind } from '../../lib/lectureVisualPlacements';
+import { CURRICULUM_WIDGETS } from './CurriculumWidgets';
 import { FOUNDATION_WIDGETS } from './FoundationWidgets';
 import { QUANTUM_PRACTICE_WIDGETS } from './QuantumPracticeWidgets';
 import { QUANTUM_WIDGETS } from './QuantumVisual';
@@ -15,7 +16,8 @@ const widgets = {
   ...QUANTUM_PRACTICE_WIDGETS,
   ...QUANTUM_WIDGETS,
   ...MATH_PRACTICE_WIDGETS,
-  ...SIMULATION_PRACTICE_WIDGETS
+  ...SIMULATION_PRACTICE_WIDGETS,
+  ...CURRICULUM_WIDGETS
 };
 export const LECTURE_WIDGETS: Record<string, keyof typeof widgets> = {
   'L01-sets-maps-proofs': 'maps',
@@ -40,7 +42,12 @@ export const LECTURE_WIDGETS: Record<string, keyof typeof widgets> = {
   'L65-schmidt-quantum-entanglement': 'entanglement',
   'L66-matrix-product-quantum-states': 'bond',
   'L67-tebd-quantum-time-evolution': 'truncation',
-  'L68-dmrg-quantum-ground-states': 'variational'
+  'L68-dmrg-quantum-ground-states': 'variational',
+  'L72-invariants-termination': 'euclid',
+  'L74-coherent-drives-rabi-oscillations': 'rabi',
+  'L77-three-qubit-repetition-code': 'syndrome',
+  'L83-coherent-stochastic-errors': 'accumulation',
+  'L84-noise-spectroscopy-filter-functions': 'echo'
 };
 
 function WidgetSession({ spec: { title, Component, check } }: { spec: WidgetSpec }) {

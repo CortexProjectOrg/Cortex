@@ -1,7 +1,16 @@
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, PanelRightClose, PenTool } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ALL_LECTURES, LECTURE_MAP, TOPICS, LEGACY_LECTURE_MAP, LEGACY_TOPICS } from '../lib/curriculum';
+import {
+  ALL_LECTURES,
+  getLectureEdition,
+  LECTURE_MAP,
+  TOPICS,
+  LEGACY_LECTURE_MAP,
+  LEGACY_TOPICS,
+  REVISION_FOUR_LECTURES,
+  REVISION_FOUR_TOPICS
+} from '../lib/curriculum';
 import { formatStudyTime } from '../lib/studyTime';
 import { parseInkData } from '../lib/ink';
 import { buildKnowledgeDAG, getKnowledgeDAG } from '../lib/knowledgeGraph';
@@ -47,10 +56,10 @@ function LectureReaderContent() {
   );
   const inkVersion = attachedNote?.lectureInk
     ? parseInkData(attachedNote.lectureInk)?.visualization?.version || 1
-    : 4;
-  const originalContent = inkVersion < 4 && LEGACY_LECTURE_MAP.has(currentLecture.id);
-  const lecture = originalContent ? LEGACY_LECTURE_MAP.get(currentLecture.id)! : currentLecture;
-  const visuals = lectureVisualPlacements(lecture.id, originalContent);
+    : undefined;
+  const { lecture, version, originalContent } = getLectureEdition(currentLecture, inkVersion);
+  const topics = originalContent ? LEGACY_TOPICS : version === 4 ? REVISION_FOUR_TOPICS : TOPICS;
+  const visuals = lectureVisualPlacements(lecture.id, originalContent, version);
   const visualInsertions = (section: LectureVisualSection) =>
     visuals
       .filter((placement) => placement.section === section)
@@ -58,13 +67,15 @@ function LectureReaderContent() {
         afterHeading,
         content: <LectureWidget lectureId={lecture.id} kind={kind} />
       }));
-  const topic = (originalContent ? LEGACY_TOPICS : TOPICS).find((t) => t.id === lecture.topicId) || TOPICS[0];
+  const topic = topics.find((t) => t.id === lecture.topicId) || topics[0];
   const dag = useMemo(
     () =>
       originalContent
         ? buildKnowledgeDAG([...LEGACY_LECTURE_MAP.values()], LEGACY_TOPICS)
-        : getKnowledgeDAG(),
-    [originalContent]
+        : version === 4
+          ? buildKnowledgeDAG(REVISION_FOUR_LECTURES, REVISION_FOUR_TOPICS)
+          : getKnowledgeDAG(),
+    [originalContent, version]
   );
   const dagNode = lecture ? dag.nodes.get(lecture.id) : null;
 
@@ -121,21 +132,20 @@ function LectureReaderContent() {
   const articleRef = useRef<HTMLElement>(null);
 
   // Find next and previous lectures in syllabus sequence
-  const currentIndex = ALL_LECTURES.findIndex((l) => l.id === lecture.id);
-  const nextLecture = ALL_LECTURES[currentIndex + 1];
-  const prevLecture = ALL_LECTURES[currentIndex - 1];
+  const syllabus = version < 5 ? REVISION_FOUR_LECTURES : ALL_LECTURES;
+  const currentIndex = syllabus.findIndex((l) => l.id === lecture.id);
+  const nextLecture = syllabus[currentIndex + 1];
+  const prevLecture = syllabus[currentIndex - 1];
 
   const isCompleted = data.completedLectures?.includes(lecture.id);
 
   // AUTOMATIC NOTE ASSOCIATION:
   // Automatically find or create the note associated with this lecture
-  const existingNote = data.notes.find((n) => n.lectureId === lecture.id || n.documentId === lecture.id);
 
   const [draftNote] = useState(() => ({ ...makeNote(`Notes: ${lecture.title}`), lectureId: lecture.id }));
-  const activeNote = existingNote || draftNote;
+  const activeNote = attachedNote ?? draftNote;
 
-  const legacyLayout =
-    !!activeNote.lectureInk && (parseInkData(activeNote.lectureInk)?.visualization?.version || 1) < 3;
+  const legacyLayout = inkVersion !== undefined && inkVersion < 3;
 
   // Track reading position and last read
   useEffect(() => {
@@ -241,7 +251,7 @@ function LectureReaderContent() {
           key={lecture.id}
           initialData={activeNote.lectureInk}
           legacyLayout={legacyLayout}
-          contentVersion={originalContent ? inkVersion : 4}
+          contentVersion={version}
           onChange={(lectureInk) => updateActiveNote({ lectureInk })}
           onToggleSideNotes={() => setNotesOpen(!notesOpen)}
           sideNotesOpen={notesOpen}

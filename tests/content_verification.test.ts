@@ -3,8 +3,8 @@ import { documents } from '../src/lib/content';
 import { ALL_LECTURES, LECTURE_MAP, MASTERY_PACKS, TOPICS } from '../src/lib/curriculum';
 
 describe('Curriculum structure and rendering inputs', () => {
-  it('validates all 68 lectures have required theory and worked-example fields', () => {
-    expect(ALL_LECTURES.length).toBe(68);
+  it('validates all 84 lectures have required theory and worked-example fields', () => {
+    expect(ALL_LECTURES.length).toBe(84);
 
     ALL_LECTURES.forEach((lec) => {
       // Basic lecture identification and metadata
@@ -66,7 +66,7 @@ describe('Curriculum structure and rendering inputs', () => {
   });
 
   it('validates all topics cover their assigned lectures without gaps', () => {
-    expect(TOPICS.length).toBe(16);
+    expect(TOPICS.length).toBe(20);
     const assignedIds = new Set<string>();
 
     TOPICS.forEach((topic, idx) => {
@@ -83,11 +83,11 @@ describe('Curriculum structure and rendering inputs', () => {
       });
     });
 
-    expect(assignedIds.size).toBe(68);
+    expect(assignedIds.size).toBe(84);
   });
 
-  it('validates 17 mastery packs partition the syllabus into 4 consecutive slots', () => {
-    expect(MASTERY_PACKS.length).toBe(17);
+  it('validates 21 mastery packs partition the syllabus into 4 consecutive slots', () => {
+    expect(MASTERY_PACKS.length).toBe(21);
     const seenLectures = new Set<string>();
 
     MASTERY_PACKS.forEach((pack, pIdx) => {
@@ -105,7 +105,7 @@ describe('Curriculum structure and rendering inputs', () => {
       });
     });
 
-    expect(seenLectures.size).toBe(68);
+    expect(seenLectures.size).toBe(84);
   });
 
   it('validates all reference shelf documents parse cleanly with valid internal links', () => {
