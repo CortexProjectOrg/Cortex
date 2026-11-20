@@ -5,6 +5,22 @@
   background: var(--surface);
   color: var(--ink);
 }
+.markdown .lesson-widget {
+  margin: 20px 0 24px;
+  font:
+    15px/1.5 system-ui,
+    sans-serif;
+}
+.markdown .lesson-widget:last-child {
+  margin-bottom: 0;
+}
+.markdown .lesson-widget :is(.widget-flow, .widget-tiles) {
+  margin: 0;
+  padding: 0;
+}
+.markdown .lesson-widget :is(.widget-flow, .widget-tiles) > li {
+  margin: 0;
+}
 .lesson-widget summary {
   padding: 16px 20px;
   cursor: pointer;

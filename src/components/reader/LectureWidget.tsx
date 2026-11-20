@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { LectureVisualKind } from '../../lib/lectureVisualPlacements';
 import { FOUNDATION_WIDGETS } from './FoundationWidgets';
 import { QUANTUM_PRACTICE_WIDGETS } from './QuantumPracticeWidgets';
 import { QUANTUM_WIDGETS } from './QuantumVisual';
@@ -45,7 +46,7 @@ export const LECTURE_WIDGETS: Record<string, keyof typeof widgets> = {
 function WidgetSession({ spec: { title, Component, check } }: { spec: WidgetSpec }) {
   const [revision, setRevision] = useState(0);
   return (
-    <details className="lesson-widget">
+    <details className="lesson-widget" data-reading-only>
       <summary>Explore: {title}</summary>
       <div className="lesson-widget-body">
         <div key={revision}>
@@ -64,9 +65,9 @@ function WidgetSession({ spec: { title, Component, check } }: { spec: WidgetSpec
   );
 }
 
-export function LectureWidget({ lectureId }: { lectureId: string }) {
-  const spec = widgets[LECTURE_WIDGETS[lectureId]];
-  const diagram = LECTURE_DIAGRAMS[lectureId];
+export function LectureWidget({ lectureId, kind }: { lectureId: string; kind?: LectureVisualKind }) {
+  const spec = kind !== 'diagram' ? widgets[LECTURE_WIDGETS[lectureId]] : undefined;
+  const diagram = kind !== 'practice' ? LECTURE_DIAGRAMS[lectureId] : undefined;
   return (
     <>
       {diagram && <DiagramWidget key={`diagram-${lectureId}`} spec={diagram} />}

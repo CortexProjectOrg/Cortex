@@ -5,6 +5,7 @@ import { afterEach, expect, it } from 'vitest';
 import { LectureWidget, LECTURE_WIDGETS } from '../src/components/reader/LectureWidget';
 import { LECTURE_DIAGRAMS } from '../src/components/reader/lectureDiagrams';
 import { ALL_LECTURES } from '../src/lib/curriculum';
+import { lectureVisualPlacements } from '../src/lib/lectureVisualPlacements';
 
 afterEach(cleanup);
 function open(id: string, summary: string | RegExp = /^Explore:/) {
@@ -25,6 +26,10 @@ it('assigns one or two visuals to every catalog lecture and renders them through
     const panels = container.querySelectorAll('.lesson-widget');
     expect(panels.length, id).toBeGreaterThanOrEqual(1);
     expect(panels.length, id).toBeLessThanOrEqual(2);
+    expect(
+      lectureVisualPlacements(id).map(({ kind }) => kind),
+      id
+    ).toEqual([...(LECTURE_WIDGETS[id] ? ['practice'] : []), ...(LECTURE_DIAGRAMS[id] ? ['diagram'] : [])]);
     for (const panel of panels) {
       expect(panel.hasAttribute('open'), id).toBe(false);
       expect(panel.querySelector('summary')?.textContent, id).toMatch(/^(Explore|Diagram): \S/);

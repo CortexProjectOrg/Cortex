@@ -2118,6 +2118,10 @@ h3 {
   margin: 0 !important;
 }
 
+.annotation-mode .reading-sheet [data-reading-only] {
+  display: none;
+}
+
 .annotation-mode .sheet-margin-column {
   width: 240px !important;
   min-width: 240px !important;

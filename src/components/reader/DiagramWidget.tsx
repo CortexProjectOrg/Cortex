@@ -23,7 +23,7 @@ export function DiagramWidget({ spec }: { spec: DiagramSpec }) {
   const [index, setIndex] = useState(0);
   const example = spec.views[index];
   return (
-    <details className="lesson-widget">
+    <details className="lesson-widget" data-reading-only>
       <summary>
         {spec.views.length > 1 ? 'Explore' : 'Diagram'}: {spec.title}
       </summary>
