@@ -283,16 +283,22 @@ export const LEGACY_TOPICS: Topic[] = [
 
 // Detailed metadata with full theoretical citations for key lectures
 import { FULL_LECTURES_RECORD } from './curriculumData';
+import { CLASSICAL_COMPLEXITY_PACK } from './classicalComplexityLessons';
+import { COMPUTATIONAL_MATH } from './computationalMathLessons';
 import { CURRICULUM_REVISIONS } from './curriculumRevisions';
 import { DEVICE_PHYSICS } from './devicePhysicsLessons';
 import { ERROR_CORRECTION } from './errorCorrectionLessons';
 import { FOUNDATION_LESSONS } from './foundationLessons';
 import { NOISE_CHARACTERIZATION } from './noiseLessons';
 import { PROOF_PACK } from './proofLessons';
+import { PROBABILITY_AND_ESTIMATION } from './probabilityLessons';
+import { QUANTUM_ALGORITHMS } from './quantumAlgorithmLessons';
+import { QUANTUM_COMPLEXITY } from './quantumComplexityLessons';
+import { QUANTUM_DYNAMICS } from './quantumDynamicsLessons';
 import { estimateStudyMinutes } from './studyTime';
 import { QUANTUM_SIMULATION_LECTURES, QUANTUM_SIMULATION_TOPICS } from './quantumSimulationLessons';
 
-export const REVISION_FOUR_TOPICS: Topic[] = [
+const REVISION_FOUR_TOPICS: Topic[] = [
   {
     ...LEGACY_TOPICS[0],
     title: 'Sets, maps, and proofs',
@@ -369,10 +375,25 @@ export const REVISION_FOUR_TOPICS: Topic[] = [
   ...QUANTUM_SIMULATION_TOPICS
 ].map((topic, index) => ({ ...topic, number: index + 1 }));
 
-const NEW_PACKS = [PROOF_PACK, DEVICE_PHYSICS, ERROR_CORRECTION, NOISE_CHARACTERIZATION];
-export const TOPICS: Topic[] = [
+const REVISION_FIVE_PACKS = [PROOF_PACK, DEVICE_PHYSICS, ERROR_CORRECTION, NOISE_CHARACTERIZATION];
+const REVISION_FIVE_TOPICS: Topic[] = [
   ...REVISION_FOUR_TOPICS,
-  ...NEW_PACKS.map(({ topic }, index) => ({ ...topic, number: REVISION_FOUR_TOPICS.length + index + 1 }))
+  ...REVISION_FIVE_PACKS.map(({ topic }, index) => ({
+    ...topic,
+    number: REVISION_FOUR_TOPICS.length + index + 1
+  }))
+];
+const NEW_PACKS = [
+  COMPUTATIONAL_MATH,
+  PROBABILITY_AND_ESTIMATION,
+  QUANTUM_DYNAMICS,
+  CLASSICAL_COMPLEXITY_PACK,
+  QUANTUM_ALGORITHMS,
+  QUANTUM_COMPLEXITY
+];
+export const TOPICS: Topic[] = [
+  ...REVISION_FIVE_TOPICS,
+  ...NEW_PACKS.map(({ topic }, index) => ({ ...topic, number: REVISION_FIVE_TOPICS.length + index + 1 }))
 ];
 
 export const LEGACY_LECTURE_MAP = new Map(Object.values(FULL_LECTURES_RECORD).map((l) => [l.id, l]));
@@ -414,34 +435,78 @@ function revisionFourLectures(): Lecture[] {
 }
 
 export const REVISION_FOUR_LECTURES = revisionFourLectures();
-const REVISION_FOUR_LECTURE_MAP = new Map(REVISION_FOUR_LECTURES.map((lecture) => [lecture.id, lecture]));
+const REVISION_FIVE_LECTURES = [
+  ...REVISION_FOUR_LECTURES.map((lecture) => {
+    const revision = CURRICULUM_REVISIONS[lecture.id];
+    return revision
+      ? { ...lecture, ...revision, subtitle: '', codeReferences: [], implementationChoices: [] }
+      : lecture;
+  }),
+  ...REVISION_FIVE_PACKS.flatMap(({ lectures }) => lectures)
+];
+
+const RELATED_EXPANSION: Partial<Record<string, SoftLink>> = {
+  'L46-lanczos-three-term-recurrence': {
+    targetId: 'L86-conditioning-linear-solves',
+    relationship: 'Distinguish a small residual from a small forward error in a linear solve.'
+  },
+  'L53-mcmc-covariance-integration': {
+    targetId: 'L92-markov-chains-mixing-mcmc',
+    relationship: 'Separate mixing from dependence in a reversible chain.'
+  },
+  'L63-lindblad-quantum-dynamics': {
+    targetId: 'L93-hamiltonian-time-evolution',
+    relationship: 'Derive closed-system evolution in the energy basis.'
+  },
+  'L68-dmrg-quantum-ground-states': {
+    targetId: 'L106-qma-local-hamiltonian',
+    relationship: 'Compare variational energy minimization with a worst-case verification problem.'
+  },
+  'L84-noise-spectroscopy-filter-functions': {
+    targetId: 'L88-dft-fast-fourier-transform',
+    relationship: 'Compute a discrete Fourier transform of sampled signals.'
+  }
+};
 
 export function getAllLectures(): Lecture[] {
   return [
-    ...REVISION_FOUR_LECTURES.map((lecture) => {
-      const revision = CURRICULUM_REVISIONS[lecture.id];
-      return revision
-        ? { ...lecture, ...revision, subtitle: '', codeReferences: [], implementationChoices: [] }
-        : lecture;
+    ...REVISION_FIVE_LECTURES.map((lecture) => {
+      const link = RELATED_EXPANSION[lecture.id];
+      return link ? { ...lecture, softLinks: [...(lecture.softLinks ?? []), link] } : lecture;
     }),
     ...NEW_PACKS.flatMap(({ lectures }) => lectures)
   ];
 }
 
-export function getLectureEdition(current: Lecture, savedVersion?: number) {
-  if (savedVersion !== undefined && savedVersion < 4) {
-    const original = LEGACY_LECTURE_MAP.get(current.id);
-    if (original) return { lecture: original, version: savedVersion, originalContent: true };
-  }
-  if (savedVersion === 4) {
-    const previous = REVISION_FOUR_LECTURE_MAP.get(current.id);
-    if (previous) return { lecture: previous, version: 4, originalContent: false };
-  }
-  return { lecture: current, version: 5, originalContent: false };
-}
-
 export const ALL_LECTURES = getAllLectures();
 export const LECTURE_MAP = new Map(ALL_LECTURES.map((l) => [l.id, l]));
+
+function readerCatalog(lectures: Lecture[], topics: Topic[]) {
+  return { lectures, topics, byId: new Map(lectures.map((lecture) => [lecture.id, lecture])) };
+}
+
+// Expanded dependency panels are part of the annotated page, so retain each published graph too.
+const ORIGINAL_CATALOG = {
+  lectures: [...LEGACY_LECTURE_MAP.values()],
+  topics: LEGACY_TOPICS,
+  byId: LEGACY_LECTURE_MAP
+};
+const PREVIOUS_CATALOGS = new Map([
+  [4, readerCatalog(REVISION_FOUR_LECTURES, REVISION_FOUR_TOPICS)],
+  [5, readerCatalog(REVISION_FIVE_LECTURES, REVISION_FIVE_TOPICS)]
+]);
+const CURRENT_CATALOG = { lectures: ALL_LECTURES, topics: TOPICS, byId: LECTURE_MAP };
+
+export function getLectureEdition(current: Lecture, savedVersion?: number) {
+  if (savedVersion !== undefined) {
+    const catalog = savedVersion < 4 ? ORIGINAL_CATALOG : PREVIOUS_CATALOGS.get(savedVersion);
+    const lecture = catalog?.byId.get(current.id);
+    if (catalog && lecture) {
+      return { lecture, version: savedVersion, originalContent: savedVersion < 4, catalog };
+    }
+  }
+  return { lecture: current, version: 6, originalContent: false, catalog: CURRENT_CATALOG };
+}
 
 // Keep legacy exports while deriving path size from the current catalog.
 export const FOUR_HOUR_MASTERY_PATH: StudyPath = {
@@ -449,7 +514,7 @@ export const FOUR_HOUR_MASTERY_PATH: StudyPath = {
   title: 'Mathematics and quantum computing',
   subtitle: '',
   description:
-    'Proofs, quantum computing, simulation, superconducting circuits, error correction, and noise measurements.',
+    'Computational mathematics, quantum physics, algorithms, complexity, simulation, and error correction.',
   totalPacks: Math.ceil(ALL_LECTURES.length / 4),
   totalLectures: ALL_LECTURES.length,
   packs: Array.from({ length: Math.ceil(ALL_LECTURES.length / 4) }, (_, i) => {

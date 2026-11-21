@@ -1,6 +1,6 @@
 # Cortex
 
-A study notebook for mathematics, quantum computing, and simulation systems with 84 lectures, 20 topics, 21 study packs, and paper-based prerequisite trees.
+A study notebook for computational mathematics, quantum physics, and quantum computing with 108 lectures, 26 topics, 27 study packs, and paper-based prerequisite trees.
 
 ## Quantum simulation lessons
 

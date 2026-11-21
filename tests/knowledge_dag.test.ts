@@ -24,10 +24,10 @@ import { buildTopicMacroGraph, findLearningPath } from '../src/lib/knowledgeGrap
 describe('Knowledge DAG & Dependency Tree Invariants', () => {
   const dag = getKnowledgeDAG();
 
-  it('contains all 68 monothematic lectures as graph nodes', () => {
-    expect(dag.nodes.size).toBe(84);
-    expect(dag.nodeList.length).toBe(84);
-    expect(ALL_LECTURES.length).toBe(84);
+  it('contains all 108 lectures as graph nodes', () => {
+    expect(dag.nodes.size).toBe(108);
+    expect(dag.nodeList.length).toBe(108);
+    expect(ALL_LECTURES.length).toBe(108);
 
     ALL_LECTURES.forEach((l) => {
       expect(dag.nodes.has(l.id)).toBe(true);
@@ -41,11 +41,21 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
   it('strictly satisfies the DAG condition: Kahn algorithm detects ZERO cycles', () => {
     expect(dag.isAcyclic).toBe(true);
     expect(dag.cycleNodes).toBeUndefined();
-    expect(dag.topologicalOrder.length).toBe(84);
+    expect(dag.topologicalOrder.length).toBe(108);
 
     // Verify all unique nodes appear in topological order
     const topoSet = new Set(dag.topologicalOrder);
-    expect(topoSet.size).toBe(84);
+    expect(topoSet.size).toBe(108);
+  });
+
+  it.each([
+    ['L88-dft-fast-fourier-transform', 'L104-quantum-order-finding'],
+    ['L91-concentration-sample-complexity', 'L105-bqp-circuit-complexity'],
+    ['L95-quantum-thermal-states', 'L106-qma-local-hamiltonian'],
+    ['L98-np-completeness-reductions', 'L107-strong-weak-simulation'],
+    ['L86-conditioning-linear-solves', 'L108-hamiltonian-simulation-cost']
+  ])('connects %s to %s by a prerequisite path', (from, to) => {
+    expect(findLearningPath(from, to, new Set(), dag)?.isReachable).toBe(true);
   });
 
   it('ensures every prerequisite ID exists in the lecture registry (Referential Integrity)', () => {
@@ -245,7 +255,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
 
   it('builds queryable topic macro graph with scalable entering and outgoing connections', () => {
     const { topicNodes, topicEdges, topicMap } = buildTopicMacroGraph(dag, new Set());
-    expect(topicNodes.length).toBe(20);
+    expect(topicNodes.length).toBe(26);
     expect(topicEdges.length).toBeGreaterThanOrEqual(10);
 
     // Topic 1 has 0 incoming topics (axiomatic bedrock)
@@ -486,7 +496,7 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     it('expands full dependency tree from any node including ancestors and descendants', () => {
       const rootId = 'L01-sets-maps-proofs';
       const rootTree = expandFullTreeFromNode(rootId, dag);
-      expect(rootTree.size).toBe(84); // Root unlocks all 83 other lectures
+      expect(rootTree.size).toBe(108); // Root unlocks all 107 other lectures
 
       const intermediateId = 'L03-finite-fields-gf2-gfp';
       const intermediateTree = expandFullTreeFromNode(intermediateId, dag);

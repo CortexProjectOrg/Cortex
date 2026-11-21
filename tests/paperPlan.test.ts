@@ -45,6 +45,31 @@ describe('Paper prerequisite planning', () => {
     expect(matchLecture('Pauli group')!.id).toBe('L16-n-qubit-pauli-strings');
     expect(matchLecture('Riemannian manifolds')).toBeUndefined();
   });
+  it('finds new named courses while keeping general Fourier analysis on the classical branch', () => {
+    expect(matchLecture('FFT')?.id).toBe('L88-dft-fast-fourier-transform');
+    expect(matchLecture('Fourier Transform')?.id).toBe('L88-dft-fast-fourier-transform');
+    expect(matchLecture('BPP')?.id).toBe('L99-randomized-complexity-amplification');
+    expect(matchLecture('BQP')?.id).toBe('L105-bqp-circuit-complexity');
+    expect(matchLecture('QMA')?.id).toBe('L106-qma-local-hamiltonian');
+    expect(matchLecture('Shor’s algorithm')?.id).toBe('L104-quantum-order-finding');
+  });
+  it('adds physics and computational math to a paper plan for quantum phase estimation', () => {
+    const input = structuredClone(paperAnalysis);
+    input.concepts = [
+      {
+        ...input.concepts[0],
+        id: 'phase-estimation',
+        title: 'Quantum phase estimation',
+        prerequisites: []
+      }
+    ];
+    input.theorem!.prerequisites = ['phase-estimation'];
+    const plan = buildPaperPlan(input);
+    expect(plan.nodes.get('phase-estimation')?.lecture?.id).toBe('L103-quantum-phase-estimation');
+    expect(plan.order).toContain('catalog:L88-dft-fast-fourier-transform');
+    expect(plan.order).toContain('catalog:L93-hamiltonian-time-evolution');
+    expect(plan.order.at(-1)).toBe('phase-estimation');
+  });
   it('does not schedule the same catalog lecture twice for separate atomic concepts', () => {
     const input = structuredClone(paperAnalysis);
     input.concepts[1].title = 'Functions';

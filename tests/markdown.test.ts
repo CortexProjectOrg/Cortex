@@ -12,6 +12,11 @@ import { MathFormula } from '../src/components/MathFormula';
 import { ALL_LECTURES, getLectureEdition, LECTURE_MAP } from '../src/lib/curriculum';
 import { lectureVisualPlacements } from '../src/lib/lectureVisualPlacements';
 
+const authoredLectures = ALL_LECTURES.filter((lecture) => {
+  const previous = getLectureEdition(lecture, 4);
+  return previous.version !== 4 || previous.lecture.content !== lecture.content;
+});
+
 describe('MarkdownView Math & KaTeX Formula Rendering', () => {
   it('places an insertion after a complete subsection, including nested headings and equations', () => {
     const source = '### First\n\nExplanation.\n\n#### Detail\n\n$$\nx^2\n$$\n\n### Next\n\nMore text.';
@@ -35,7 +40,7 @@ describe('MarkdownView Math & KaTeX Formula Rendering', () => {
       .use(remarkRehype)
       .use(rehypeSlug);
     for (const current of ALL_LECTURES) {
-      for (const savedVersion of [undefined, 4, 3]) {
+      for (const savedVersion of [undefined, 5, 4, 3]) {
         const { lecture, version, originalContent } = getLectureEdition(current, savedVersion);
         const placements = lectureVisualPlacements(lecture.id, originalContent, version);
         const theoryAnchors = placements.flatMap(({ afterHeading }) => (afterHeading ? [afterHeading] : []));
@@ -50,22 +55,18 @@ describe('MarkdownView Math & KaTeX Formula Rendering', () => {
     }
   });
 
-  it('renders revised and new lesson math and resolves course links', () => {
-    for (const lecture of ALL_LECTURES) {
-      const previous = getLectureEdition(lecture, 4);
-      if (previous.version === 4 && previous.lecture === lecture) continue;
-      const { motivation, theory, workedExample, exercise } = lecture.content;
-      for (const source of [motivation, theory, workedExample, exercise]) {
-        const html = renderToString(React.createElement(MarkdownView, { source }));
-        expect(html, lecture.id).not.toMatch(/katex-error|<merror>|\$\$[\s\S]*?\$\$/);
-        for (const [, topicId, lectureId] of html.matchAll(/href="\/topics\/([^/"]+)\/([^"]+)"/g)) {
-          expect(LECTURE_MAP.get(lectureId)?.topicId, `Link from ${lecture.id}`).toBe(topicId);
-        }
+  it.each(authoredLectures)('renders math and resolves course links in $id', (lecture) => {
+    const { motivation, theory, workedExample, exercise } = lecture.content;
+    for (const source of [motivation, theory, workedExample, exercise]) {
+      const html = renderToString(React.createElement(MarkdownView, { source }));
+      expect(html, lecture.id).not.toMatch(/katex-error|<merror>|\$\$[\s\S]*?\$\$/);
+      for (const [, topicId, lectureId] of html.matchAll(/href="\/topics\/([^/"]+)\/([^"]+)"/g)) {
+        expect(LECTURE_MAP.get(lectureId)?.topicId, `Link from ${lecture.id}`).toBe(topicId);
       }
-      for (const { expression } of lecture.theoreticalCitations) {
-        const html = renderToString(React.createElement(MathFormula, { math: expression }));
-        expect(html, lecture.id).not.toMatch(/katex-error|<merror>/);
-      }
+    }
+    for (const { expression } of lecture.theoreticalCitations) {
+      const html = renderToString(React.createElement(MathFormula, { math: expression }));
+      expect(html, lecture.id).not.toMatch(/katex-error|<merror>/);
     }
   });
   it('renders inline math with KaTeX markup', () => {

@@ -7,9 +7,7 @@ import {
   LECTURE_MAP,
   TOPICS,
   LEGACY_LECTURE_MAP,
-  LEGACY_TOPICS,
-  REVISION_FOUR_LECTURES,
-  REVISION_FOUR_TOPICS
+  REVISION_FOUR_LECTURES
 } from '../lib/curriculum';
 import { formatStudyTime } from '../lib/studyTime';
 import { parseInkData } from '../lib/ink';
@@ -57,8 +55,7 @@ function LectureReaderContent() {
   const inkVersion = attachedNote?.lectureInk
     ? parseInkData(attachedNote.lectureInk)?.visualization?.version || 1
     : undefined;
-  const { lecture, version, originalContent } = getLectureEdition(currentLecture, inkVersion);
-  const topics = originalContent ? LEGACY_TOPICS : version === 4 ? REVISION_FOUR_TOPICS : TOPICS;
+  const { lecture, version, originalContent, catalog } = getLectureEdition(currentLecture, inkVersion);
   const visuals = lectureVisualPlacements(lecture.id, originalContent, version);
   const visualInsertions = (section: LectureVisualSection) =>
     visuals
@@ -67,15 +64,11 @@ function LectureReaderContent() {
         afterHeading,
         content: <LectureWidget lectureId={lecture.id} kind={kind} />
       }));
-  const topic = topics.find((t) => t.id === lecture.topicId) || topics[0];
+  const topic = catalog.topics.find((t) => t.id === lecture.topicId) || catalog.topics[0];
   const dag = useMemo(
     () =>
-      originalContent
-        ? buildKnowledgeDAG([...LEGACY_LECTURE_MAP.values()], LEGACY_TOPICS)
-        : version === 4
-          ? buildKnowledgeDAG(REVISION_FOUR_LECTURES, REVISION_FOUR_TOPICS)
-          : getKnowledgeDAG(),
-    [originalContent, version]
+      catalog.topics === TOPICS ? getKnowledgeDAG() : buildKnowledgeDAG(catalog.lectures, catalog.topics),
+    [catalog]
   );
   const dagNode = lecture ? dag.nodes.get(lecture.id) : null;
 
@@ -132,7 +125,7 @@ function LectureReaderContent() {
   const articleRef = useRef<HTMLElement>(null);
 
   // Find next and previous lectures in syllabus sequence
-  const syllabus = version < 5 ? REVISION_FOUR_LECTURES : ALL_LECTURES;
+  const syllabus = originalContent ? REVISION_FOUR_LECTURES : catalog.lectures;
   const currentIndex = syllabus.findIndex((l) => l.id === lecture.id);
   const nextLecture = syllabus[currentIndex + 1];
   const prevLecture = syllabus[currentIndex - 1];

@@ -17,6 +17,57 @@ function value(label: string) {
   return screen.getByText(label, { selector: 'dt' }).nextElementSibling?.textContent;
 }
 
+it('preserves a small result through rationalization after rounded subtraction loses it', () => {
+  open('L85-floating-point-cancellation');
+  expect(value('Rounded 1 + x')).toBe('1.000');
+  expect(value('Direct result')).toBe('0');
+  expect(value('Rationalized result')).toBe('5.000e-7');
+  fireEvent.change(screen.getByRole('slider', { name: 'Small input exponent' }), { target: { value: '2' } });
+  expect(value('Direct result')).toBe('5.000e-3');
+});
+
+it('uses the union bound to raise the independent-draw budget for simultaneous estimates', () => {
+  open('L91-concentration-sample-complexity');
+  expect(value('Sufficient draws per estimate')).toBe('738');
+  fireEvent.change(screen.getByRole('slider', { name: 'Simultaneous estimates' }), {
+    target: { value: '4' }
+  });
+  expect(value('Sufficient draws per estimate')).toBe('1016');
+});
+
+it('contrasts the avoided crossing with a path that closes its gap', () => {
+  open('L96-adiabatic-evolution-gaps');
+  expect(value('Energy gap / E')).toBe('1.414');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Hamiltonian path' }), { target: { value: '1' } });
+  expect(value('Energy gap / E')).toBe('0.000');
+});
+
+it('evaluates the independence-based majority and one-sided amplification guarantees', () => {
+  open('L99-randomized-complexity-amplification');
+  expect(value('Certifies failure below 1%')).toBe('No');
+  fireEvent.change(screen.getByRole('slider', { name: 'Independent runs' }), { target: { value: '83' } });
+  expect(value('Certifies failure below 1%')).toBe('Yes');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Guarantee' }), { target: { value: '1' } });
+  fireEvent.change(screen.getByRole('slider', { name: 'Independent runs' }), { target: { value: '7' } });
+  expect(value('Failure probability bound')).toBe('0.781%');
+});
+
+it('shows the first Grover peak and the overshoot on a second call', () => {
+  open('L102-grover-search-query-bounds');
+  expect(value('Probability of any marked label')).toBe('100.00%');
+  fireEvent.change(screen.getByRole('slider', { name: 'Oracle calls' }), { target: { value: '2' } });
+  expect(value('Probability of any marked label')).toBe('25.00%');
+});
+
+it('budgets quadratic time dependence for a noncommuting product formula', () => {
+  open('L108-hamiltonian-simulation-cost');
+  expect(value('Sufficient steps')).toBe('100');
+  fireEvent.change(screen.getByRole('slider', { name: 'Evolution time' }), { target: { value: '2' } });
+  expect(value('Sufficient steps')).toBe('400');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Hamiltonian terms' }), { target: { value: '1' } });
+  expect(value('Sufficient steps')).toBe('1');
+});
+
 it('assigns one or two visuals to every catalog lecture and renders them through the shared reader panel', () => {
   const { container, rerender } = render(<LectureWidget lectureId="unknown-lecture" />);
   const assigned = new Set([...Object.keys(LECTURE_WIDGETS), ...Object.keys(LECTURE_DIAGRAMS)]);

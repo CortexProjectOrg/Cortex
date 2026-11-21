@@ -116,7 +116,7 @@ it('renders the visual after the matching explanation and preserves its state ac
   expect((slider as HTMLInputElement).value).toBe('45');
 });
 
-it.each([2, 3, 4, 5])(
+it.each([2, 3, 4, 5, 6])(
   'keeps revision %i saved ink and its lecture text when using an inline visual',
   (version) => {
     const id = 'L01-sets-maps-proofs';
@@ -133,7 +133,7 @@ it.each([2, 3, 4, 5])(
     workspace.notes = [{ ...makeNote('Saved ink', undefined, id), lectureInk }];
     const { container } = openLecture(`/topics/math-foundations/${id}`);
     const summary = screen.getByText('Explore: Maps and inverses');
-    if (version === 5) {
+    if (version >= 5) {
       expect(screen.getByRole('heading', { name: 'A map has a domain and a codomain' })).toBeTruthy();
       expect(screen.queryByRole('heading', { name: 'Proof choices' })).toBeNull();
     } else {
@@ -145,12 +145,22 @@ it.each([2, 3, 4, 5])(
     fireEvent.change(screen.getByRole('combobox', { name: 'Codomain size' }), { target: { value: '4' } });
     fireEvent.click(screen.getByRole('button', { name: 'Annotate' }));
     const newPrerequisiteLink = screen.queryByRole('link', { name: /^L69: Quantifiers/ });
-    expect(Boolean(newPrerequisiteLink)).toBe(version === 5);
+    expect(Boolean(newPrerequisiteLink)).toBe(version >= 5);
     const savedPath = container.querySelector('.document-ink-overlay-svg path');
     expect(savedPath?.getAttribute('d')).toBe(renderStrokeToPath(stroke));
     expect(workspace.notes[0].lectureInk).toBe(lectureInk);
   }
 );
+
+it.each([5, 6])('renders the matching dependency graph alongside edition %i ink', (version) => {
+  const id = 'L72-invariants-termination';
+  const lectureInk = serializeInk([], 960, 1600, { ...CANONICAL_PAGE_GEOMETRY, version });
+  workspace.notes = [{ ...makeNote('Saved ink', undefined, id), lectureInk }];
+  openLecture(`/topics/mathematical-proofs/${id}`);
+  fireEvent.click(screen.getByRole('button', { name: 'Annotate' }));
+  const newBranch = screen.queryByRole('link', { name: /^L97: Input Size/ });
+  expect(Boolean(newBranch)).toBe(version === 6);
+});
 
 it('allows native select keys and keeps the inline example when opening Notes', () => {
   openLecture('/topics/advanced-topics/L60-qudit-algebra-mixed-dimension-registers');

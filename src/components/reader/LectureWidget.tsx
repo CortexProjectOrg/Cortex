@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { LectureVisualKind } from '../../lib/lectureVisualPlacements';
+import { COMPUTING_PRACTICE_WIDGETS } from './ComputingPracticeWidgets';
 import { CURRICULUM_WIDGETS } from './CurriculumWidgets';
 import { FOUNDATION_WIDGETS } from './FoundationWidgets';
 import { QUANTUM_PRACTICE_WIDGETS } from './QuantumPracticeWidgets';
@@ -17,7 +18,8 @@ const widgets = {
   ...QUANTUM_WIDGETS,
   ...MATH_PRACTICE_WIDGETS,
   ...SIMULATION_PRACTICE_WIDGETS,
-  ...CURRICULUM_WIDGETS
+  ...CURRICULUM_WIDGETS,
+  ...COMPUTING_PRACTICE_WIDGETS
 };
 export const LECTURE_WIDGETS: Record<string, keyof typeof widgets> = {
   'L01-sets-maps-proofs': 'maps',
@@ -47,7 +49,13 @@ export const LECTURE_WIDGETS: Record<string, keyof typeof widgets> = {
   'L74-coherent-drives-rabi-oscillations': 'rabi',
   'L77-three-qubit-repetition-code': 'syndrome',
   'L83-coherent-stochastic-errors': 'accumulation',
-  'L84-noise-spectroscopy-filter-functions': 'echo'
+  'L84-noise-spectroscopy-filter-functions': 'echo',
+  'L85-floating-point-cancellation': 'cancellation',
+  'L91-concentration-sample-complexity': 'concentration',
+  'L96-adiabatic-evolution-gaps': 'adiabaticGap',
+  'L99-randomized-complexity-amplification': 'amplification',
+  'L102-grover-search-query-bounds': 'grover',
+  'L108-hamiltonian-simulation-cost': 'trotterBudget'
 };
 
 function WidgetSession({ spec: { title, Component, check } }: { spec: WidgetSpec }) {
