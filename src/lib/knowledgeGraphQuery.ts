@@ -9,7 +9,15 @@
  */
 
 import { TOPICS, type Topic } from './curriculumCatalog';
-import { type GraphNode, type KnowledgeDAG, computeNodeReadiness, getKnowledgeDAG } from './knowledgeGraph';
+import {
+  type GraphNode,
+  type KnowledgeDAG,
+  computeNodeReadiness,
+  getKnowledgeDAG,
+  projectCatalogStudyGraph
+} from './knowledgeGraph';
+import { CATALOG_ALIASES, normalizeCatalogName } from './catalogAliases';
+import { getShortestRoute, getStudyOrder } from './studyGraph';
 
 export interface TopicMacroNode {
   topic: Topic;
@@ -73,7 +81,7 @@ export function buildTopicMacroGraph(
       if (completedSet.has(l.id)) {
         masteredCount++;
       } else {
-        const readiness = computeNodeReadiness(l.id, completedSet);
+        const readiness = computeNodeReadiness(l.id, completedSet, dag);
         if (readiness.status === 'ready') readyCount++;
       }
     }
@@ -172,79 +180,17 @@ export function findLearningPath(
   const targetNode = dag.nodes.get(targetId);
   if (!startNode || !targetNode) return null;
 
-  if (startId === targetId) {
-    return {
-      startNode,
-      targetNode,
-      isReachable: true,
-      shortestPath: [startNode],
-      prerequisiteSubDAG: [startNode],
-      remainingToMaster: completedSet.has(startId) ? [] : [startNode]
-    };
-  }
-
-  // Check if start is in target's ancestors
-  const isReachable = targetNode.allPrerequisites.includes(startId);
-
-  // BFS backwards from target to start to find shortest path
-  const queue: Array<{ id: string; path: string[] }> = [{ id: targetId, path: [targetId] }];
-  const visited = new Set<string>([targetId]);
-  let shortestPathIds: string[] = [];
-
-  while (queue.length > 0) {
-    const { id, path } = queue.shift()!;
-    if (id === startId) {
-      shortestPathIds = [...path].reverse();
-      break;
-    }
-
-    const node = dag.nodes.get(id);
-    if (node) {
-      for (const pId of node.prerequisites) {
-        if (!visited.has(pId)) {
-          visited.add(pId);
-          queue.push({ id: pId, path: [...path, pId] });
-        }
-      }
-    }
-  }
-
-  const shortestPath = shortestPathIds.map((id) => dag.nodes.get(id)!).filter(Boolean);
-
-  // Build the complete prerequisite sub-DAG between start and target
-  const subDAGIds = new Set<string>([targetId]);
-  const toExplore = [targetId];
-
-  while (toExplore.length > 0) {
-    const currId = toExplore.pop()!;
-    const node = dag.nodes.get(currId);
-    if (!node) continue;
-
-    for (const pId of node.prerequisites) {
-      // Only include nodes that are on or above the start node or prerequisites of target
-      if (!subDAGIds.has(pId)) {
-        subDAGIds.add(pId);
-        if (pId !== startId) {
-          toExplore.push(pId);
-        }
-      }
-    }
-  }
-
-  const prerequisiteSubDAG = Array.from(subDAGIds)
-    .map((id) => dag.nodes.get(id)!)
-    .filter(Boolean)
-    .sort((a, b) => a.lectureNumber - b.lectureNumber);
-
-  const remainingToMaster = prerequisiteSubDAG.filter((n) => !completedSet.has(n.id));
+  const graph = projectCatalogStudyGraph(dag);
+  const shortestPath = getShortestRoute(graph, startId, targetId).map((id) => dag.nodes.get(id)!);
+  const order = getStudyOrder(graph, targetId, completedSet);
 
   return {
     startNode,
     targetNode,
-    isReachable,
+    isReachable: shortestPath.length > 0,
     shortestPath,
-    prerequisiteSubDAG,
-    remainingToMaster
+    prerequisiteSubDAG: order.ordered.map((id) => dag.nodes.get(id)!),
+    remainingToMaster: order.remaining.map((id) => dag.nodes.get(id)!)
   };
 }
 
@@ -256,24 +202,27 @@ export function queryLectures(
   dag: KnowledgeDAG = getKnowledgeDAG(),
   completedSet: Set<string> = new Set()
 ): GraphNode[] {
+  const query = normalizeCatalogName(filter.query ?? '');
   return dag.nodeList.filter((node) => {
     if (filter.topicId && filter.topicId !== 'all' && node.topicId !== filter.topicId) {
       return false;
     }
 
     if (filter.status && filter.status !== 'all') {
-      const readiness = computeNodeReadiness(node.id, completedSet);
+      const readiness = computeNodeReadiness(node.id, completedSet, dag);
       if (readiness.status !== filter.status) return false;
     }
 
-    if (filter.query && filter.query.trim()) {
-      const q = filter.query.toLowerCase().trim();
-      const match =
-        node.title.toLowerCase().includes(q) ||
-        node.subtitle.toLowerCase().includes(q) ||
-        node.question.toLowerCase().includes(q) ||
-        node.id.toLowerCase().includes(q);
-      if (!match) return false;
+    if (query) {
+      const searchable = [
+        node.title,
+        node.topicTitle,
+        node.subtitle,
+        node.question,
+        node.id,
+        ...(CATALOG_ALIASES.get(node.id) ?? [])
+      ];
+      return searchable.some((value) => normalizeCatalogName(value).includes(query));
     }
 
     return true;

@@ -2252,6 +2252,16 @@ h3 {
   border-radius: 12px;
   border: 1px solid var(--line);
 }
+.dashboard-study-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 28px;
+}
+.dashboard-study-links .button {
+  white-space: normal;
+  text-align: center;
+}
 .continue-card h2 {
   font: 30px/1.25 var(--serif);
   margin-top: 8px;
@@ -2849,6 +2859,114 @@ h3 {
 .graph-node-context {
   color: var(--muted);
   font-size: 11px;
+}
+.graph-node-title {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.graph-study-actions {
+  margin-top: 0;
+}
+.graph-study-actions button {
+  flex-basis: 40%;
+}
+.study-focus {
+  min-width: 0;
+  margin-block: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.study-focus-toolbar,
+.study-route-chain,
+.study-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+}
+.study-focus-toolbar h2 {
+  flex: 1 1 auto;
+  margin: 0;
+}
+.study-focus-toolbar select {
+  width: auto;
+}
+.study-route-endpoint {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.path-fields.study-route-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+.study-route-endpoint input,
+.study-route-endpoint select {
+  width: 100%;
+  min-width: 0;
+}
+.study-route-chain {
+  padding-inline-start: 28px;
+}
+.study-route-order small {
+  display: block;
+  color: var(--muted);
+}
+.study-branches ul {
+  display: grid;
+  gap: 8px;
+  margin-block: 8px;
+  padding-inline-start: 0;
+  list-style: none;
+}
+.study-branches ul ul {
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: 12px;
+}
+.study-branch {
+  min-width: 0;
+}
+.study-branch > [tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  border-radius: 8px;
+}
+.study-pinned > p,
+.study-preview,
+.study-compact {
+  margin-block: 6px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.study-pinned,
+.study-reference,
+.study-compact {
+  overflow-wrap: anywhere;
+}
+.study-disclosure,
+.study-reference {
+  min-height: 44px;
+}
+.study-reference {
+  text-align: left;
+}
+@media (max-width: 800px) {
+  .path-fields.study-route-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .study-focus {
+    padding: 10px;
+  }
+  .study-branches ul ul {
+    padding-inline-start: 7px;
+  }
 }
 .dag-canvas {
   min-width: 0;

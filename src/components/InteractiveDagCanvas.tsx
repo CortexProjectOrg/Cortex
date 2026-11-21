@@ -20,7 +20,7 @@ import {
   getOneHopNeighborhood
 } from '../lib/dagLayoutEngine';
 import { computeNodeReadiness, type KnowledgeDAG } from '../lib/knowledgeGraph';
-import { NodeCard } from './graph/NodeCard';
+import { NodeCard, type StudyCardActions } from './graph/NodeCard';
 
 interface Point {
   x: number;
@@ -31,7 +31,8 @@ interface InteractiveDagCanvasProps {
   dag: KnowledgeDAG;
   selectedNodeId: string | null;
   onSelectNode: (id: string) => void;
-  onShowDetails: (id: string) => void;
+  onShowDetails: (id: string, opener: HTMLButtonElement) => void;
+  studyActions?: StudyCardActions;
   completedSet: Set<string>;
   filteredNodeIds: Set<string>;
   onSelectTopic?: (topicId: string) => void;
@@ -65,6 +66,7 @@ export function InteractiveDagCanvas({
   selectedNodeId,
   onSelectNode,
   onShowDetails,
+  studyActions,
   completedSet,
   filteredNodeIds,
   onSelectTopic
@@ -223,13 +225,13 @@ export function InteractiveDagCanvas({
   const { layoutMap, bounds } = useMemo(() => {
     return computeTopDownDagLayout(visibleNodes, dag, {
       nodeWidth: 300,
-      nodeHeight: 190,
-      levelHeight: 270,
+      nodeHeight: studyActions ? 224 : 190,
+      levelHeight: studyActions ? 304 : 270,
       minNodeGap: 60,
       extraBranchGap: 40,
       topPadding: 50
     });
-  }, [visibleNodes, dag]);
+  }, [visibleNodes, dag, studyActions]);
 
   // Fit camera to center the 1-hop neighborhood
   const fitToCurrentBounds = useCallback(() => {
@@ -677,7 +679,7 @@ export function InteractiveDagCanvas({
                     <foreignObject x={7} y={2} width={width - 9} height={height - 4}>
                       <NodeCard
                         node={node}
-                        readiness={computeNodeReadiness(node.id, completedSet)}
+                        readiness={computeNodeReadiness(node.id, completedSet, dag)}
                         isSelected={isFocal}
                         isExpanded={isCardExpanded}
                         variant="canvas"
@@ -694,7 +696,8 @@ export function InteractiveDagCanvas({
                         }
                         onExplore={() => handleExplore(node.id)}
                         onExpand={() => handleExpandFromNode(node.id)}
-                        onDetails={() => onShowDetails(node.id)}
+                        onDetails={(opener) => onShowDetails(node.id, opener)}
+                        studyActions={studyActions}
                       />
                     </foreignObject>
 

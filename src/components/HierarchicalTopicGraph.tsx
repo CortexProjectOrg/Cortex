@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { buildTopicMacroGraph, findLearningPath } from '../lib/knowledgeGraphQuery';
+import { buildTopicMacroGraph } from '../lib/knowledgeGraphQuery';
 import { computeNodeReadiness, type KnowledgeDAG } from '../lib/knowledgeGraph';
-import { NodeCard } from './graph/NodeCard';
+import { NodeCard, type StudyCardActions } from './graph/NodeCard';
 interface Props {
   dag: KnowledgeDAG;
   filteredNodeIds: Set<string>;
   selectedNodeId: string | null;
   onSelectNode: (id: string) => void;
-  onShowDetails: (id: string) => void;
+  onShowDetails: (id: string, opener: HTMLButtonElement) => void;
+  studyActions?: StudyCardActions;
   completedSet: Set<string>;
 }
 export function HierarchicalTopicGraph({
@@ -17,6 +18,7 @@ export function HierarchicalTopicGraph({
   selectedNodeId,
   onSelectNode,
   onShowDetails,
+  studyActions,
   completedSet
 }: Props) {
   const topics = useMemo(
@@ -30,9 +32,6 @@ export function HierarchicalTopicGraph({
     [dag, completedSet, filteredNodeIds]
   );
   const [expanded, setExpanded] = useState(new Set([dag.nodeList[0].topicId]));
-  const [start, setStart] = useState(dag.nodeList[0].id);
-  const [target, setTarget] = useState(dag.nodeList.at(-1)!.id);
-  const [path, setPath] = useState<ReturnType<typeof findLearningPath> | null>(null);
   useEffect(() => {
     const node = selectedNodeId && dag.nodes.get(selectedNodeId);
     if (node) setExpanded((v) => new Set([...v, node.topicId]));
@@ -42,44 +41,6 @@ export function HierarchicalTopicGraph({
   }, [filteredNodeIds, dag, topics]);
   return (
     <div className="topic-map">
-      <details className="path-finder">
-        <summary>Find a learning path</summary>
-        <div className="path-fields">
-          <label>
-            From
-            <select value={start} onChange={(e) => setStart(e.target.value)}>
-              {dag.nodeList.map((n) => (
-                <option value={n.id} key={n.id}>
-                  {n.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            To
-            <select value={target} onChange={(e) => setTarget(e.target.value)}>
-              {dag.nodeList.map((n) => (
-                <option value={n.id} key={n.id}>
-                  {n.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            className="button small secondary"
-            onClick={() => setPath(findLearningPath(start, target, completedSet, dag))}
-          >
-            Find path
-          </button>
-        </div>
-        {path && (
-          <p className="subtle">
-            {path.isReachable
-              ? path.shortestPath.map((n) => n.title).join(' → ')
-              : 'No prerequisite path connects these lectures.'}
-          </p>
-        )}
-      </details>
       {topics.map(({ topic, lectures, masteredCount }) => {
         const open = expanded.has(topic.id);
         return (
@@ -111,10 +72,11 @@ export function HierarchicalTopicGraph({
                   <NodeCard
                     key={node.id}
                     node={node}
-                    readiness={computeNodeReadiness(node.id, completedSet)}
+                    readiness={computeNodeReadiness(node.id, completedSet, dag)}
                     isSelected={node.id === selectedNodeId}
                     onExplore={() => onSelectNode(node.id)}
-                    onDetails={() => onShowDetails(node.id)}
+                    onDetails={(opener) => onShowDetails(node.id, opener)}
+                    studyActions={studyActions}
                   />
                 ))}
               </div>

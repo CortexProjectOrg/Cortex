@@ -10,6 +10,7 @@
  */
 
 import { ALL_LECTURES, TOPICS, type Lecture, type Topic } from './curriculumCatalog';
+import { buildStudyGraph, getReadiness, type StudyGraph } from './studyGraph';
 
 export interface SoftLink {
   targetId: string;
@@ -19,6 +20,7 @@ export interface SoftLink {
 export interface GraphNode {
   id: string;
   lectureNumber: number;
+  durationMinutes?: number;
   title: string;
   subtitle: string;
   topicId: string;
@@ -104,6 +106,7 @@ export function buildKnowledgeDAG(
     nodeMap.set(lecture.id, {
       id: lecture.id,
       lectureNumber: lecture.lectureNumber,
+      durationMinutes: lecture.durationMinutes,
       title: lecture.title,
       subtitle: lecture.subtitle,
       topicId: lecture.topicId,
@@ -363,76 +366,35 @@ export function getKnowledgeDAG(): KnowledgeDAG {
   return cachedDAG;
 }
 
-/**
- * Computes readiness status for a lecture based on completed lectures.
- */
+const studyGraphs = new WeakMap<KnowledgeDAG, StudyGraph>();
+
+export function projectCatalogStudyGraph(dag: KnowledgeDAG): StudyGraph {
+  const existing = studyGraphs.get(dag);
+  if (existing) return existing;
+  const graph = buildStudyGraph(
+    dag.nodeList.map((node) => ({
+      id: node.id,
+      title: node.title,
+      kind: 'catalog',
+      catalogLectureId: node.id,
+      lectureNumber: node.lectureNumber,
+      minutes: node.durationMinutes ?? null
+    })),
+    dag.nodeList.flatMap((node) =>
+      node.rawPrerequisites.map((id) => ({ prerequisiteId: id, dependentId: node.id, sources: ['catalog'] }))
+    )
+  );
+  studyGraphs.set(dag, graph);
+  return graph;
+}
+
 export function computeNodeReadiness(
   nodeId: string,
-  completedLectureIds: Set<string> | string[]
+  completedLectureIds: Set<string> | string[],
+  dag = getKnowledgeDAG()
 ): NodeReadiness {
-  const dag = getKnowledgeDAG();
-  const node = dag.nodes.get(nodeId);
-  const completedSet =
-    completedLectureIds instanceof Set ? completedLectureIds : new Set(completedLectureIds);
-
-  if (!node) {
-    return {
-      status: 'locked',
-      completedPrereqs: [],
-      missingPrereqs: [],
-      percentReady: 0
-    };
-  }
-
-  const isCompleted = completedSet.has(nodeId);
-  const totalPrereqs = node.prerequisites.length;
-
-  if (totalPrereqs === 0) {
-    return {
-      status: isCompleted ? 'completed' : 'ready',
-      completedPrereqs: [],
-      missingPrereqs: [],
-      percentReady: 100
-    };
-  }
-
-  const completedPrereqs: string[] = [];
-  const missingPrereqs: string[] = [];
-
-  for (const p of node.prerequisites) {
-    if (completedSet.has(p)) {
-      completedPrereqs.push(p);
-    } else {
-      missingPrereqs.push(p);
-    }
-  }
-
-  const percentReady = Math.round((completedPrereqs.length / totalPrereqs) * 100);
-
-  if (isCompleted) {
-    return {
-      status: 'completed',
-      completedPrereqs,
-      missingPrereqs,
-      percentReady: 100
-    };
-  }
-
-  if (missingPrereqs.length === 0) {
-    return {
-      status: 'ready',
-      completedPrereqs,
-      missingPrereqs: [],
-      percentReady: 100
-    };
-  }
-
-  return {
-    status: 'locked',
-    completedPrereqs,
-    missingPrereqs,
-    percentReady
-  };
+  const completed = Array.isArray(completedLectureIds) ? new Set(completedLectureIds) : completedLectureIds;
+  return getReadiness(projectCatalogStudyGraph(dag), nodeId, completed);
 }
 
 export interface TopicRamification {
@@ -698,9 +660,10 @@ export function getLectureRamification(
     .filter(Boolean) as Array<{ targetNode: GraphNode; relationship: string }>;
 
   // Children whose other prerequisites are satisfied (ready to tackle)
-  const readyToTackleNext = directUnlocked.filter((child) => {
-    return child.prerequisites.every((p) => p === node.id || completedSet.has(p));
-  });
+  const previewCompleted = new Set([...completedSet, nodeId]);
+  const readyToTackleNext = directUnlocked.filter(
+    (child) => computeNodeReadiness(child.id, previewCompleted, dag).status === 'ready'
+  );
 
   return {
     node,

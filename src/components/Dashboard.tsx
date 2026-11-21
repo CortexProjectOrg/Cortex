@@ -1,11 +1,13 @@
-import { ArrowRight, Plus } from 'lucide-react';
+import { ArrowRight, FileText, Network, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ALL_LECTURES, FOUR_HOUR_MASTERY_PATH, LECTURE_MAP } from '../lib/curriculumCatalog';
 import { lectureRoute } from '../lib/model';
+import { usePaperStudySession } from '../lib/paperStudySession';
 import { resumeLecture } from '../lib/progress';
 import { useWorkspace } from '../lib/workspace';
 export function Dashboard() {
   const { data } = useWorkspace();
+  const { active } = usePaperStudySession();
   const next = resumeLecture(data);
   const pack =
     FOUR_HOUR_MASTERY_PATH.packs[data.studyPlan.currentWeek - 1] || FOUR_HOUR_MASTERY_PATH.packs[0];
@@ -31,6 +33,14 @@ export function Dashboard() {
           <ArrowRight size={17} />
         </Link>
       </section>
+      <nav className="dashboard-study-links" aria-label="Study tools">
+        <Link className="button secondary" to="/tree">
+          <Network size={17} /> Explore the Knowledge Map
+        </Link>
+        <Link className="button secondary" to="/papers">
+          <FileText size={17} /> {active ? 'Resume paper' : 'Study a paper'}
+        </Link>
+      </nav>
       <div className="section-title">
         <h2>{pack.title}</h2>
         <Link to="/path" className="text-link">
