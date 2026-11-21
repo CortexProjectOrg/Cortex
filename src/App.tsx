@@ -22,11 +22,12 @@ import { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { SaveStatus } from './components/ui/SaveStatus';
+import { SubfieldIcon } from './components/SubfieldIcon';
 import { useMediaQuery } from './components/ui/useMediaQuery';
 import { useDrawerFocus } from './components/ui/useDrawerFocus';
 
 import { useAuth } from './lib/auth';
-import { TOPICS } from './lib/curriculumCatalog';
+import { SUBFIELDS } from './lib/topicDiscovery';
 import { usePdfViewer } from './lib/pdfViewerContext';
 import { useWorkspace } from './lib/workspace';
 
@@ -180,7 +181,7 @@ export default function App() {
 
   useEffect(() => {
     setMenuOpen(false);
-  }, [location.pathname, location.hash]);
+  }, [location.pathname, location.search, location.hash]);
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: <LayoutDashboard size={19} /> },
@@ -243,13 +244,24 @@ export default function App() {
           </nav>
 
           <div className="sidebar-divider" />
-          <div className="sidebar-section-label">Topics</div>
+          <div className="sidebar-section-label">Browse subfields</div>
 
-          <nav className="chapter-nav" aria-label="Topics">
-            {TOPICS.map((topic) => (
-              <Link key={topic.id} to={`/topics#${topic.id}`} title={`Topic ${topic.number}: ${topic.title}`}>
-                <span className={join('chapter-dot', topic.color)}>{topic.number}</span>
-                <span style={{ fontSize: '11px' }}>{topic.title}</span>
+          <nav className="chapter-nav subfield-nav" aria-label="Subfields">
+            {SUBFIELDS.map((field) => (
+              <Link
+                key={field.id}
+                to={`/topics?field=${field.id}`}
+                title={field.description}
+                aria-current={
+                  location.pathname === '/topics' &&
+                  new URLSearchParams(location.search).get('field') === field.id
+                    ? 'page'
+                    : undefined
+                }
+              >
+                <SubfieldIcon field={field} size={15} />
+                <span>{field.title}</span>
+                <small>{field.topicIds.length}</small>
               </Link>
             ))}
           </nav>
