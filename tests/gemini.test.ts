@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { analyzePaper, DEFAULT_GEMINI_MODEL, readPaperFile } from '../src/lib/gemini';
+import { paperAnalysisSchema } from '../src/lib/paperPlan';
 import { paperAnalysis, sourcePaper } from './fixtures/paperAnalysis';
 
 const options = () => ({
@@ -21,33 +23,114 @@ beforeEach(() =>
 );
 afterEach(() => vi.unstubAllGlobals());
 describe('Gemini paper boundary', () => {
+  it('rejects a different numbered theorem even when its quote appears in the source', async () => {
+    const args = options();
+    args.paper.text += ' Theorem 2: The inverse of a bijection is itself a bijection.';
+    args.target = 'theorem   2';
+    await expect(analyzePaper(args)).rejects.toMatchObject({
+      stage: 'validation',
+      code: 'target-mismatch',
+      message: 'Gemini returned a different theorem. Check the label and try again.'
+    });
+  });
   it('sends the user key only as a Google header and validates the structured result', async () => {
     const plan = await analyzePaper(options());
     const [url, init] = vi.mocked(fetch).mock.calls[0];
     expect(url).toMatch(/^https:\/\/generativelanguage.googleapis.com\//);
     expect(url).not.toContain('example-user-key');
     expect(init!.headers).toHaveProperty('x-goog-api-key', 'example-user-key');
+    expect(init!.redirect).toBe('error');
     expect(init!.body).not.toContain('example-user-key');
-    expect(JSON.parse(init!.body as string).generationConfig.responseMimeType).toBe('application/json');
+    const config = JSON.parse(init!.body as string).generationConfig;
+    expect(config.responseMimeType).toBe('application/json');
+    const schema = config.responseJsonSchema;
+    const local = z.toJSONSchema(paperAnalysisSchema);
+    expect(Object.keys(schema.properties)).toEqual(Object.keys(local.properties!));
+    expect(schema.required).toEqual(local.required);
+    expect(schema.additionalProperties).toBe(false);
+    expect(schema.properties.theorem.anyOf[1]).toEqual({ type: 'null' });
+    expect(schema.properties.theorem.anyOf[0].properties.title).toEqual({ type: 'string' });
+    expect(Object.keys(schema.properties.concepts.items.properties)).toEqual(
+      Object.keys(paperAnalysisSchema.shape.concepts.element.shape)
+    );
+    expect(schema.properties.concepts.items.properties.practiceMinutes).toEqual({ type: 'integer' });
+    expect(schema.properties.concepts).not.toHaveProperty('maxItems');
     expect(plan.analysis.theorem!.quote).toBe(paperAnalysis.theorem!.quote);
   });
-  it.each([400, 401, 403, 404, 429, 500])(
-    'returns a safe error for HTTP %s without leaking the provider body',
-    async (status) => {
-      vi.mocked(fetch).mockResolvedValue(Response.json({ error: 'secret echoed by provider' }, { status }));
-      await expect(analyzePaper(options())).rejects.toThrow(/Gemini/);
-      await analyzePaper(options()).catch((error) => expect(error.message).not.toContain('secret echoed'));
-    }
-  );
-  it('does not silently accept truncation, blocked or malformed responses', async () => {
-    for (const payload of [
-      {},
-      { candidates: [{ finishReason: 'MAX_TOKENS' }] },
-      { candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '{}' }] } }] }
-    ]) {
-      vi.mocked(fetch).mockResolvedValue(Response.json(payload));
-      await expect(analyzePaper(options())).rejects.toThrow();
-    }
+  it.each([
+    [400, 'paper format'],
+    [401, 'restrictions'],
+    [403, 'restrictions'],
+    [404, 'model available'],
+    [429, 'quota'],
+    [500, 'Try again']
+  ])('returns a safe error for HTTP %s without reading the provider body', async (status, action) => {
+    const response = Response.json({ error: 'secret echoed by provider' }, { status });
+    vi.mocked(fetch).mockResolvedValue(response);
+    await expect(analyzePaper(options())).rejects.toMatchObject({
+      stage: 'request',
+      code: 'http',
+      status,
+      message: expect.stringContaining(action)
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(response.bodyUsed).toBe(false);
+  });
+  it.each([
+    [{}, 'unreadable'],
+    [{ promptFeedback: { blockReason: 'SAFETY' } }, 'unfinished'],
+    [{ candidates: [{ finishReason: 'MAX_TOKENS' }] }, 'unfinished'],
+    [{ candidates: [{ finishReason: 'STOP', content: { parts: {} } }] }, 'unreadable'],
+    [
+      { candidates: [{ finishReason: 'STOP', content: { parts: [{ thought: true, text: '{}' }] } }] },
+      'unreadable'
+    ]
+  ])('classifies unexpected success envelopes separately from network errors', async (payload, code) => {
+    vi.mocked(fetch).mockResolvedValue(Response.json(payload));
+    await expect(analyzePaper(options())).rejects.toMatchObject({ stage: 'response', code });
+  });
+  it('applies local bounds and hides validation messages that contain a generated title', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(success({ ...paperAnalysis, paperTitle: 'x'.repeat(301) }));
+    await expect(analyzePaper(options())).rejects.toMatchObject({ stage: 'validation', code: 'proposal' });
+    const generated = { ...paperAnalysis.concepts[0], title: 'PRIVATE TITLE', explanation: 'A qubit.' };
+    vi.mocked(fetch).mockResolvedValueOnce(
+      success({ ...paperAnalysis, concepts: [generated, ...paperAnalysis.concepts.slice(1)] })
+    );
+    await expect(analyzePaper(options())).rejects.toMatchObject({
+      code: 'proposal',
+      message: 'Gemini returned an invalid plan. Try again.'
+    });
+  });
+  it('classifies fetch and stream I/O failures as connectivity errors', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('private diagnostic'));
+    await expect(analyzePaper(options())).rejects.toMatchObject({ stage: 'request', code: 'network' });
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(new TypeError('private diagnostic'));
+          }
+        })
+      )
+    );
+    await expect(analyzePaper(options())).rejects.toMatchObject({ stage: 'request', code: 'network' });
+  });
+  it('keeps the output-size error if stopping the response stream fails', async () => {
+    const cancel = vi.fn(async () => {
+      throw new Error('private diagnostic');
+    });
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array(1_000_001));
+          },
+          cancel
+        })
+      )
+    );
+    await expect(analyzePaper(options())).rejects.toMatchObject({ stage: 'response', code: 'output-size' });
+    expect(cancel).toHaveBeenCalledOnce();
   });
   it('checks that the quoted theorem occurs in supplied text', async () => {
     vi.mocked(fetch).mockResolvedValue(
@@ -56,7 +139,7 @@ describe('Gemini paper boundary', () => {
         theorem: { ...paperAnalysis.theorem, quote: 'An invented theorem statement' }
       })
     );
-    await expect(analyzePaper(options())).rejects.toThrow(/quote/);
+    await expect(analyzePaper(options())).rejects.toMatchObject({ stage: 'validation', code: 'evidence' });
   });
   it('rejects invalid model paths and undersized inputs before using the key', async () => {
     await expect(analyzePaper({ ...options(), model: '../other-host' })).rejects.toThrow(/model/);
@@ -67,9 +150,13 @@ describe('Gemini paper boundary', () => {
   });
   it('stops on cancellation without retrying a paid request', async () => {
     const controller = new AbortController();
-    controller.abort();
-    vi.mocked(fetch).mockRejectedValue(new DOMException('Aborted', 'AbortError'));
-    await expect(analyzePaper({ ...options(), signal: controller.signal })).rejects.toThrow('Cancelled');
+    vi.mocked(fetch).mockImplementationOnce(async () => {
+      controller.abort();
+      throw new DOMException('Aborted', 'AbortError');
+    });
+    await expect(analyzePaper({ ...options(), signal: controller.signal })).rejects.toMatchObject({
+      name: 'AbortError'
+    });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
   it('reads PDF bytes inline and rejects mislabeled or excessive files', async () => {

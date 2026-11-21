@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["node", "vitest/globals", "vite/client"],
+    "types": ["node", "vitest/globals", "vite/client", "vite-plugin-pwa/client"],
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "allowJs": true,

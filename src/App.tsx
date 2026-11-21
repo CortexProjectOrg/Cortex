@@ -27,6 +27,7 @@ import { useMediaQuery } from './components/ui/useMediaQuery';
 import { useDrawerFocus } from './components/ui/useDrawerFocus';
 
 import { useAuth } from './lib/auth';
+import { PaperStudySessionProvider } from './lib/paperStudySession';
 import { SUBFIELDS } from './lib/topicDiscovery';
 import { usePdfViewer } from './lib/pdfViewerContext';
 import { useWorkspace } from './lib/workspace';
@@ -409,46 +410,48 @@ export default function App() {
             </div>
           )}
           <main id="main-content">
-            {loaded ? (
-              <Suspense fallback={<div className="loading-workspace">Loading…</div>}>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/topics" element={<TopicBrowser />} />
-                  <Route path="/topics/:topicId/:lectureId" element={<LectureReader />} />
-                  <Route path="/tree" element={<KnowledgeGraphView />} />
-                  <Route path="/graph" element={<KnowledgeGraphView />} />
-                  <Route path="/path" element={<StudyPathView />} />
-                  <Route path="/papers" element={<PaperPlanner />} />
-                  <Route path="/notes" element={<NotebookView />} />
-                  <Route path="/notes/:id" element={<NotebookView />} />
-                  <Route path="/library" element={<Library />} />
-                  <Route path="/read/*" element={<ReferenceReader />} />
-                  <Route
-                    path="*"
-                    element={
-                      <div className="page">
-                        <Empty
-                          icon={<Compass />}
-                          title="Page not found"
-                          action={
-                            <Link className="button primary" to="/">
-                              Return to Dashboard <ArrowRight size={16} />
-                            </Link>
-                          }
-                        >
-                          The study lectures and reference shelves are in the navigation menu.
-                        </Empty>
-                      </div>
-                    }
-                  />
-                </Routes>
-              </Suspense>
-            ) : (
-              <div className="loading-workspace">
-                <LoaderCircle className="spin" size={25} />
-                <span>Opening your study room…</span>
-              </div>
-            )}
+            <PaperStudySessionProvider>
+              {loaded ? (
+                <Suspense fallback={<div className="loading-workspace">Loading…</div>}>
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/topics" element={<TopicBrowser />} />
+                    <Route path="/topics/:topicId/:lectureId" element={<LectureReader />} />
+                    <Route path="/tree" element={<KnowledgeGraphView />} />
+                    <Route path="/graph" element={<KnowledgeGraphView />} />
+                    <Route path="/path" element={<StudyPathView />} />
+                    <Route path="/papers" element={<PaperPlanner />} />
+                    <Route path="/notes" element={<NotebookView />} />
+                    <Route path="/notes/:id" element={<NotebookView />} />
+                    <Route path="/library" element={<Library />} />
+                    <Route path="/read/*" element={<ReferenceReader />} />
+                    <Route
+                      path="*"
+                      element={
+                        <div className="page">
+                          <Empty
+                            icon={<Compass />}
+                            title="Page not found"
+                            action={
+                              <Link className="button primary" to="/">
+                                Return to Dashboard <ArrowRight size={16} />
+                              </Link>
+                            }
+                          >
+                            The study lectures and reference shelves are in the navigation menu.
+                          </Empty>
+                        </div>
+                      }
+                    />
+                  </Routes>
+                </Suspense>
+              ) : (
+                <div className="loading-workspace">
+                  <LoaderCircle className="spin" size={25} />
+                  <span>Opening your study room…</span>
+                </div>
+              )}
+            </PaperStudySessionProvider>
           </main>
         </div>
       </div>

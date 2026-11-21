@@ -1,5 +1,5 @@
 import type { KnowledgeDAG, computeNodeReadiness } from '../../lib/knowledgeGraph';
-import { NodeCard } from './NodeCard';
+import { NodeCard, type StudyCardActions } from './NodeCard';
 
 interface StratifiedTreeViewProps {
   dag: KnowledgeDAG;
@@ -7,7 +7,8 @@ interface StratifiedTreeViewProps {
   nodeReadinessMap: Map<string, ReturnType<typeof computeNodeReadiness>>;
   selectedNodeId: string | null;
   onSelectNode: (id: string) => void;
-  onShowDetails: (id: string) => void;
+  onShowDetails: (id: string, opener: HTMLButtonElement) => void;
+  studyActions?: StudyCardActions;
 }
 
 export function StratifiedTreeView({
@@ -16,7 +17,8 @@ export function StratifiedTreeView({
   nodeReadinessMap,
   selectedNodeId,
   onSelectNode,
-  onShowDetails
+  onShowDetails,
+  studyActions
 }: StratifiedTreeViewProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -91,7 +93,8 @@ export function StratifiedTreeView({
                     readiness={readiness}
                     isSelected={isSelected}
                     onExplore={() => onSelectNode(node.id)}
-                    onDetails={() => onShowDetails(node.id)}
+                    onDetails={(opener) => onShowDetails(node.id, opener)}
+                    studyActions={studyActions}
                   />
                 );
               })}

@@ -1,7 +1,12 @@
 import { BookOpen, Check, CheckCircle2, ChevronRight, GitBranch, Lock, Share2, X } from 'lucide-react';
 import { LECTURE_MAP } from '../../lib/curriculumCatalog';
 import { Link } from 'react-router-dom';
-import type { GraphNode, KnowledgeDAG, computeNodeReadiness } from '../../lib/knowledgeGraph';
+import {
+  projectCatalogStudyGraph,
+  type GraphNode,
+  type KnowledgeDAG,
+  type computeNodeReadiness
+} from '../../lib/knowledgeGraph';
 
 interface LectureDetailDrawerProps {
   selectedNode: GraphNode;
@@ -23,6 +28,15 @@ export function LectureDetailDrawer({
   onToggleMastery
 }: LectureDetailDrawerProps) {
   const isDone = selectedReadiness.status === 'completed';
+  const graph = projectCatalogStudyGraph(dag);
+  const prerequisites = graph.incoming.get(selectedNode.id) ?? [];
+  const unlocks = graph.outgoing.get(selectedNode.id) ?? [];
+  const indirectPrerequisites = selectedNode.derivedPrerequisites.filter(
+    (id) => !prerequisites.includes(id) && dag.nodes.has(id)
+  );
+  const indirectUnlocks = selectedNode.derivedUnlocked.filter(
+    (id) => !unlocks.includes(id) && dag.nodes.has(id)
+  );
 
   return (
     <aside
@@ -180,16 +194,14 @@ export function LectureDetailDrawer({
           }}
         >
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink)', letterSpacing: '0.5px' }}>
-            DIRECT PREREQUISITES ({selectedNode.prerequisites.length})
+            DIRECT PREREQUISITES ({prerequisites.length})
           </span>
           <span style={{ fontSize: '10px', color: 'var(--muted)' }}>
-            {selectedNode.prerequisites.length === 0
-              ? 'Foundational Axiom'
-              : `${selectedReadiness.percentReady}% Met`}
+            {prerequisites.length === 0 ? 'Foundational Axiom' : `${selectedReadiness.percentReady}% Met`}
           </span>
         </div>
 
-        {selectedNode.prerequisites.length === 0 ? (
+        {prerequisites.length === 0 ? (
           <div
             style={{
               background: '#eef4ec',
@@ -200,11 +212,11 @@ export function LectureDetailDrawer({
               color: '#2d6a4f'
             }}
           >
-            Root Concept: Requires no prior quantum or symplectic prerequisites.
+            No prerequisites.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {selectedNode.prerequisites.map((pId) => {
+            {prerequisites.map((pId) => {
               const pNode = dag.nodes.get(pId);
               if (!pNode) return null;
               const isMet = completedSet.has(pId);
@@ -257,7 +269,7 @@ export function LectureDetailDrawer({
       </div>
 
       {/* Derived Prerequisites (Transitive) Section */}
-      {selectedNode.derivedPrerequisites && selectedNode.derivedPrerequisites.length > 0 && (
+      {indirectPrerequisites && indirectPrerequisites.length > 0 && (
         <div style={{ marginBottom: '22px' }}>
           <div
             style={{
@@ -272,10 +284,10 @@ export function LectureDetailDrawer({
             }}
           >
             <GitBranch size={13} />
-            DERIVED PREREQUISITES (Transitive · {selectedNode.derivedPrerequisites.length})
+            DERIVED PREREQUISITES (Transitive · {indirectPrerequisites.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {selectedNode.derivedPrerequisites.map((dpId) => {
+            {indirectPrerequisites.map((dpId) => {
               const dpNode = dag.nodes.get(dpId);
               if (!dpNode) return null;
               const isMet = completedSet.has(dpId);
@@ -338,15 +350,15 @@ export function LectureDetailDrawer({
             marginBottom: '10px'
           }}
         >
-          DIRECTLY UNLOCKS ({selectedNode.unlockedLectures.length})
+          DIRECTLY UNLOCKS ({unlocks.length})
         </div>
-        {selectedNode.unlockedLectures.length === 0 ? (
+        {unlocks.length === 0 ? (
           <p style={{ fontSize: '11px', color: 'var(--muted)', fontStyle: 'italic', margin: 0 }}>
             Terminal apex node in the curriculum tree.
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {selectedNode.unlockedLectures.map((uId) => {
+            {unlocks.map((uId) => {
               const uNode = dag.nodes.get(uId);
               if (!uNode) return null;
 
@@ -390,7 +402,7 @@ export function LectureDetailDrawer({
       </div>
 
       {/* Derived Unlocks (Transitive) Section */}
-      {selectedNode.derivedUnlocked && selectedNode.derivedUnlocked.length > 0 && (
+      {indirectUnlocks && indirectUnlocks.length > 0 && (
         <div style={{ marginBottom: '22px' }}>
           <div
             style={{
@@ -405,10 +417,10 @@ export function LectureDetailDrawer({
             }}
           >
             <GitBranch size={13} />
-            DERIVED UNLOCKS (Transitive · {selectedNode.derivedUnlocked.length})
+            DERIVED UNLOCKS (Transitive · {indirectUnlocks.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {selectedNode.derivedUnlocked.map((duId) => {
+            {indirectUnlocks.map((duId) => {
               const duNode = dag.nodes.get(duId);
               if (!duNode) return null;
 

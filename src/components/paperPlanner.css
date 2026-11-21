@@ -138,6 +138,18 @@
 .paper-result {
   margin-top: 32px;
 }
+.paper-target-review {
+  margin-block: 20px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.paper-concept + .paper-concept {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
 .paper-result h2 {
   font-size: 24px;
 }
@@ -199,6 +211,25 @@
 .paper-tree li {
   margin: 6px 0;
 }
+.paper-tree-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.paper-tree-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.paper-tree .paper-tree-controls button {
+  width: auto;
+}
+.paper-tree .study-branches > ul {
+  border: 0;
+  padding-left: 0;
+}
 .paper-tree button,
 .paper-study-order button {
   text-align: left;
@@ -250,10 +281,6 @@
   .paper-theorem,
   .paper-lesson {
     padding: 18px;
-  }
-  .paper-tree {
-    max-height: 380px;
-    overflow: auto;
   }
   .paper-study-order {
     max-height: 380px;

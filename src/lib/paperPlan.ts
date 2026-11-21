@@ -2,6 +2,14 @@ import { z } from 'zod';
 import { ALL_LECTURES } from './curriculumCatalog';
 import type { Lecture } from './curriculum';
 import { estimateStudyMinutes } from './studyTime';
+import { CATALOG_ALIASES, normalizeCatalogName } from './catalogAliases';
+import {
+  buildStudyGraph,
+  getStudyOrder,
+  type StudyEdge,
+  type StudyGraph,
+  type StudyNode
+} from './studyGraph';
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const id = z.string().regex(/^[a-z][a-z0-9-]{0,63}$/);
@@ -39,22 +47,16 @@ export const paperAnalysisSchema = z.object({
 });
 export type PaperAnalysis = z.infer<typeof paperAnalysisSchema>;
 type CatalogLecture = Omit<Lecture, 'content'>;
-export interface PlanNode {
-  id: string;
-  title: string;
-  topic: string;
-  prerequisites: string[];
-  minutes: number;
-  kind: 'paper' | 'catalog';
+type PaperConcept = PaperAnalysis['concepts'][number];
+export interface PaperNodeMetadata {
   lecture?: CatalogLecture;
-  concept?: PaperAnalysis['concepts'][number];
+  concepts: PaperConcept[];
+  suggestions: CatalogLecture[];
 }
 export interface PaperPlan {
   analysis: PaperAnalysis;
-  nodes: Map<string, PlanNode>;
-  roots: string[];
-  order: string[];
-  totalMinutes: number;
+  graph: StudyGraph | null;
+  metadataById: ReadonlyMap<string, PaperNodeMetadata>;
   warnings: string[];
 }
 
@@ -71,42 +73,37 @@ const tokens = (value: string) =>
       .filter((s) => !stopWords.has(s)) || []
   );
 
-/** Conservative title-only retrieval: broad concepts must not retrieve specialized applications. */
-export function matchLecture(title: string, catalog: CatalogLecture[] = ALL_LECTURES) {
+function compareId(a: string, b: string) {
+  return a < b ? -1 : a === b ? 0 : 1;
+}
+
+function rankLectures(title: string, catalog: CatalogLecture[]) {
   const query = tokens(title);
-  if (!query.size) return undefined;
-  const aliases: Record<string, string> = {
-    map: 'L01-sets-maps-proofs',
-    function: 'L01-sets-maps-proofs',
-    set: 'L01-sets-maps-proofs',
-    group: 'L02-groups-modular-arithmetic',
-    'group theory': 'L02-groups-modular-arithmetic',
-    'pauli group': 'L16-n-qubit-pauli-strings',
-    'finite field': 'L03-finite-fields-gf2-gfp',
-    'vector space': 'L04-vector-spaces-finite-fields',
-    'linear map': 'L05-linear-maps-matrices',
-    'inner product': 'L09-complex-inner-products-hilbert',
-    fft: 'L88-dft-fast-fourier-transform',
-    mcmc: 'L92-markov-chains-mixing-mcmc',
-    'np complete': 'L98-np-completeness-reductions',
-    bpp: 'L99-randomized-complexity-amplification',
-    grover: 'L102-grover-search-query-bounds',
-    'shor s algorithm': 'L104-quantum-order-finding',
-    bqp: 'L105-bqp-circuit-complexity',
-    qma: 'L106-qma-local-hamiltonian'
-  };
-  const alias = aliases[[...query].join(' ')];
-  if (alias) return catalog.find((lecture) => lecture.id === alias);
-  const matches = catalog
+  if (!query.size) return [];
+  return catalog
     .flatMap((lecture) => {
-      if (!specialized.test(title) && specialized.test(lecture.title)) return [];
+      if (
+        !isSpecializedTitle(title) &&
+        (isSpecializedTitle(lecture.title) || specializedLectureIds.has(lecture.id))
+      )
+        return [];
       const words = tokens(lecture.title);
       const overlap = [...query].filter((word) => words.has(word)).length;
       if (overlap / query.size < 0.8) return [];
       return [{ lecture, score: overlap / Math.max(words.size, query.size) }];
     })
-    .sort((a, b) => b.score - a.score || a.lecture.id.localeCompare(b.lecture.id));
-  // Ambiguous matches stay as generated concepts instead of silently choosing a course.
+    .sort((a, b) => b.score - a.score || compareId(a.lecture.id, b.lecture.id));
+}
+
+/** Conservative title lookup, also used for legacy callers that expect a single best result. */
+export function matchLecture(title: string, catalog: CatalogLecture[] = ALL_LECTURES) {
+  const queryKey = [...tokens(title)].join(' ');
+  if (!queryKey) return undefined;
+  for (const [id, aliases] of CATALOG_ALIASES) {
+    if (aliases.some((alias) => [...tokens(alias)].join(' ') === queryKey))
+      return catalog.find((lecture) => lecture.id === id);
+  }
+  const matches = rankLectures(title, catalog);
   return matches[0] && (!matches[1] || matches[0].score > matches[1].score) ? matches[0].lecture : undefined;
 }
 
@@ -131,24 +128,141 @@ export function dependencyOrder(nodes: Map<string, { prerequisites: string[] }>,
   return order;
 }
 
-export function buildPaperPlan(input: unknown, catalog: CatalogLecture[] = ALL_LECTURES): PaperPlan {
+export class PaperEvidenceError extends Error {
+  constructor() {
+    super('A quoted passage was missing from the supplied text.');
+  }
+}
+
+export const PAPER_TARGET_ID = 'paper:target';
+export const MAX_PAPER_TREE_BYTES = 1_000_000;
+const paperId = (id: string) => `paper:concept:${id}`;
+const catalogId = (id: string) => `catalog:${id}`;
+
+const specializedAliases = new Set([
+  'pauli group',
+  'pauli groups',
+  'grover',
+  'shor s algorithm',
+  'bqp',
+  'qma'
+]);
+const specializedLectureIds = new Set(
+  [...CATALOG_ALIASES]
+    .filter(([, aliases]) => aliases.some((alias) => specializedAliases.has(alias)))
+    .map(([id]) => id)
+);
+const isSpecializedTitle = (title: string) =>
+  specialized.test(title) || specializedAliases.has(normalizeCatalogName(title));
+
+type PaperSource = { kind: 'import' | 'pdf' } | { kind: 'text'; text: string };
+
+function studyMetadata(lecture?: CatalogLecture): PaperNodeMetadata {
+  return { lecture, concepts: [], suggestions: [] };
+}
+
+function projectPaperGraph(
+  theorem: NonNullable<PaperAnalysis['theorem']>,
+  connected: readonly PaperConcept[],
+  matches: ReadonlyMap<string, CatalogLecture>,
+  catalog: ReadonlyMap<string, CatalogLecture>,
+  suggestions: ReadonlyMap<string, CatalogLecture[]>
+) {
+  const nodes = new Map<string, StudyNode>();
+  const metadataById = new Map<string, PaperNodeMetadata>();
+  const edges: StudyEdge[] = [];
+  const dependencies = new Map<string, { prerequisites: string[] }>();
+  const addNode = (node: StudyNode, metadata: PaperNodeMetadata) => {
+    nodes.set(node.id, node);
+    metadataById.set(node.id, metadata);
+    dependencies.set(node.id, { prerequisites: [] });
+  };
+  const requireNode = (prerequisiteId: string, dependentId: string, source: 'paper' | 'catalog') => {
+    dependencies.get(dependentId)!.prerequisites.push(prerequisiteId);
+    edges.push({ prerequisiteId, dependentId, sources: [source] });
+  };
+  const addLecture = (lectureId: string) => {
+    const id = catalogId(lectureId);
+    if (nodes.has(id)) return;
+    const lecture = catalog.get(lectureId)!;
+    addNode(
+      {
+        id,
+        title: lecture.title,
+        kind: 'catalog',
+        catalogLectureId: lectureId,
+        lectureNumber: lecture.lectureNumber,
+        minutes: lecture.durationMinutes
+      },
+      studyMetadata(lecture)
+    );
+    for (const prerequisite of lecture.prerequisites) {
+      addLecture(prerequisite);
+      requireNode(catalogId(prerequisite), id, 'catalog');
+    }
+  };
+  const projectConceptId = (id: string) => {
+    const lecture = matches.get(id);
+    return lecture ? catalogId(lecture.id) : paperId(id);
+  };
+
+  addNode({ id: PAPER_TARGET_ID, title: theorem.title, kind: 'target', minutes: null }, studyMetadata());
+  for (const concept of connected) {
+    const id = projectConceptId(concept.id);
+    const lecture = matches.get(concept.id);
+    if (lecture) addLecture(lecture.id);
+    else {
+      addNode(
+        {
+          id,
+          title: concept.title,
+          kind: 'concept',
+          minutes: estimateStudyMinutes(
+            `${concept.explanation} ${concept.example} ${concept.exercise}`,
+            concept.objectives.length,
+            concept.difficulty,
+            concept.practiceMinutes
+          )
+        },
+        studyMetadata()
+      );
+    }
+    const metadata = metadataById.get(id)!;
+    metadata.concepts.push(concept);
+    metadata.suggestions.push(...(suggestions.get(concept.id) ?? []));
+    for (const prerequisite of new Set(concept.prerequisites))
+      requireNode(projectConceptId(prerequisite), id, 'paper');
+  }
+  for (const prerequisite of new Set(theorem.prerequisites))
+    requireNode(projectConceptId(prerequisite), PAPER_TARGET_ID, 'paper');
+
+  dependencyOrder(dependencies, [PAPER_TARGET_ID]);
+  return { graph: buildStudyGraph([...nodes.values()], edges), metadataById };
+}
+
+export function buildPaperPlan(
+  input: unknown,
+  catalog: CatalogLecture[] = ALL_LECTURES,
+  source: PaperSource = { kind: 'import' }
+): PaperPlan {
   const parsed = paperAnalysisSchema.safeParse(input);
   if (!parsed.success)
     throw new Error('Gemini returned an incomplete study plan. Try again with the theorem and its proof.');
   const analysis = parsed.data;
   if (/!\[|<img\b/i.test(JSON.stringify(analysis)))
     throw new Error('The proposed plan includes external images. Generate a text-only plan.');
-  const nodes = new Map<string, PlanNode>();
-  const catalogMap = new Map(catalog.map((l) => [l.id, l]));
+
+  const normalizeQuote = (value: string) => value.replace(/\s+/g, ' ').trim();
+  const sourceText = source.kind === 'text' ? normalizeQuote(source.text) : null;
+  const concepts = new Map<string, PaperConcept>();
   const titles = new Set<string>();
   for (const concept of analysis.concepts) {
-    if (nodes.has(concept.id))
-      throw new Error('The proposed tree contains duplicate concepts. Generate it again.');
     const signature = [...tokens(concept.title)].sort().join(' ');
+    if (concepts.has(concept.id))
+      throw new Error('The proposed tree contains duplicate concepts. Generate it again.');
     if (titles.has(signature)) throw new Error('The proposed tree repeats a topic. Generate it again.');
-    titles.add(signature);
     if (
-      !specialized.test(concept.title) &&
+      !isSpecializedTitle(concept.title) &&
       specialized.test(
         [concept.explanation, concept.example, concept.exercise, ...concept.objectives].join(' ')
       )
@@ -157,111 +271,116 @@ export function buildPaperPlan(input: unknown, catalog: CatalogLecture[] = ALL_L
         `“${concept.title}” includes unrelated quantum material. Generate the tree again to keep lessons focused.`
       );
     }
-    nodes.set(concept.id, {
-      id: concept.id,
-      title: concept.title,
-      topic: concept.topic,
-      prerequisites: [...new Set(concept.prerequisites)],
-      kind: 'paper',
-      concept,
-      minutes: estimateStudyMinutes(
-        `${concept.explanation} ${concept.example} ${concept.exercise}`,
-        concept.objectives.length,
-        concept.difficulty,
-        concept.practiceMinutes
-      )
-    });
+    const quote = normalizeQuote(concept.evidence);
+    if (concept.evidence && !quote) {
+      if (source.kind !== 'import') throw new PaperEvidenceError();
+      concept.evidence = '';
+    }
+    if (sourceText !== null && quote && !sourceText.includes(quote)) throw new PaperEvidenceError();
+    concepts.set(concept.id, concept);
+    titles.add(signature);
   }
-  // Validate even disconnected model output; prune it only after integrity checks.
-  dependencyOrder(nodes, [...nodes.keys()]);
-  const roots = analysis.theorem?.prerequisites || [];
-  const connected = dependencyOrder(nodes, roots);
-  const keep = new Set(connected);
-  for (const nodeId of nodes.keys()) if (!keep.has(nodeId)) nodes.delete(nodeId);
-  const addLecture = (lectureId: string): string => {
-    const nodeId = `catalog:${lectureId}`;
-    if (nodes.has(nodeId)) return nodeId;
-    const lecture = catalogMap.get(lectureId);
-    if (!lecture) throw new Error('A course prerequisite is unavailable.');
-    nodes.set(nodeId, {
-      id: nodeId,
-      title: lecture.title,
-      topic: lecture.topicId,
-      prerequisites: [],
-      minutes: lecture.durationMinutes,
-      kind: 'catalog',
-      lecture
-    });
-    nodes.get(nodeId)!.prerequisites = lecture.prerequisites.map(addLecture);
-    return nodeId;
+  dependencyOrder(concepts, [...concepts.keys()]);
+  const theorem = analysis.theorem;
+  if (!theorem) return { analysis, graph: null, metadataById: new Map(), warnings: [] };
+  if (sourceText !== null && !sourceText.includes(normalizeQuote(theorem.quote)))
+    throw new PaperEvidenceError();
+
+  const connected = dependencyOrder(concepts, theorem.prerequisites)
+    .sort()
+    .map((id) => concepts.get(id)!);
+  const catalogMap = new Map(catalog.map((lecture) => [lecture.id, lecture]));
+  const closureById = new Map<string, string[] | null>();
+  const eligible = (concept: PaperConcept, lecture: CatalogLecture) => {
+    if (!closureById.has(lecture.id)) {
+      try {
+        closureById.set(lecture.id, dependencyOrder(catalogMap, [lecture.id]));
+      } catch {
+        closureById.set(lecture.id, null);
+      }
+    }
+    const closure = closureById.get(lecture.id);
+    return (
+      !!closure &&
+      (isSpecializedTitle(concept.title) ||
+        closure.every(
+          (id) => !specializedLectureIds.has(id) && !isSpecializedTitle(catalogMap.get(id)!.title)
+        ))
+    );
   };
-  // Include complete catalog prerequisites, only if their closure stays in the concept's domain.
-  const usedLectures = new Set<string>();
-  for (const nodeId of connected) {
-    const node = nodes.get(nodeId)!;
-    const match = matchLecture(node.title, catalog);
-    if (!match || usedLectures.has(match.id)) continue;
-    const closure = dependencyOrder(catalogMap, [match.id]);
-    if (!specialized.test(node.title) && closure.some((key) => specialized.test(catalogMap.get(key)!.title)))
-      continue;
-    node.lecture = match;
-    usedLectures.add(match.id);
-    node.minutes = match.durationMinutes;
-    node.prerequisites.push(...match.prerequisites.map(addLecture));
-  }
-  // Reuse a matched paper concept when a catalog dependency refers to the same lesson.
-  const matched = new Map(
-    connected.filter((key) => nodes.get(key)!.lecture).map((key) => [nodes.get(key)!.lecture!.id, key])
-  );
-  for (const node of nodes.values())
-    node.prerequisites = [
-      ...new Set(
-        node.prerequisites.map((key) => (key.startsWith('catalog:') ? matched.get(key.slice(8)) || key : key))
+  const matches = new Map<string, CatalogLecture>();
+  const suggestions = new Map<string, CatalogLecture[]>();
+  for (const concept of connected) {
+    const normalized = normalizeCatalogName(concept.title);
+    const exact = catalog
+      .filter(
+        (lecture) =>
+          (normalizeCatalogName(lecture.title) === normalized ||
+            (CATALOG_ALIASES.get(lecture.id) ?? []).includes(normalized)) &&
+          eligible(concept, lecture)
       )
+      .sort((a, b) => compareId(a.id, b.id));
+    if (exact.length === 1) {
+      matches.set(concept.id, exact[0]);
+      try {
+        projectPaperGraph(theorem, connected, matches, catalogMap, suggestions);
+        continue;
+      } catch {
+        matches.delete(concept.id);
+      }
+    }
+    const candidates = [
+      ...exact,
+      ...rankLectures(concept.title, catalog)
+        .map(({ lecture }) => lecture)
+        .filter((lecture) => eligible(concept, lecture))
     ];
-  const order = dependencyOrder(nodes, roots);
-  const retained = new Set(order);
-  for (const key of nodes.keys()) if (!retained.has(key)) nodes.delete(key);
+    suggestions.set(
+      concept.id,
+      [...new Map(candidates.map((lecture) => [lecture.id, lecture])).values()].slice(0, 3)
+    );
+  }
   const warnings = [
     'AI-proposed dependencies. Check the theorem, evidence, and prerequisites against the paper.'
   ];
   if (connected.length < analysis.concepts.length)
     warnings.push('Unrelated concepts were omitted from the study path.');
-  return {
-    analysis,
-    nodes,
-    roots,
-    order,
-    totalMinutes: order.reduce((sum, key) => sum + nodes.get(key)!.minutes, 0),
-    warnings
-  };
+  return { analysis, ...projectPaperGraph(theorem, connected, matches, catalogMap, suggestions), warnings };
 }
 
-export function paperPlanMarkdown(plan: PaperPlan) {
-  const { analysis } = plan;
+export function paperPlanMarkdown(plan: PaperPlan, evidenceStatus = 'Check in paper') {
+  const { analysis, graph } = plan;
+  const theorem = analysis.theorem;
+  const order = graph ? getStudyOrder(graph, PAPER_TARGET_ID, new Set()).remaining : [];
   return [
     `# ${analysis.paperTitle}`,
-    'AI-generated study plan; verify against the paper.',
-    `## ${analysis.theorem?.title || 'No theorem found'}`,
-    analysis.theorem?.statement || analysis.explanation,
-    analysis.theorem
-      ? `Source: ${analysis.theorem.location}\n\n> ${analysis.theorem.quote.replace(/\n/g, '\n> ')}`
+    'AI-generated study plan. Review against the paper.',
+    `## ${theorem?.title ?? 'No theorem found'}`,
+    theorem?.statement ?? analysis.explanation,
+    theorem
+      ? `Source: ${theorem.location} (${evidenceStatus})\n\n> ${theorem.quote.replace(/\n/g, '\n> ')}`
       : '',
-    ...plan.order.map((key, index) => {
-      const node = plan.nodes.get(key)!;
+    ...order.map((id, index) => {
+      const node = graph!.nodes.get(id)!;
+      const { lecture, concepts } = plan.metadataById.get(id)!;
+      const prerequisites = graph!.incoming
+        .get(id)!
+        .map((prerequisite) => graph!.nodes.get(prerequisite)!.title);
       return [
         `## ${index + 1}. ${node.title} · ~${node.minutes} min`,
-        `Prerequisites: ${node.prerequisites.map((p) => plan.nodes.get(p)!.title).join(', ') || 'None'}`,
-        node.lecture ? `[Read lecture](/topics/${node.lecture.topicId}/${node.lecture.id})` : '',
-        node.concept
-          ? [
-              node.concept.reason,
-              node.concept.explanation,
-              node.concept.example,
-              `Exercise: ${node.concept.exercise}`,
-              `Evidence: ${node.concept.source}\n${node.concept.evidence}`
-            ].join('\n\n')
-          : ''
+        `Prerequisites: ${prerequisites.join(', ') || 'None'}`,
+        lecture ? `[Read lecture](/topics/${lecture.topicId}/${lecture.id})` : '',
+        ...concepts.map((concept) =>
+          [
+            concept.reason,
+            concept.explanation,
+            concept.example,
+            `Exercise: ${concept.exercise}`,
+            concept.evidence
+              ? `Evidence: ${concept.source} (${evidenceStatus})\n${concept.evidence}`
+              : 'Background prerequisite'
+          ].join('\n\n')
+        )
       ].join('\n\n');
     })
   ].join('\n\n');

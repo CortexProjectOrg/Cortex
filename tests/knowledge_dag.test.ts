@@ -200,12 +200,27 @@ describe('Knowledge DAG & Dependency Tree Invariants', () => {
     expect(l02NowReady.missingPrereqs.length).toBe(0);
     expect(l02NowReady.percentReady).toBe(100);
 
-    // L03 requires L02 directly (and L01 derived via L02)
+    // The canvas may reduce the edge from L01, but readiness uses declared prerequisites.
     const l03Partial = computeNodeReadiness('L03-finite-fields-gf2-gfp', completedAfterL01);
     expect(l03Partial.status).toBe('locked');
-    expect(l03Partial.completedPrereqs).toEqual([]);
+    expect(l03Partial.completedPrereqs).toEqual(['L01-sets-maps-proofs']);
     expect(l03Partial.missingPrereqs).toEqual(['L02-groups-modular-arithmetic']);
-    expect(l03Partial.percentReady).toBe(0);
+    expect(l03Partial.percentReady).toBe(50);
+    expect(
+      computeNodeReadiness('L03-finite-fields-gf2-gfp', ['L02-groups-modular-arithmetic'])
+    ).toMatchObject({
+      status: 'locked',
+      missingPrereqs: ['L01-sets-maps-proofs'],
+      percentReady: 50
+    });
+    expect(
+      getLectureRamification('L02-groups-modular-arithmetic')?.readyToTackleNext.map((node) => node.id)
+    ).not.toContain('L03-finite-fields-gf2-gfp');
+    expect(
+      getLectureRamification('L02-groups-modular-arithmetic', completedAfterL01)?.readyToTackleNext.map(
+        (node) => node.id
+      )
+    ).toContain('L03-finite-fields-gf2-gfp');
 
     // Completing L02 unlocks L03
     const completedAfterL02 = new Set(['L01-sets-maps-proofs', 'L02-groups-modular-arithmetic']);
