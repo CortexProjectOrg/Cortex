@@ -9,7 +9,7 @@ import remarkRehype from 'remark-rehype';
 import rehypeSlug from 'rehype-slug';
 import { MarkdownView } from '../src/components/MarkdownView';
 import { MathFormula } from '../src/components/MathFormula';
-import { ALL_LECTURES, LEGACY_LECTURE_MAP } from '../src/lib/curriculum';
+import { ALL_LECTURES, getLectureEdition, LECTURE_MAP } from '../src/lib/curriculum';
 import { lectureVisualPlacements } from '../src/lib/lectureVisualPlacements';
 
 describe('MarkdownView Math & KaTeX Formula Rendering', () => {
@@ -34,20 +34,37 @@ describe('MarkdownView Math & KaTeX Formula Rendering', () => {
       .use(remarkMath)
       .use(remarkRehype)
       .use(rehypeSlug);
-    for (const lecture of ALL_LECTURES) {
-      const legacy = LEGACY_LECTURE_MAP.get(lecture.id);
-      for (const version of [
-        lecture,
-        ...(legacy && legacy.content.theory !== lecture.content.theory ? [legacy] : [])
-      ]) {
-        const placements = lectureVisualPlacements(lecture.id, version !== lecture);
+    for (const current of ALL_LECTURES) {
+      for (const savedVersion of [undefined, 4, 3]) {
+        const { lecture, version, originalContent } = getLectureEdition(current, savedVersion);
+        const placements = lectureVisualPlacements(lecture.id, originalContent, version);
         const theoryAnchors = placements.flatMap(({ afterHeading }) => (afterHeading ? [afterHeading] : []));
         if (!theoryAnchors.length) continue;
-        const tree = parser.runSync(parser.parse(version.content.theory));
+        const tree = parser.runSync(parser.parse(lecture.content.theory));
         const headings = tree.children.flatMap((node) =>
           node.type === 'element' && /^h[1-6]$/.test(node.tagName) ? [node.properties.id] : []
         );
-        for (const id of theoryAnchors) expect(headings, `${version.id}: ${id}`).toContain(id);
+        for (const id of theoryAnchors)
+          expect(headings, `${lecture.id} edition ${version}: ${id}`).toContain(id);
+      }
+    }
+  });
+
+  it('renders revised and new lesson math and resolves course links', () => {
+    for (const lecture of ALL_LECTURES) {
+      const previous = getLectureEdition(lecture, 4);
+      if (previous.version === 4 && previous.lecture === lecture) continue;
+      const { motivation, theory, workedExample, exercise } = lecture.content;
+      for (const source of [motivation, theory, workedExample, exercise]) {
+        const html = renderToString(React.createElement(MarkdownView, { source }));
+        expect(html, lecture.id).not.toMatch(/katex-error|<merror>|\$\$[\s\S]*?\$\$/);
+        for (const [, topicId, lectureId] of html.matchAll(/href="\/topics\/([^/"]+)\/([^"]+)"/g)) {
+          expect(LECTURE_MAP.get(lectureId)?.topicId, `Link from ${lecture.id}`).toBe(topicId);
+        }
+      }
+      for (const { expression } of lecture.theoreticalCitations) {
+        const html = renderToString(React.createElement(MathFormula, { math: expression }));
+        expect(html, lecture.id).not.toMatch(/katex-error|<merror>/);
       }
     }
   });

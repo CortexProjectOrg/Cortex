@@ -1,12 +1,12 @@
 # Cortex
 
-A study notebook for mathematics, quantum computing, and simulation systems: 68 lectures, 16 topics, 17 study packs, and paper-based prerequisite trees.
+A study notebook for mathematics, quantum computing, and simulation systems with 84 lectures, 20 topics, 21 study packs, and paper-based prerequisite trees.
 
 ## Quantum simulation lessons
 
 The open-system and tensor-network topics add eight lessons on channels, noise, Lindblad evolution, quantum trajectories, Schmidt decomposition, MPS, TEBD, and DMRG. Each includes prerequisites, a worked example, exercises, source references, and a content-specific study estimate.
 
-Open **Explore** beside the relevant explanation or worked example in any of the 68 lectures. Some panels let you switch between labeled examples. Others offer sliders or buttons to manipulate a diagram, followed by a prediction question and feedback. The controls work with a keyboard or touch and remain available offline.
+Open **Explore** beside the relevant explanation or worked example in any lecture. Switch between labeled examples or use sliders and buttons to try an experiment and check your prediction. The controls work with a keyboard or touch and remain available offline.
 
 Annotation mode hides the widgets to keep the sheet the same size and handwriting aligned. Exploration and answer state reset when you leave the lecture.
 

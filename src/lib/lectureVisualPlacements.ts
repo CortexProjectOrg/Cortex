@@ -116,11 +116,39 @@ const locations: Partial<Record<string, Partial<Record<LectureVisualKind, Locati
   'L65-schmidt-quantum-entanglement': { practice: theory('reduced-states-and-entropy') },
   'L66-matrix-product-quantum-states': { practice: theory('why-a-bond-limits-entanglement') },
   'L67-tebd-quantum-time-evolution': { practice: theory('compress-with-a-measured-loss') },
-  'L68-dmrg-quantum-ground-states': { practice: example }
+  'L68-dmrg-quantum-ground-states': { practice: example },
+  'L69-quantifiers-counterexamples': { diagram: theory('quantifier-order-is-a-dependency') },
+  'L70-direct-contrapositive-contradiction': { diagram: example },
+  'L71-induction-recursive-arguments': { diagram: example },
+  'L72-invariants-termination': { practice: example },
+  'L73-quantum-lc-resonator': { diagram: example },
+  'L74-coherent-drives-rabi-oscillations': { practice: example },
+  'L75-transmon-anharmonicity-leakage': { diagram: example },
+  'L76-dispersive-readout': { diagram: example },
+  'L77-three-qubit-repetition-code': { practice: example },
+  'L78-knill-laflamme-conditions': { diagram: example },
+  'L79-css-steane-code': { diagram: example },
+  'L80-surface-code-repeated-syndromes': { diagram: example },
+  'L81-relaxation-ramsey-echo': { diagram: example },
+  'L82-randomized-benchmarking': { diagram: theory('undo-a-random-sequence') },
+  'L83-coherent-stochastic-errors': { practice: example },
+  'L84-noise-spectroscopy-filter-functions': { practice: example }
 };
 
-export function lectureVisualPlacements(lectureId: string, legacy = false) {
-  const lecture = locations[lectureId];
+const revisionFiveLocations: typeof locations = {
+  'L11-unitary-operators-quantum-gates': { practice: example },
+  'L12-multi-qubit-systems-entanglement': { practice: theory('build-a-bell-state') },
+  'L13-density-matrices-mixed-states': { practice: example },
+  'L23-symplectic-clifford-isomorphism': { diagram: example },
+  'L32-magic-states-pauli-based-computation': { diagram: theory('prepare-and-measure-the-ancilla') },
+  'L53-mcmc-covariance-integration': { diagram: example },
+  'L54-hardware-noise-systematic-shifts': { diagram: example },
+  'L57-qec-stabilizer-codes-automorphisms': { diagram: example },
+  'L60-qudit-algebra-mixed-dimension-registers': { diagram: example }
+};
+
+export function lectureVisualPlacements(lectureId: string, legacy = false, revision = legacy ? 1 : 5) {
+  const lecture = (revision >= 5 ? revisionFiveLocations[lectureId] : undefined) ?? locations[lectureId];
   return (['practice', 'diagram'] as const).flatMap((kind) => {
     const location = lecture?.[kind];
     return location

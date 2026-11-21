@@ -283,11 +283,16 @@ export const LEGACY_TOPICS: Topic[] = [
 
 // Detailed metadata with full theoretical citations for key lectures
 import { FULL_LECTURES_RECORD } from './curriculumData';
+import { CURRICULUM_REVISIONS } from './curriculumRevisions';
+import { DEVICE_PHYSICS } from './devicePhysicsLessons';
+import { ERROR_CORRECTION } from './errorCorrectionLessons';
 import { FOUNDATION_LESSONS } from './foundationLessons';
+import { NOISE_CHARACTERIZATION } from './noiseLessons';
+import { PROOF_PACK } from './proofLessons';
 import { estimateStudyMinutes } from './studyTime';
 import { QUANTUM_SIMULATION_LECTURES, QUANTUM_SIMULATION_TOPICS } from './quantumSimulationLessons';
 
-export const TOPICS: Topic[] = [
+export const REVISION_FOUR_TOPICS: Topic[] = [
   {
     ...LEGACY_TOPICS[0],
     title: 'Sets, maps, and proofs',
@@ -364,6 +369,12 @@ export const TOPICS: Topic[] = [
   ...QUANTUM_SIMULATION_TOPICS
 ].map((topic, index) => ({ ...topic, number: index + 1 }));
 
+const NEW_PACKS = [PROOF_PACK, DEVICE_PHYSICS, ERROR_CORRECTION, NOISE_CHARACTERIZATION];
+export const TOPICS: Topic[] = [
+  ...REVISION_FOUR_TOPICS,
+  ...NEW_PACKS.map(({ topic }, index) => ({ ...topic, number: REVISION_FOUR_TOPICS.length + index + 1 }))
+];
+
 export const LEGACY_LECTURE_MAP = new Map(Object.values(FULL_LECTURES_RECORD).map((l) => [l.id, l]));
 const SPECIALIZED_TITLES: Record<string, string> = {
   'L18-symplectic-product-commutation': 'Pauli commutation via the symplectic product',
@@ -375,9 +386,8 @@ const SPECIALIZED_TITLES: Record<string, string> = {
   'L59-batched-cuda-covariance-offload': 'GPU covariance for quantum measurements'
 };
 
-// Preserve stable lecture identifiers and append new study packs.
-export function getAllLectures(): Lecture[] {
-  return TOPICS.flatMap((topic) =>
+function revisionFourLectures(): Lecture[] {
+  return REVISION_FOUR_TOPICS.flatMap((topic) =>
     topic.lectureIds.map((id) => {
       const lecture = FULL_LECTURES_RECORD[id] || QUANTUM_SIMULATION_LECTURES[id];
       if (!lecture) throw new Error(`Missing lecture: ${id}`);
@@ -403,16 +413,43 @@ export function getAllLectures(): Lecture[] {
   ).sort((a, b) => a.lectureNumber - b.lectureNumber);
 }
 
+export const REVISION_FOUR_LECTURES = revisionFourLectures();
+const REVISION_FOUR_LECTURE_MAP = new Map(REVISION_FOUR_LECTURES.map((lecture) => [lecture.id, lecture]));
+
+export function getAllLectures(): Lecture[] {
+  return [
+    ...REVISION_FOUR_LECTURES.map((lecture) => {
+      const revision = CURRICULUM_REVISIONS[lecture.id];
+      return revision
+        ? { ...lecture, ...revision, subtitle: '', codeReferences: [], implementationChoices: [] }
+        : lecture;
+    }),
+    ...NEW_PACKS.flatMap(({ lectures }) => lectures)
+  ];
+}
+
+export function getLectureEdition(current: Lecture, savedVersion?: number) {
+  if (savedVersion !== undefined && savedVersion < 4) {
+    const original = LEGACY_LECTURE_MAP.get(current.id);
+    if (original) return { lecture: original, version: savedVersion, originalContent: true };
+  }
+  if (savedVersion === 4) {
+    const previous = REVISION_FOUR_LECTURE_MAP.get(current.id);
+    if (previous) return { lecture: previous, version: 4, originalContent: false };
+  }
+  return { lecture: current, version: 5, originalContent: false };
+}
+
 export const ALL_LECTURES = getAllLectures();
 export const LECTURE_MAP = new Map(ALL_LECTURES.map((l) => [l.id, l]));
 
 // Keep legacy exports while deriving path size from the current catalog.
 export const FOUR_HOUR_MASTERY_PATH: StudyPath = {
   id: 'canonical-foundations-to-mastery',
-  title: 'Mathematics and quantum simulation',
+  title: 'Mathematics and quantum computing',
   subtitle: '',
   description:
-    'Mathematical foundations, quantum computing, and simulation methods, including open-system dynamics and tensor networks.',
+    'Proofs, quantum computing, simulation, superconducting circuits, error correction, and noise measurements.',
   totalPacks: Math.ceil(ALL_LECTURES.length / 4),
   totalLectures: ALL_LECTURES.length,
   packs: Array.from({ length: Math.ceil(ALL_LECTURES.length / 4) }, (_, i) => {

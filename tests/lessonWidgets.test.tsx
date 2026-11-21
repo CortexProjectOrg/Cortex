@@ -54,6 +54,57 @@ it('switches examples and restores the original example when navigating or reset
   expect(value('Steps to return')).toBe('3');
 });
 
+it('shows Euclidean division preserving the GCD and restarts the trace for a new pair', () => {
+  open('L72-invariants-termination');
+  expect(value('Division equation')).toBe('252 = 2 × 105 + 42');
+  fireEvent.change(screen.getByRole('slider', { name: 'Division' }), { target: { value: '3' } });
+  expect(value('Status')).toBe('GCD = 21');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Starting pair' }), { target: { value: '2' } });
+  expect(value('Division equation')).toBe('35 = 2 × 12 + 11');
+});
+
+it('reduces the maximum excited population and moves the first Rabi peak at nonzero detuning', () => {
+  open('L74-coherent-drives-rabi-oscillations');
+  expect(value('Excited population')).toBe('100.0%');
+  expect(value('First peak')).toBe('100.0 ns');
+  fireEvent.change(screen.getByRole('slider', { name: 'Detuning Δ/2π' }), { target: { value: '5' } });
+  expect(value('Maximum')).toBe('50.0%');
+  expect(value('First peak')).toBe('70.7 ns');
+});
+
+it('shows the same syndrome for a correctable bit flip and a failing two-flip pattern', () => {
+  open('L77-three-qubit-repetition-code');
+  const flip = (n: number) => fireEvent.click(screen.getByRole('button', { name: `Flip qubit ${n}` }));
+  flip(2);
+  expect(value('Syndrome (ZZI, IZZ)')).toBe('11');
+  expect(value('After recovery')).toBe('Recovered');
+  flip(2);
+  flip(1);
+  flip(3);
+  expect(value('Syndrome (ZZI, IZZ)')).toBe('11');
+  expect(value('After recovery')).toBe('Logical X (111)');
+});
+
+it('cancels alternating coherent rotations without changing the stochastic comparison', () => {
+  open('L83-coherent-stochastic-errors');
+  expect(value('Coherent P(1)')).toBe('22.98%');
+  expect(value('Stochastic P(1)')).toBe('0.50%');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Coherent rotation sign' }), {
+    target: { value: '1' }
+  });
+  expect(value('Coherent P(1)')).toBe('0.00%');
+  expect(value('Stochastic P(1)')).toBe('0.50%');
+});
+
+it('refocuses a static offset at half time and restores the full phase variance in Ramsey', () => {
+  open('L84-noise-spectroscopy-filter-functions');
+  expect(value('Static-offset variance / Ramsey')).toBe('0.25');
+  fireEvent.change(screen.getByRole('slider', { name: 'Pulse position' }), { target: { value: '50' } });
+  expect(value('Static-offset variance / Ramsey')).toBe('0.00');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Sequence' }), { target: { value: '0' } });
+  expect(value('Static-offset variance / Ramsey')).toBe('1.00');
+});
+
 it('shows that 3 has an inverse modulo 5 and becomes a zero divisor modulo 6', () => {
   open('L03-finite-fields-gf2-gfp');
   expect(value('Inverse of 3')).toBe('2');

@@ -66,7 +66,7 @@ describe('quantum curriculum expansion', () => {
   it('adds eight complete lessons to the final two packs with resolvable prerequisites', () => {
     const lessons = Object.values(QUANTUM_SIMULATION_LECTURES);
     expect(lessons.map((lesson) => lesson.lectureNumber)).toEqual([61, 62, 63, 64, 65, 66, 67, 68]);
-    expect(MASTERY_PACKS.slice(-2).flatMap((pack) => pack.lectureIds)).toEqual(
+    expect(MASTERY_PACKS.slice(15, 17).flatMap((pack) => pack.lectureIds)).toEqual(
       lessons.map((lesson) => lesson.id)
     );
     for (const lesson of lessons) {
