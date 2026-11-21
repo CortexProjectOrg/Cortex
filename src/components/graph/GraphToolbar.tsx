@@ -1,5 +1,6 @@
 import { GitFork, Layers, Network, Search, Workflow, X } from 'lucide-react';
 import { TOPICS } from '../../lib/curriculumCatalog';
+import { getTopicSubfield, SUBFIELDS } from '../../lib/topicDiscovery';
 
 export type ViewMode = 'hierarchical' | 'canvas' | 'ramifications' | 'stratified';
 export type StatusFilter = 'all' | 'ready' | 'completed' | 'locked';
@@ -93,10 +94,14 @@ export function GraphToolbar({
           }}
         >
           <option value="all">All topics</option>
-          {TOPICS.map((t) => (
-            <option key={t.id} value={t.id}>
-              Topic {t.number}: {t.title}
-            </option>
+          {SUBFIELDS.map((field) => (
+            <optgroup key={field.id} label={field.title}>
+              {TOPICS.filter((topic) => getTopicSubfield(topic.id).id === field.id).map((t) => (
+                <option key={t.id} value={t.id}>
+                  Topic {t.number}: {t.title}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>
