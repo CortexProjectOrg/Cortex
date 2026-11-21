@@ -85,7 +85,15 @@ export function matchLecture(title: string, catalog: CatalogLecture[] = ALL_LECT
     'finite field': 'L03-finite-fields-gf2-gfp',
     'vector space': 'L04-vector-spaces-finite-fields',
     'linear map': 'L05-linear-maps-matrices',
-    'inner product': 'L09-complex-inner-products-hilbert'
+    'inner product': 'L09-complex-inner-products-hilbert',
+    fft: 'L88-dft-fast-fourier-transform',
+    mcmc: 'L92-markov-chains-mixing-mcmc',
+    'np complete': 'L98-np-completeness-reductions',
+    bpp: 'L99-randomized-complexity-amplification',
+    grover: 'L102-grover-search-query-bounds',
+    'shor s algorithm': 'L104-quantum-order-finding',
+    bqp: 'L105-bqp-circuit-complexity',
+    qma: 'L106-qma-local-hamiltonian'
   };
   const alias = aliases[[...query].join(' ')];
   if (alias) return catalog.find((lecture) => lecture.id === alias);

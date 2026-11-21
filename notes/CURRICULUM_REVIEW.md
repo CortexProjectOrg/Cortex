@@ -1,13 +1,25 @@
 # Curriculum review
 
-The catalog now has 84 lectures across 20 topics. The four new packs each have four lectures, worked calculations, exercises, and a visual placed alongside the relevant explanation. Study estimates range from 35 to 55 minutes for the new lectures and include time to work the exercises.
+The catalog now has 108 lectures across 26 topics. Each added pack contains four lectures with worked calculations, exercises, and visuals beside the relevant explanations. Study estimates range from 35 to 60 minutes for the added lectures and include time to work the exercises.
 
-| Pack                           | Progression                                                                                                                                       |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Mathematical proofs            | Quantified claims and their negations, proof of implications and irrationality, ordinary and strong induction, invariants and Euclid's algorithm. |
-| Superconducting qubit physics  | Quantized LC modes, detuned driven rotations, transmon level spacings and leakage, dispersive measurement and assignment calibration.             |
-| Quantum error correction       | Three-qubit syndromes, exact recovery conditions, Steane check matrices, and repeated surface-code detection events.                              |
-| Quantum noise characterization | Relaxation and coherence protocols, Clifford benchmarking, coherent accumulation, and filter functions.                                           |
+| Pack                               | Progression                                                                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mathematical proofs                | Quantified claims and their negations, proof of implications and irrationality, ordinary and strong induction, invariants and Euclid's algorithm. |
+| Superconducting qubit physics      | Quantized LC modes, detuned driven rotations, transmon level spacings and leakage, dispersive measurement and assignment calibration.             |
+| Quantum error correction           | Three-qubit syndromes, exact recovery conditions, Steane check matrices, and repeated surface-code detection events.                              |
+| Quantum noise characterization     | Relaxation and coherence protocols, Clifford benchmarking, coherent accumulation, and filter functions.                                           |
+| Computational mathematics          | Floating-point cancellation, conditioning, least squares with QR and SVD, and the FFT.                                                            |
+| Probability and estimation         | Conditional probability, Monte Carlo variance, concentration bounds, and Markov-chain mixing.                                                     |
+| Quantum dynamics and spectra       | Hamiltonian evolution, spin measurements, Gibbs states, and adiabatic gaps.                                                                       |
+| Classical computational complexity | Encoding and cost models, NP reductions, BPP and RP, and space-bounded reachability.                                                              |
+| Quantum algorithms                 | Parity queries, Grover search with a lower bound, phase estimation, and order finding.                                                            |
+| Quantum computational complexity   | BQP and PP, QMA and local Hamiltonians, strong and weak simulation, and product-formula resource estimates.                                       |
+
+## Routes through the prerequisite graph
+
+- Start with loop invariants (L72) before cost models (L97). Follow reductions or randomized amplification depending on the complexity question.
+- Use the classical FFT (L88) and Hamiltonian evolution (L93) to prepare for phase estimation (L103) and order finding (L104).
+- Follow concentration bounds (L91) to amplification (L99) and BQP (L105). Take the local Hamiltonian lesson (L106) after reductions (L98) and the spectral analysis of energy (L93–95).
 
 ## Review of the existing catalog
 

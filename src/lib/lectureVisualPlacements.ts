@@ -132,7 +132,31 @@ const locations: Partial<Record<string, Partial<Record<LectureVisualKind, Locati
   'L81-relaxation-ramsey-echo': { diagram: example },
   'L82-randomized-benchmarking': { diagram: theory('undo-a-random-sequence') },
   'L83-coherent-stochastic-errors': { practice: example },
-  'L84-noise-spectroscopy-filter-functions': { practice: example }
+  'L84-noise-spectroscopy-filter-functions': { practice: example },
+  'L85-floating-point-cancellation': { practice: example },
+  'L86-conditioning-linear-solves': { diagram: example },
+  'L87-least-squares-qr-svd': { diagram: example },
+  'L88-dft-fast-fourier-transform': { diagram: example },
+  'L89-conditional-probability-bayes': { diagram: example },
+  'L90-monte-carlo-variance': { diagram: example },
+  'L91-concentration-sample-complexity': { practice: example },
+  'L92-markov-chains-mixing-mcmc': { diagram: example },
+  'L93-hamiltonian-time-evolution': { diagram: example },
+  'L94-spin-measurement-rotations': { diagram: example },
+  'L95-quantum-thermal-states': { diagram: example },
+  'L96-adiabatic-evolution-gaps': { practice: example },
+  'L97-cost-models-asymptotics': { diagram: example },
+  'L98-np-completeness-reductions': { diagram: example },
+  'L99-randomized-complexity-amplification': { practice: example },
+  'L100-space-complexity-reachability': { diagram: example },
+  'L101-quantum-queries-phase-kickback': { diagram: example },
+  'L102-grover-search-query-bounds': { practice: example },
+  'L103-quantum-phase-estimation': { diagram: example },
+  'L104-quantum-order-finding': { diagram: example },
+  'L105-bqp-circuit-complexity': { diagram: example },
+  'L106-qma-local-hamiltonian': { diagram: example },
+  'L107-strong-weak-simulation': { diagram: example },
+  'L108-hamiltonian-simulation-cost': { practice: example }
 };
 
 const revisionFiveLocations: typeof locations = {
