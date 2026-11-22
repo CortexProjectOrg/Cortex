@@ -8,7 +8,7 @@ import {
   ZoomIn,
   ZoomOut
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TOPICS } from '../lib/curriculumCatalog';
 import {
   collapseNodePrerequisites,
@@ -74,14 +74,6 @@ export function InteractiveDagCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Active focal lecture (defaults to foundational root L01 if none selected)
-  const focalId =
-    selectedNodeId && filteredNodeIds.has(selectedNodeId)
-      ? selectedNodeId
-      : dag.nodeList.find((n) => filteredNodeIds.has(n.id))?.id || '';
-
-  const focalNode = dag.nodes.get(focalId);
-
   // Toggle to optionally show derived (indirect / transitive) dependencies
   const [showDerived, setShowDerived] = useState(false);
 
@@ -129,6 +121,11 @@ export function InteractiveDagCanvas({
   const visibleNodes = useMemo(() => {
     return dag.nodeList.filter((n) => effectiveVisibleNodeIds.has(n.id));
   }, [dag, effectiveVisibleNodeIds]);
+  const focalId =
+    selectedNodeId && effectiveVisibleNodeIds.has(selectedNodeId)
+      ? selectedNodeId
+      : (visibleNodes[0]?.id ?? '');
+  const focalNode = dag.nodes.get(focalId);
 
   // Expansion and exploration handlers
   const handleTogglePrerequisites = (nodeId: string, e: React.MouseEvent) => {
@@ -238,12 +235,13 @@ export function InteractiveDagCanvas({
     if (!containerRef.current || bounds.width === 0 || bounds.height === 0) return;
 
     const container = containerRef.current.getBoundingClientRect();
+    if (!container.width || !container.height) return;
     const padX = 24;
     const padY = 24;
 
     const scaleX = (container.width - padX * 2) / Math.max(1, bounds.width);
     const scaleY = (container.height - padY * 2) / Math.max(1, bounds.height);
-    const newZoom = Math.max(0.18, Math.min(1.2, Math.min(scaleX, scaleY)));
+    const newZoom = Math.min(1.2, scaleX, scaleY);
 
     const centerX = bounds.minX + bounds.width / 2;
     const centerY = bounds.minY + bounds.height / 2;
@@ -255,21 +253,65 @@ export function InteractiveDagCanvas({
     setPan({ x: newPanX, y: newPanY });
   }, [bounds]);
 
-  // Automatically center whenever visible bounds or focal node changes
-  useEffect(() => {
-    fitToCurrentBounds();
-  }, [bounds, fitToCurrentBounds]);
-
-  useEffect(() => {
-    if (!containerRef.current || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(fitToCurrentBounds);
-    observer.observe(containerRef.current);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const measure = () => {
+      const { width, height } = element.getBoundingClientRect();
+      setViewport((current) =>
+        current.width === width && current.height === height ? current : { width, height }
+      );
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
     return () => observer.disconnect();
-  }, [fitToCurrentBounds]);
+  }, []);
+
+  const focalLayout = layoutMap.get(focalId);
+  const anchorX = focalLayout && focalLayout.x + focalLayout.width / 2;
+  const anchorY = focalLayout && focalLayout.y + focalLayout.height / 2;
+  const previousAnchor = useRef<{ id: string; x: number; y: number; width: number; height: number } | null>(
+    null
+  );
+  useLayoutEffect(() => {
+    if (anchorX === undefined || anchorY === undefined || !viewport.width || !viewport.height) return;
+    const previous = previousAnchor.current;
+    if (
+      !previous ||
+      previous.id !== focalId ||
+      previous.width !== viewport.width ||
+      previous.height !== viewport.height
+    ) {
+      const scale = Math.min(1, (viewport.width - 24) / 300);
+      setZoom(scale);
+      setPan({ x: viewport.width / 2 - anchorX * scale, y: viewport.height / 2 - anchorY * scale });
+    } else if (anchorX !== previous.x || anchorY !== previous.y) {
+      // Expansion can reposition the focal card in the layout. Keep its screen position.
+      setPan((position) => ({
+        x: position.x + (previous.x - anchorX) * zoom,
+        y: position.y + (previous.y - anchorY) * zoom
+      }));
+    }
+    previousAnchor.current = { id: focalId, x: anchorX, y: anchorY, ...viewport };
+  }, [anchorX, anchorY, focalId, viewport, zoom]);
+
+  const zoomAt = useCallback(
+    (newZoom: number, x: number, y: number) => {
+      setPan((position) => ({
+        x: x - (x - position.x) * (newZoom / zoom),
+        y: y - (y - position.y) * (newZoom / zoom)
+      }));
+      setZoom(newZoom);
+    },
+    [zoom]
+  );
 
   // Pan interaction handlers
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || (e.target as Element).closest('button, a, [role="button"]')) return;
     setIsDragging(true);
     dragStartRef.current = { x: e.clientX, y: e.clientY };
     panStartRef.current = { ...pan };
@@ -304,12 +346,11 @@ export function InteractiveDagCanvas({
       const newZoom = Math.max(0.15, Math.min(2.2, zoom * (event.deltaY > 0 ? 0.9 : 1.1)));
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      setPan({ x: x - (x - pan.x) * (newZoom / zoom), y: y - (y - pan.y) * (newZoom / zoom) });
-      setZoom(newZoom);
+      zoomAt(newZoom, x, y);
     };
     svg.addEventListener('wheel', handleWheel, { passive: false });
     return () => svg.removeEventListener('wheel', handleWheel);
-  }, [pan, zoom]);
+  }, [zoom, zoomAt]);
 
   // Pre-calculate Directed Edges for 1-Hop cluster
   const { directEdges, derivedEdges } = useMemo(() => {
@@ -334,7 +375,6 @@ export function InteractiveDagCanvas({
     // 1. Direct dependencies: node.prerequisites -> node.id
     visibleNodes.forEach((toNode) => {
       toNode.prerequisites.forEach((fromId) => {
-        if (!visibleNodeIds.has(fromId)) return;
         const fromLayout = layoutMap.get(fromId);
         const toLayout = layoutMap.get(toNode.id);
         if (!fromLayout || !toLayout) return;
@@ -370,7 +410,6 @@ export function InteractiveDagCanvas({
     if (showDerived) {
       visibleNodes.forEach((toNode) => {
         (toNode.derivedPrerequisites || []).forEach((fromId) => {
-          if (!visibleNodeIds.has(fromId)) return;
           const fromLayout = layoutMap.get(fromId);
           const toLayout = layoutMap.get(toNode.id);
           if (!fromLayout || !toLayout) return;
@@ -407,7 +446,7 @@ export function InteractiveDagCanvas({
     }
 
     return { directEdges: dList, derivedEdges: derList };
-  }, [visibleNodes, visibleNodeIds, layoutMap, focalId, hoveredNodeId, showDerived]);
+  }, [visibleNodes, layoutMap, focalId, hoveredNodeId, showDerived]);
 
   const focalTopicColor = focalNode
     ? TOPIC_COLORS[focalNode.topicNumber] || 'var(--accent)'
@@ -479,7 +518,7 @@ export function InteractiveDagCanvas({
             type="button"
             className="icon-button"
             aria-label="Zoom in"
-            onClick={() => setZoom((value) => Math.min(2.2, value + 0.15))}
+            onClick={() => zoomAt(Math.min(2.2, zoom * 1.2), viewport.width / 2, viewport.height / 2)}
           >
             <ZoomIn size={16} />
           </button>
@@ -487,14 +526,15 @@ export function InteractiveDagCanvas({
             type="button"
             className="icon-button"
             aria-label="Zoom out"
-            onClick={() => setZoom((value) => Math.max(0.15, value - 0.15))}
+            onClick={() => zoomAt(Math.max(0.05, zoom / 1.2), viewport.width / 2, viewport.height / 2)}
           >
             <ZoomOut size={16} />
           </button>
           <button
             type="button"
             className="icon-button"
-            aria-label="Center graph"
+            aria-label="Fit visible graph"
+            title="Fit visible graph"
             onClick={fitToCurrentBounds}
           >
             <Maximize2 size={16} />
@@ -666,7 +706,7 @@ export function InteractiveDagCanvas({
                       height={height}
                       rx={10}
                       ry={10}
-                      fill={isFocal ? '#f4f8f2' : isCompleted ? '#fcfffa' : '#ffffff'}
+                      fill={isFocal || isCompleted ? 'var(--soft)' : 'var(--surface)'}
                       stroke={borderColor}
                       strokeWidth={borderWidth}
                       strokeDasharray={isDerivedPrereq || isDerivedUnlock ? '4,3' : undefined}
@@ -703,80 +743,36 @@ export function InteractiveDagCanvas({
 
                     {/* Top Expand Pill (Prerequisites Entering Port) */}
                     {node.prerequisites.length > 0 ? (
-                      <g
-                        className="dag-expand-pill-top"
-                        transform={`translate(${width / 2 - 45}, -11)`}
-                        onClick={(e) => handleTogglePrerequisites(node.id, e)}
-                        style={{ cursor: 'pointer' }}
-                        role="button"
-                        aria-label={
-                          hasHiddenPrereqs
-                            ? `Expand prerequisites for ${node.title}`
-                            : `Hide prerequisites for ${node.title}`
-                        }
-                      >
-                        <rect
-                          width={90}
-                          height={20}
-                          rx={10}
-                          fill={hasHiddenPrereqs ? '#ecfdf5' : '#f8fafc'}
-                          stroke={hasHiddenPrereqs ? '#10b981' : '#94a3b8'}
-                          strokeWidth={1.2}
-                        />
-                        <text
-                          x={45}
-                          y={13.5}
-                          fontSize={9.5}
-                          fontWeight={600}
-                          textAnchor="middle"
-                          fill={hasHiddenPrereqs ? '#047857' : '#475569'}
-                          style={{ pointerEvents: 'none', userSelect: 'none' }}
+                      <foreignObject x={width / 2 - 58} y={-13} width={116} height={26}>
+                        <button
+                          type="button"
+                          className="dag-port"
+                          onClick={(event) => handleTogglePrerequisites(node.id, event)}
+                          aria-label={`${hasHiddenPrereqs ? 'Expand' : 'Hide'} prerequisites for ${node.title}`}
                         >
                           {hasHiddenPrereqs
-                            ? `▲ +${hiddenPrereqs.length} Prereqs`
-                            : `▲ Hide (${visiblePrereqs.length})`}
-                        </text>
-                      </g>
+                            ? `+ ${hiddenPrereqs.length} prereqs`
+                            : `Hide ${visiblePrereqs.length} prereqs`}
+                        </button>
+                      </foreignObject>
                     ) : (
                       <circle cx={width / 2} cy={0} r={3.5} fill="#4a6741" stroke="#fff" strokeWidth={1} />
                     )}
 
                     {/* Bottom Expand Pill (Unlocks Outgoing Port) */}
                     {node.unlockedLectures.length > 0 ? (
-                      <g
-                        className="dag-expand-pill-bottom"
-                        transform={`translate(${width / 2 - 45}, ${height - 9})`}
-                        onClick={(e) => handleToggleUnlocks(node.id, e)}
-                        style={{ cursor: 'pointer' }}
-                        role="button"
-                        aria-label={
-                          hasHiddenUnlocks
-                            ? `Expand unlocks for ${node.title}`
-                            : `Hide unlocks for ${node.title}`
-                        }
-                      >
-                        <rect
-                          width={90}
-                          height={20}
-                          rx={10}
-                          fill={hasHiddenUnlocks ? '#eff6ff' : '#f8fafc'}
-                          stroke={hasHiddenUnlocks ? '#3b82f6' : '#94a3b8'}
-                          strokeWidth={1.2}
-                        />
-                        <text
-                          x={45}
-                          y={13.5}
-                          fontSize={9.5}
-                          fontWeight={600}
-                          textAnchor="middle"
-                          fill={hasHiddenUnlocks ? '#1d4ed8' : '#475569'}
-                          style={{ pointerEvents: 'none', userSelect: 'none' }}
+                      <foreignObject x={width / 2 - 58} y={height - 13} width={116} height={26}>
+                        <button
+                          type="button"
+                          className="dag-port"
+                          onClick={(event) => handleToggleUnlocks(node.id, event)}
+                          aria-label={`${hasHiddenUnlocks ? 'Expand' : 'Hide'} unlocks for ${node.title}`}
                         >
                           {hasHiddenUnlocks
-                            ? `▼ +${hiddenUnlocks.length} Next`
-                            : `▼ Hide (${visibleUnlocks.length})`}
-                        </text>
-                      </g>
+                            ? `+ ${hiddenUnlocks.length} next`
+                            : `Hide ${visibleUnlocks.length} next`}
+                        </button>
+                      </foreignObject>
                     ) : (
                       <circle
                         cx={width / 2}

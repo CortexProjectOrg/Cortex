@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { lazy, Suspense, useEffect, useState, useRef } from 'react';
-import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { SaveStatus } from './components/ui/SaveStatus';
 import { SubfieldIcon } from './components/SubfieldIcon';
@@ -57,9 +57,6 @@ const ReferenceReader = lazy(() =>
 );
 const Library = lazy(() =>
   import('./components/reference/ReferenceLibrary').then((m) => ({ default: m.ReferenceLibrary }))
-);
-const PaperPlanner = lazy(() =>
-  import('./components/PaperPlanner').then((m) => ({ default: m.PaperPlanner }))
 );
 const PdfEmbedViewer = lazy(() =>
   import('./components/PdfEmbedViewer').then((m) => ({ default: m.PdfEmbedViewer }))
@@ -189,7 +186,6 @@ export default function App() {
     { to: '/topics', label: 'Topics', icon: <Layers size={19} /> },
     { to: '/tree', label: 'Knowledge map', icon: <Network size={19} /> },
     { to: '/path', label: 'Study path', icon: <Calendar size={19} /> },
-    { to: '/papers', label: 'Paper study', icon: <Network size={19} /> },
     { to: '/notes', label: 'Notebook', icon: <PenTool size={19} /> },
     { to: '/library', label: 'Library', icon: <BookOpen size={19} /> }
   ];
@@ -418,9 +414,17 @@ export default function App() {
                     <Route path="/topics" element={<TopicBrowser />} />
                     <Route path="/topics/:topicId/:lectureId" element={<LectureReader />} />
                     <Route path="/tree" element={<KnowledgeGraphView />} />
-                    <Route path="/graph" element={<KnowledgeGraphView />} />
+                    <Route
+                      path="/graph"
+                      element={
+                        <Navigate
+                          to={{ pathname: '/tree', search: location.search, hash: location.hash }}
+                          replace
+                        />
+                      }
+                    />
                     <Route path="/path" element={<StudyPathView />} />
-                    <Route path="/papers" element={<PaperPlanner />} />
+                    <Route path="/papers" element={<Navigate to="/tree?study=paper" replace />} />
                     <Route path="/notes" element={<NotebookView />} />
                     <Route path="/notes/:id" element={<NotebookView />} />
                     <Route path="/library" element={<Library />} />

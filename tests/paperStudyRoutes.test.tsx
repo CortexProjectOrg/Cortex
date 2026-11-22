@@ -83,7 +83,10 @@ it('keeps the active plan, completion and note across the real routes and resets
   input.concepts[0].title = 'Groups';
   vi.mocked(analyzePaper).mockResolvedValueOnce(buildPaperPlan(input));
   render(app('/papers'));
-  await screen.findByRole('heading', { name: 'Paper study' });
+  await screen.findByRole('region', { name: 'Paper to tree' });
+  const sidebar = within(screen.getByRole('navigation', { name: 'Main navigation' }));
+  expect(sidebar.getByRole('link', { name: 'Knowledge map' }).getAttribute('aria-current')).toBe('page');
+  expect(sidebar.queryByRole('link', { name: /paper/i })).toBeNull();
   fireEvent.change(screen.getByLabelText('Gemini API key'), { target: { value: 'test-key' } });
   fireEvent.change(screen.getByLabelText('Or paste the theorem and proof'), {
     target: { value: sourcePaper }
@@ -105,8 +108,10 @@ it('keeps the active plan, completion and note across the real routes and resets
   const saved = screen.getByRole('link', { name: 'Open study note' }).getAttribute('href');
   expect(workspace.data.notes).toHaveLength(1);
 
-  clickLink('Explore in Knowledge Map');
-  await screen.findByRole('heading', { name: 'Knowledge map' });
+  clickLink('Curriculum');
+  await screen.findByRole('region', { name: 'Selected lecture' });
+  clickLink('Paper to tree');
+  await screen.findByRole('navigation', { name: 'Theorem dependency tree' });
   expect(depth()).toBe('1');
   expect(inspector().getByRole('heading', { name: maps.title })).toBeTruthy();
   expect(tree().getByText('Selected prerequisite')).toBeTruthy();
@@ -123,10 +128,7 @@ it('keeps the active plan, completion and note across the real routes and resets
   await act(async () => {
     await navigate(-1);
   });
-  await screen.findByRole('link', { name: 'Back to Paper Study' });
-  expect(depth()).toBe('5');
-  clickLink('Back to Paper Study');
-  await screen.findByRole('heading', { name: 'Paper study' });
+  await screen.findByRole('navigation', { name: 'Theorem dependency tree' });
   expect(depth()).toBe('5');
   expect(tree().getByRole('button', { name: `${maps.title} Done`, pressed: true })).toBeTruthy();
   expect(inspector().getByRole('button', { name: 'Mark done', pressed: true })).toBeTruthy();
@@ -150,16 +152,12 @@ it('keeps the active plan, completion and note across the real routes and resets
 
 it('recovers from a stale paper link and clears the session when the workspace account changes', async () => {
   const view = render(app('/tree?study=paper'));
-  await screen.findByRole('link', { name: 'Open Paper Study' });
-  clickLink('Open Paper Study');
-  await screen.findByRole('heading', { name: 'Paper study' });
+  await screen.findByRole('button', { name: 'Generate tree' });
   importTree(paperAnalysis);
   await screen.findByRole('heading', { name: 'Inverses of maps' });
-  clickLink('Explore in Knowledge Map');
-  await screen.findByRole('link', { name: 'Back to Paper Study' });
   auth.user = { uid: 'paper-account-B', name: 'Paper Account B', email: 'b@example.test' };
   view.rerender(app('/tree?study=paper'));
-  await waitFor(() => expect(screen.getByRole('link', { name: 'Open Paper Study' })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Generate tree' })).toBeTruthy());
   expect(screen.queryByRole('heading', { name: 'Inverses of maps' })).toBeNull();
   expect(analyzePaper).not.toHaveBeenCalled();
 }, 12000);

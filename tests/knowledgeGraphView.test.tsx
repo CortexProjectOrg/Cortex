@@ -39,6 +39,19 @@ function mount(query = '') {
 }
 
 describe('explicit graph card actions', () => {
+  it('opens on a focused lesson and discloses additional direct connections on demand', () => {
+    mount();
+    expect(screen.getByRole('button', { name: 'Connections', pressed: true })).toBeTruthy();
+    const next = within(screen.getByRole('region', { name: 'Next lectures' }));
+    expect(next.getAllByRole('article')).toHaveLength(4);
+    fireEvent.click(next.getByRole('button', { name: /^Show more/ }));
+    expect(next.getAllByRole('article').length).toBeGreaterThan(4);
+    fireEvent.click(next.getByRole('button', { name: `Explore ${groupsTitle}` }));
+    const focus = screen.getByRole('region', { name: 'Selected lecture' });
+    expect(document.activeElement).toBe(focus);
+    expect(within(focus).getByRole('article', { name: groupsTitle })).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
   it('shows a declared shortcut and keeps the full study order when the start is unrelated', () => {
     mount();
     fireEvent.click(screen.getByText('Study route'));

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { FileText, Network } from 'lucide-react';
 import {
   computeNodeReadiness,
   getKnowledgeDAG,
@@ -22,7 +23,8 @@ import { LectureDetailDrawer } from './graph/LectureDetailDrawer';
 import { StratifiedTreeView } from './graph/StratifiedTreeView';
 import { NodeCard, type StudyCardActions } from './graph/NodeCard';
 import { StudyBranchList } from './graph/StudyBranchList';
-import { PaperStudyResult } from './graph/PaperStudyResult';
+import { PaperPlanner } from './PaperPlanner';
+import './knowledgeMap.css';
 
 function RouteEndpoint({
   dag,
@@ -68,13 +70,35 @@ function RouteEndpoint({
 
 export function KnowledgeGraphView() {
   const [searchParams] = useSearchParams();
-  return searchParams.get('study') === 'paper' ? (
-    <div className="page paper-planner">
-      <h1>Knowledge map</h1>
-      <PaperStudyResult host="map" />
+  const paper = searchParams.get('study') === 'paper';
+  const curriculumParams = new URLSearchParams(searchParams);
+  curriculumParams.delete('study');
+  const paperParams = new URLSearchParams(curriculumParams);
+  paperParams.set('study', 'paper');
+  return (
+    <div className="page knowledge-map">
+      <header className="map-header">
+        <h1>Knowledge map</h1>
+        <nav aria-label="Map source" className="map-sources">
+          <Link
+            to={{ pathname: '/tree', search: curriculumParams.toString() }}
+            aria-current={!paper ? 'page' : undefined}
+          >
+            <Network size={16} /> Curriculum
+          </Link>
+          <Link
+            to={{ pathname: '/tree', search: paperParams.toString() }}
+            aria-current={paper ? 'page' : undefined}
+          >
+            <FileText size={16} /> Paper to tree
+          </Link>
+        </nav>
+      </header>
+      <div hidden={paper}>
+        <CatalogKnowledgeGraphView focusId={searchParams.get('focus')} />
+      </div>
+      {paper && <PaperPlanner />}
     </div>
-  ) : (
-    <CatalogKnowledgeGraphView focusId={searchParams.get('focus')} />
   );
 }
 
@@ -91,6 +115,7 @@ function CatalogKnowledgeGraphView({ focusId }: { focusId: string | null }) {
   const [detailsNodeId, setDetailsNodeId] = useState<string | null>(null);
   const detailsOpener = useRef<HTMLButtonElement | null>(null);
   const page = useRef<HTMLDivElement>(null);
+  const branchHeading = useRef<HTMLHeadingElement>(null);
   const [branch, setBranch] = useState<{ root: string; direction: StudyDirection } | null>(null);
   const [branchDepth, setBranchDepth] = useState(2);
   const [startId, setStartId] = useState('');
@@ -99,7 +124,11 @@ function CatalogKnowledgeGraphView({ focusId }: { focusId: string | null }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [topicFilter, setTopicFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('hierarchical');
+  const [viewMode, setViewMode] = useState<ViewMode>('ramifications');
+
+  useEffect(() => {
+    if (branch) branchHeading.current?.focus();
+  }, [branch]);
 
   // Sync focus param
   useEffect(() => {
@@ -199,13 +228,7 @@ function CatalogKnowledgeGraphView({ focusId }: { focusId: string | null }) {
   };
 
   return (
-    <div className="page" ref={page} style={{ maxWidth: '1440px' }}>
-      <div className="page-title-row">
-        <h1>Knowledge map</h1>
-        <span className="subtle">
-          {stats.completed}/{stats.total} done
-        </span>
-      </div>
+    <div ref={page}>
       {/* Filter and Control Toolbar */}
       <GraphToolbar
         searchQuery={searchQuery}
@@ -278,7 +301,9 @@ function CatalogKnowledgeGraphView({ focusId }: { focusId: string | null }) {
       {branch && (
         <section className="study-focus" aria-label="Focused lesson connections">
           <div className="study-focus-toolbar">
-            <h2>{branch.direction === 'prerequisites' ? 'Prerequisites' : 'What this unlocks'}</h2>
+            <h2 ref={branchHeading} tabIndex={-1}>
+              {branch.direction === 'prerequisites' ? 'Prerequisites' : 'What this unlocks'}
+            </h2>
             <label>
               Depth{' '}
               <select value={branchDepth} onChange={(event) => setBranchDepth(Number(event.target.value))}>
@@ -391,8 +416,11 @@ function CatalogKnowledgeGraphView({ focusId }: { focusId: string | null }) {
           {viewMode === 'ramifications' && filteredNodes.length > 0 && (
             <DagRamificationExplorer
               dag={dag}
-              selectedNodeId={selectedNodeId ?? filteredNodes[0].id}
+              selectedNodeId={
+                selectedNodeId && filteredNodeIds.has(selectedNodeId) ? selectedNodeId : filteredNodes[0].id
+              }
               onSelectNode={setSelectedNodeId}
+              onExploreGraph={exploreNode}
               onShowDetails={showDetails}
               studyActions={studyActions}
               filteredNodeIds={filteredNodeIds}

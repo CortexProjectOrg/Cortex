@@ -93,9 +93,19 @@ export function PaperPlanner() {
     }
   };
   return (
-    <div className="page paper-planner">
+    <section className="paper-planner" aria-label="Paper to tree">
       <div className="page-title-row">
-        <h1>Paper study</h1>
+        {active ? (
+          <button
+            className="button secondary small"
+            type="button"
+            onClick={() => setEditing((value) => !value)}
+          >
+            {editing ? 'Close settings' : 'Change paper or theorem'}
+          </button>
+        ) : (
+          <h2>Build a prerequisite tree</h2>
+        )}
         <label className="button secondary small paper-import">
           Open saved tree
           <input
@@ -131,18 +141,8 @@ export function PaperPlanner() {
           />
         </label>
       </div>
-      {active && (
-        <button
-          className="button secondary small"
-          type="button"
-          onClick={() => setEditing((value) => !value)}
-        >
-          {editing ? 'Close settings' : 'Change paper or theorem'}
-        </button>
-      )}
       <form onSubmit={generate} className="paper-form" hidden={!!active && !editing}>
-        <fieldset disabled={busy || reading}>
-          <legend>Build a prerequisite tree</legend>
+        <fieldset disabled={busy || reading} aria-label="Build a prerequisite tree">
           <div className="paper-input-grid">
             <div className="paper-source">
               <label htmlFor="paper-file">Paper file</label>
@@ -317,7 +317,7 @@ export function PaperPlanner() {
           </button>
         </section>
       )}
-      <PaperStudyResult host="paper" />
-    </div>
+      <PaperStudyResult />
+    </section>
   );
 }

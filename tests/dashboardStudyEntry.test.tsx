@@ -37,7 +37,7 @@ it.each([false, true])(
     );
     expect(
       screen.getByRole('link', { name: active ? 'Resume paper' : 'Study a paper' }).getAttribute('href')
-    ).toBe('/papers');
+    ).toBe('/tree?study=paper');
     expect(screen.getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe(
       lectureRoute(next.topicId, next.id)
     );

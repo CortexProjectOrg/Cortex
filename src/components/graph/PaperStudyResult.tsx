@@ -12,7 +12,7 @@ import { MarkdownView } from '../MarkdownView';
 import { StudyBranchList } from './StudyBranchList';
 import '../paperPlanner.css';
 
-export function PaperStudyResult({ host }: { host: 'paper' | 'map' }) {
+export function PaperStudyResult() {
   const { active, revision, updateActive } = usePaperStudySession();
   const { data, loaded, update } = useWorkspace();
   const resultHeading = useRef<HTMLHeadingElement>(null);
@@ -27,13 +27,7 @@ export function PaperStudyResult({ host }: { host: 'paper' | 'map' }) {
       updateActive(revision, (current) => ({ ...current, savedNoteId: null }));
   }, [data.notes, loaded, revision, savedNoteId, updateActive]);
 
-  if (!active) {
-    return host === 'map' ? (
-      <Link className="button primary" to="/papers">
-        Open Paper Study
-      </Link>
-    ) : null;
-  }
+  if (!active) return null;
   const { plan, evidenceStatus } = active;
   const { graph } = plan;
   const theorem = plan.analysis.theorem!;
@@ -105,9 +99,6 @@ export function PaperStudyResult({ host }: { host: 'paper' | 'map' }) {
           {plan.analysis.paperTitle}
         </h2>
         <div className="paper-actions">
-          <Link className="button secondary small" to={host === 'map' ? '/papers' : '/tree?study=paper'}>
-            {host === 'map' ? 'Back to Paper Study' : 'Explore in Knowledge Map'}
-          </Link>
           <button className="button secondary small" type="button" onClick={exportTree}>
             <Download size={15} /> Export tree
           </button>

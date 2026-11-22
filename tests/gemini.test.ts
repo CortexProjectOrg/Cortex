@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { analyzePaper, DEFAULT_GEMINI_MODEL, readPaperFile } from '../src/lib/gemini';
-import { paperAnalysisSchema } from '../src/lib/paperPlan';
+import { buildPaperPlan, paperAnalysisSchema } from '../src/lib/paperPlan';
 import { paperAnalysis, sourcePaper } from './fixtures/paperAnalysis';
 
 const options = () => ({
@@ -23,6 +23,23 @@ beforeEach(() =>
 );
 afterEach(() => vi.unstubAllGlobals());
 describe('Gemini paper boundary', () => {
+  it('accepts consistent underscore IDs in a completed PDF response and preserves them on import', async () => {
+    const input = structuredClone(paperAnalysis);
+    input.concepts[0].id = 'map_definition';
+    input.concepts[1].id = 'inverse_maps';
+    input.concepts[1].prerequisites = ['map_definition'];
+    input.theorem!.prerequisites = ['inverse_maps'];
+    vi.mocked(fetch).mockResolvedValue(success(input));
+    const plan = await analyzePaper({
+      ...options(),
+      paper: { kind: 'pdf', data: 'JVBERi0=', name: 'maps.pdf' }
+    });
+    expect(plan.analysis).toEqual(input);
+    expect(buildPaperPlan(plan.analysis).graph?.edges).toEqual(plan.graph?.edges);
+    input.concepts[1].prerequisites = ['map-definition'];
+    vi.mocked(fetch).mockResolvedValue(success(input));
+    await expect(analyzePaper(options())).rejects.toMatchObject({ code: 'proposal' });
+  });
   it('rejects a different numbered theorem even when its quote appears in the source', async () => {
     const args = options();
     args.paper.text += ' Theorem 2: The inverse of a bijection is itself a bijection.';

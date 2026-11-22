@@ -1,4 +1,5 @@
-import { GitFork, Layers, Network, Search, Workflow, X } from 'lucide-react';
+import { GitFork, Layers, Network, Search, SlidersHorizontal, Workflow, X } from 'lucide-react';
+import { useId, useState } from 'react';
 import { TOPICS } from '../../lib/curriculumCatalog';
 import { getTopicSubfield, SUBFIELDS } from '../../lib/topicDiscovery';
 
@@ -34,22 +35,11 @@ export function GraphToolbar({
   totalNodes,
   stats
 }: GraphToolbarProps) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const optionsId = useId();
+  const activeFilters = Number(topicFilter !== 'all') + Number(statusFilter !== 'all');
   return (
-    <div
-      className="graph-toolbar"
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--line)',
-        borderRadius: '9px',
-        padding: '14px 18px',
-        marginBottom: '24px',
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '14px',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}
-    >
+    <div className="graph-toolbar map-filters">
       <div className="graph-query">
         {/* Search Field */}
         <div className="search-field small" style={{ flex: 1, minWidth: 0 }}>
@@ -79,20 +69,18 @@ export function GraphToolbar({
           )}
         </div>
 
-        {/* Topic Select */}
-        <select
-          aria-label="Topic"
-          value={topicFilter}
-          onChange={(e) => setTopicFilter(e.target.value)}
-          style={{
-            border: '1px solid var(--line)',
-            background: 'var(--bg)',
-            borderRadius: '6px',
-            padding: '8px 12px',
-            fontSize: '11px',
-            color: 'var(--ink)'
-          }}
+        <button
+          type="button"
+          className="button secondary map-filter-toggle"
+          aria-controls={optionsId}
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen(!filtersOpen)}
         >
+          <SlidersHorizontal size={15} /> Filters{activeFilters > 0 && ` (${activeFilters})`}
+        </button>
+      </div>
+      <div className="map-filter-options" id={optionsId} data-open={filtersOpen}>
+        <select aria-label="Topic" value={topicFilter} onChange={(e) => setTopicFilter(e.target.value)}>
           <option value="all">All topics</option>
           {SUBFIELDS.map((field) => (
             <optgroup key={field.id} label={field.title}>
@@ -104,39 +92,45 @@ export function GraphToolbar({
             </optgroup>
           ))}
         </select>
-      </div>
 
-      {/* Status Pill Filters */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '11px', color: 'var(--muted)', marginRight: '4px' }}>Status:</span>
-        {(
-          [
-            { key: 'all', label: `All (${totalNodes})` },
-            { key: 'ready', label: `Ready (${stats.ready})` },
-            { key: 'completed', label: `Done (${stats.completed})` },
-            { key: 'locked', label: `Locked (${stats.locked})` }
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`button small ${statusFilter === tab.key ? 'primary' : 'secondary'}`}
-            style={{
-              minHeight: '32px',
-              padding: '5px 11px',
-              fontSize: '11px',
-              borderRadius: '6px'
-            }}
-            aria-pressed={statusFilter === tab.key}
-            onClick={() => setStatusFilter(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <div className="map-statuses" role="group" aria-label="Filter by progress">
+          {(
+            [
+              { key: 'all', label: `All (${totalNodes})` },
+              { key: 'ready', label: `Ready (${stats.ready})` },
+              { key: 'completed', label: `Done (${stats.completed})` },
+              { key: 'locked', label: `Locked (${stats.locked})` }
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`button small ${statusFilter === tab.key ? 'primary' : 'secondary'}`}
+              style={{
+                minHeight: '32px',
+                padding: '5px 11px',
+                fontSize: '11px',
+                borderRadius: '6px'
+              }}
+              aria-pressed={statusFilter === tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
-
       {/* View Mode Toggle */}
-      <div className="segmented">
+      <div className="segmented" role="group" aria-label="Map view">
+        <button
+          type="button"
+          className={viewMode === 'ramifications' ? 'selected' : ''}
+          aria-pressed={viewMode === 'ramifications'}
+          onClick={() => setViewMode('ramifications')}
+          title="Prerequisites and next lectures"
+        >
+          <Workflow size={14} /> Connections
+        </button>
         <button
           type="button"
           className={viewMode === 'hierarchical' ? 'selected' : ''}
@@ -154,15 +148,6 @@ export function GraphToolbar({
           title="Explore prerequisite connections"
         >
           <Network size={14} /> Graph
-        </button>
-        <button
-          type="button"
-          className={viewMode === 'ramifications' ? 'selected' : ''}
-          aria-pressed={viewMode === 'ramifications'}
-          onClick={() => setViewMode('ramifications')}
-          title="Prerequisites and next lectures"
-        >
-          <Workflow size={14} /> Connections
         </button>
         <button
           type="button"
