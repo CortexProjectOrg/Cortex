@@ -1,3 +1,5 @@
+import { CURRENT_LECTURE_EDITION } from '../../shared/ink';
+
 export type LectureVisualKind = 'diagram' | 'practice';
 export type LectureVisualSection = 'theory' | 'workedExample';
 type Location = {
@@ -172,7 +174,10 @@ const revisionFiveLocations: typeof locations = {
 };
 
 export function lectureVisualPlacements(lectureId: string, legacy = false, revision = legacy ? 1 : 5) {
-  const lecture = (revision >= 5 ? revisionFiveLocations[lectureId] : undefined) ?? locations[lectureId];
+  const lecture =
+    (revision >= CURRENT_LECTURE_EDITION ? revisedLocations[lectureId] : undefined) ??
+    (revision >= 5 ? revisionFiveLocations[lectureId] : undefined) ??
+    locations[lectureId];
   return (['practice', 'diagram'] as const).flatMap((kind) => {
     const location = lecture?.[kind];
     return location
@@ -186,3 +191,9 @@ export function lectureVisualPlacements(lectureId: string, legacy = false, revis
       : [];
   });
 }
+const revisedLocations: typeof locations = {
+  'L13-density-matrices-mixed-states': { diagram: example },
+  'L44-block-diagonalization-pipeline': { diagram: example },
+  'L52-bayesian-adaptive-allocation': { diagram: example },
+  'L84-noise-spectroscopy-filter-functions': { diagram: example, practice: example }
+};

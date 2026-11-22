@@ -1,6 +1,6 @@
 # Saturday 2: qubits, Paulis, and phase
 
-[Index](../../README.md) · [Previous](../01-foundations/README.md) · [Next](../03-cliffords-stabilizers/README.md) · [My notes](../../notes/02-quantum-paulis.md)
+[Study plan](../../PLAN.md) · [Previous](../01-foundations/README.md) · [Next](../03-cliffords-stabilizers/README.md) · [My notes](../../notes/02-quantum-paulis.md)
 
 **Main question:** what does a binary Pauli label retain, and where does the phase go?
 

@@ -8,6 +8,7 @@ interface LectureDagPanelProps {
   dag: KnowledgeDAG;
   lectureId: string;
   completedLectures?: string[];
+  showClosure?: boolean;
 }
 
 export function LectureDagPanel({
@@ -15,7 +16,8 @@ export function LectureDagPanel({
   dagNode,
   dag,
   lectureId,
-  completedLectures = []
+  completedLectures = [],
+  showClosure = false
 }: LectureDagPanelProps) {
   return (
     <div
@@ -84,7 +86,7 @@ export function LectureDagPanel({
             marginBottom: '6px'
           }}
         >
-          HARD PREREQUISITES{' '}
+          {showClosure ? 'DIRECT PREREQUISITES' : 'HARD PREREQUISITES'}{' '}
           {dagNode.prerequisites.length === 0
             ? '(Foundational Bedrock · No Prerequisites)'
             : `(${dagNode.prerequisites.length})`}
@@ -127,6 +129,25 @@ export function LectureDagPanel({
           </div>
         )}
       </div>
+
+      {showClosure && dagNode.allPrerequisites.length > dagNode.prerequisites.length && (
+        <details data-reading-only>
+          <summary>All prerequisites ({dagNode.allPrerequisites.length})</summary>
+          <ol>
+            {dagNode.allPrerequisites.map((id) => {
+              const node = dag.nodes.get(id);
+              return (
+                node && (
+                  <li key={id}>
+                    <Link to={'/topics/' + node.topicId + '/' + id}>{node.title}</Link>
+                    {completedLectures.includes(id) ? ' · Done' : ''}
+                  </li>
+                )
+              );
+            })}
+          </ol>
+        </details>
+      )}
 
       {/* Directly Unlocked */}
       {dagNode.unlockedLectures.length > 0 && (

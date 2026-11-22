@@ -4,28 +4,60 @@ import { WidgetRange, WidgetSelect, WidgetValues, type WidgetSpec } from './Widg
 const paulis = ['I', 'X', 'Y', 'Z'].map((symbol) => [symbol, symbol] as const);
 
 function CommutationWidget() {
-  const [first, setFirst] = useState('Z');
-  const [second, setSecond] = useState('Z');
-  const flips = [first, second].filter((p) => p === 'Y' || p === 'Z').length;
+  const [leftFirst, setLeftFirst] = useState('X');
+  const [leftSecond, setLeftSecond] = useState('X');
+  const [rightFirst, setRightFirst] = useState('Z');
+  const [rightSecond, setRightSecond] = useState('Z');
+  const pairs = [
+    [leftFirst, rightFirst],
+    [leftSecond, rightSecond]
+  ];
+  const negative = pairs.map(([left, right]) => left !== 'I' && right !== 'I' && left !== right);
+  const flips = negative.filter(Boolean).length;
   return (
     <>
       <div className="widget-selects">
-        <WidgetSelect label="Site 1" value={first} options={paulis} onChange={setFirst} />
-        <WidgetSelect label="Site 2" value={second} options={paulis} onChange={setSecond} />
+        <WidgetSelect
+          label="Left string, site 1"
+          value={leftFirst}
+          options={paulis}
+          onChange={setLeftFirst}
+        />
+        <WidgetSelect
+          label="Left string, site 2"
+          value={leftSecond}
+          options={paulis}
+          onChange={setLeftSecond}
+        />
+        <WidgetSelect
+          label="Right string, site 1"
+          value={rightFirst}
+          options={paulis}
+          onChange={setRightFirst}
+        />
+        <WidgetSelect
+          label="Right string, site 2"
+          value={rightSecond}
+          options={paulis}
+          onChange={setRightSecond}
+        />
       </div>
       <figure>
-        <ul className="widget-tiles" aria-label="Local signs for swapping X with each selected Pauli">
-          {[first, second].map((p, index) => (
-            <li key={index} className={`widget-tile${p === 'Y' || p === 'Z' ? ' widget-tile-marked' : ''}`}>
+        <ul className="widget-tiles" aria-label="Local commutation signs">
+          {pairs.map(([left, right], index) => (
+            <li key={index} className={'widget-tile' + (negative[index] ? ' widget-tile-marked' : '')}>
               <span>Site {index + 1}</span>
-              <strong>X ↔ {p}</strong>
-              <span>{p === 'Y' || p === 'Z' ? '−1 · anticommute' : '+1 · commute'}</span>
+              <strong>
+                {left} ↔ {right}
+              </strong>
+              <span>{negative[index] ? '−1 · anticommute' : '+1 · commute'}</span>
             </li>
           ))}
         </ul>
         <figcaption>
-          Multiply the two local signs to swap the full strings XX and {first}
-          {second}.
+          Multiply the local signs to swap {leftFirst}
+          {leftSecond} and {rightFirst}
+          {rightSecond}.
         </figcaption>
       </figure>
       <WidgetValues
@@ -125,8 +157,8 @@ function ShotBudgetWidget() {
           </li>
         </ul>
         <figcaption>
-          The single-shot standard deviations are 1 and 2. For independent sample means, add 1/Nₐ and 4/Nᵦ
-          before taking the square root.
+          The weighted single-shot standard deviations are 1 and 2. For independent sample means, add 1/Nₐ and
+          4/Nᵦ before taking the square root.
         </figcaption>
       </figure>
       <WidgetValues values={[['Standard error of A + B', standardError.toFixed(4)]]} />

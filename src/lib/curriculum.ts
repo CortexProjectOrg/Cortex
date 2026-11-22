@@ -283,9 +283,11 @@ export const LEGACY_TOPICS: Topic[] = [
 
 // Detailed metadata with full theoretical citations for key lectures
 import { FULL_LECTURES_RECORD } from './curriculumData';
+import { CURRENT_LECTURE_EDITION } from '../../shared/ink';
 import { CLASSICAL_COMPLEXITY_PACK } from './classicalComplexityLessons';
 import { COMPUTATIONAL_MATH } from './computationalMathLessons';
 import { CURRICULUM_REVISIONS } from './curriculumRevisions';
+import { reviseLecture } from './curriculumEditionSeven';
 import { DEVICE_PHYSICS } from './devicePhysicsLessons';
 import { ERROR_CORRECTION } from './errorCorrectionLessons';
 import { FOUNDATION_LESSONS } from './foundationLessons';
@@ -468,14 +470,16 @@ const RELATED_EXPANSION: Partial<Record<string, SoftLink>> = {
   }
 };
 
+const REVISION_SIX_LECTURES = [
+  ...REVISION_FIVE_LECTURES.map((lecture) => {
+    const link = RELATED_EXPANSION[lecture.id];
+    return link ? { ...lecture, softLinks: [...(lecture.softLinks ?? []), link] } : lecture;
+  }),
+  ...NEW_PACKS.flatMap(({ lectures }) => lectures)
+];
+
 export function getAllLectures(): Lecture[] {
-  return [
-    ...REVISION_FIVE_LECTURES.map((lecture) => {
-      const link = RELATED_EXPANSION[lecture.id];
-      return link ? { ...lecture, softLinks: [...(lecture.softLinks ?? []), link] } : lecture;
-    }),
-    ...NEW_PACKS.flatMap(({ lectures }) => lectures)
-  ];
+  return REVISION_SIX_LECTURES.map(reviseLecture);
 }
 
 export const ALL_LECTURES = getAllLectures();
@@ -493,7 +497,8 @@ const ORIGINAL_CATALOG = {
 };
 const PREVIOUS_CATALOGS = new Map([
   [4, readerCatalog(REVISION_FOUR_LECTURES, REVISION_FOUR_TOPICS)],
-  [5, readerCatalog(REVISION_FIVE_LECTURES, REVISION_FIVE_TOPICS)]
+  [5, readerCatalog(REVISION_FIVE_LECTURES, REVISION_FIVE_TOPICS)],
+  [6, readerCatalog(REVISION_SIX_LECTURES, TOPICS)]
 ]);
 const CURRENT_CATALOG = { lectures: ALL_LECTURES, topics: TOPICS, byId: LECTURE_MAP };
 
@@ -505,7 +510,12 @@ export function getLectureEdition(current: Lecture, savedVersion?: number) {
       return { lecture, version: savedVersion, originalContent: savedVersion < 4, catalog };
     }
   }
-  return { lecture: current, version: 6, originalContent: false, catalog: CURRENT_CATALOG };
+  return {
+    lecture: current,
+    version: CURRENT_LECTURE_EDITION,
+    originalContent: false,
+    catalog: CURRENT_CATALOG
+  };
 }
 
 // Keep legacy exports while deriving path size from the current catalog.

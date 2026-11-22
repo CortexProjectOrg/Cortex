@@ -2,7 +2,7 @@
 
 [Session](README.md) · [Theory](theory.md) · [Exercises](exercises.md) · [Architecture Guide](../../CODEBASE_MAP.md)
 
-Limit this initial architectural review to about 15 minutes at the conclusion of Block 4.
+Limit this initial architectural review to about 15 minutes at the conclusion of Block 4. Set up a [practice workspace](../../SETUP.md#create-a-rust-workspace) to run the examples. The two bits are storage labels. Session 2 explains which Pauli matrices they represent.
 
 ## Canonical Data Structure: Pauli Label Storage
 
@@ -81,7 +81,7 @@ mod tests {
 ## Architectural Insights
 
 1. **Why Global Phases are Separated**: Multiplications of pure symplectic labels in $\mathbb{F}_2^{2n}$ form a vector space under addition ($\oplus$). Tracking phases ($\pm 1, \pm i$) belongs to a higher-level state or group abstraction.
-2. **From Toy BitPair to $n$-Qubit Registers**: While a 1-qubit toy structure uses two fields `(u8, u8)`, multi-qubit engines pack multiple qubits into contiguous bit-arrays (`Vec<u64>`), matching processor cache lines.
+2. **From Toy BitPair to $n$-Qubit Registers**: The example's `Vec<bool>` stores directly indexed Boolean values. While a 1-qubit toy structure uses two fields `(u8, u8)`, multi-qubit engines pack multiple qubits into contiguous bit-arrays (`Vec<u64>`), matching processor cache lines.
 
 ## Questions to Consider
 

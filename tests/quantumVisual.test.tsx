@@ -116,7 +116,7 @@ it('renders the visual after the matching explanation and preserves its state ac
   expect((slider as HTMLInputElement).value).toBe('45');
 });
 
-it.each([2, 3, 4, 5, 6])(
+it.each([2, 3, 4, 5, 6, 7])(
   'keeps revision %i saved ink and its lecture text when using an inline visual',
   (version) => {
     const id = 'L01-sets-maps-proofs';
@@ -151,6 +151,20 @@ it.each([2, 3, 4, 5, 6])(
     expect(workspace.notes[0].lectureInk).toBe(lectureInk);
   }
 );
+
+it('opens the corrected lecture and returns to the saved edition without changing ink', () => {
+  const id = 'L01-sets-maps-proofs';
+  const lectureInk = serializeInk([], 960, 1600, { ...CANONICAL_PAGE_GEOMETRY, version: 6 });
+  workspace.notes = [{ ...makeNote('Saved ink', undefined, id), lectureInk }];
+  openLecture('/topics/math-foundations/' + id);
+  expect(screen.getByRole('button', { name: 'Annotate' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Read the corrected edition' }));
+  expect(screen.queryByRole('button', { name: 'Annotate' })).toBeNull();
+  expect(screen.getByText(/The identity map/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Return to saved annotations' }));
+  expect(screen.getByRole('button', { name: 'Annotate' })).toBeTruthy();
+  expect(workspace.notes[0].lectureInk).toBe(lectureInk);
+});
 
 it.each([5, 6])('renders the matching dependency graph alongside edition %i ink', (version) => {
   const id = 'L72-invariants-termination';

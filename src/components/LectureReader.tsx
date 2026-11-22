@@ -1,14 +1,8 @@
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, PanelRightClose, PenTool } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  ALL_LECTURES,
-  getLectureEdition,
-  LECTURE_MAP,
-  TOPICS,
-  LEGACY_LECTURE_MAP,
-  REVISION_FOUR_LECTURES
-} from '../lib/curriculum';
+import { CURRENT_LECTURE_EDITION } from '../../shared/ink';
+import { ALL_LECTURES, getLectureEdition, LECTURE_MAP, LEGACY_LECTURE_MAP } from '../lib/curriculum';
 import { formatStudyTime } from '../lib/studyTime';
 import { parseInkData } from '../lib/ink';
 import { buildKnowledgeDAG, getKnowledgeDAG } from '../lib/knowledgeGraph';
@@ -18,6 +12,7 @@ import { usePdfViewer } from '../lib/pdfViewerContext';
 import { toggleLecture } from '../lib/progress';
 import { useWorkspace } from '../lib/workspace';
 import { lectureVisualPlacements, type LectureVisualSection } from '../lib/lectureVisualPlacements';
+import { retainedLectureCorrection } from '../lib/retainedLectureErrata';
 import { DocumentInkOverlay } from './DocumentInkOverlay';
 import { MarkdownView } from './MarkdownView';
 import { LectureDagPanel } from './reader/LectureDagPanel';
@@ -42,6 +37,17 @@ export function LectureReader() {
     );
   return <LectureReaderContent key={lecture.id} />;
 }
+
+function ReadOnlyLectureSheet({ children }: React.ComponentProps<typeof DocumentInkOverlay>) {
+  return (
+    <div className="reading-mode">
+      <div className="reading-sheet-scroll-container">
+        <div className="reading-sheet">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 function LectureReaderContent() {
   const { lectureId } = useParams();
   const navigate = useNavigate();
@@ -55,19 +61,28 @@ function LectureReaderContent() {
   const inkVersion = attachedNote?.lectureInk
     ? parseInkData(attachedNote.lectureInk)?.visualization?.version || 1
     : undefined;
-  const { lecture, version, originalContent, catalog } = getLectureEdition(currentLecture, inkVersion);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const hasPriorEdition = inkVersion !== undefined && inkVersion < CURRENT_LECTURE_EDITION;
+  const readingCorrected = hasPriorEdition && showCurrent;
+  const { lecture, version, originalContent, catalog } = getLectureEdition(
+    currentLecture,
+    readingCorrected ? undefined : inkVersion
+  );
+  const currentEdition = version === CURRENT_LECTURE_EDITION;
+  const LectureSheet = readingCorrected ? ReadOnlyLectureSheet : DocumentInkOverlay;
+  const historicalCorrection = retainedLectureCorrection(lecture.lectureNumber, version);
   const visuals = lectureVisualPlacements(lecture.id, originalContent, version);
   const visualInsertions = (section: LectureVisualSection) =>
     visuals
       .filter((placement) => placement.section === section)
       .map(({ kind, afterHeading }) => ({
         afterHeading,
-        content: <LectureWidget lectureId={lecture.id} kind={kind} />
+        content: <LectureWidget lectureId={lecture.id} kind={kind} edition={version} />
       }));
   const topic = catalog.topics.find((t) => t.id === lecture.topicId) || catalog.topics[0];
   const dag = useMemo(
     () =>
-      catalog.topics === TOPICS ? getKnowledgeDAG() : buildKnowledgeDAG(catalog.lectures, catalog.topics),
+      catalog.byId === LECTURE_MAP ? getKnowledgeDAG() : buildKnowledgeDAG(catalog.lectures, catalog.topics),
     [catalog]
   );
   const dagNode = lecture ? dag.nodes.get(lecture.id) : null;
@@ -125,7 +140,7 @@ function LectureReaderContent() {
   const articleRef = useRef<HTMLElement>(null);
 
   // Find next and previous lectures in syllabus sequence
-  const syllabus = originalContent ? REVISION_FOUR_LECTURES : catalog.lectures;
+  const syllabus = catalog.lectures;
   const currentIndex = syllabus.findIndex((l) => l.id === lecture.id);
   const nextLecture = syllabus[currentIndex + 1];
   const prevLecture = syllabus[currentIndex - 1];
@@ -138,7 +153,7 @@ function LectureReaderContent() {
   const [draftNote] = useState(() => ({ ...makeNote(`Notes: ${lecture.title}`), lectureId: lecture.id }));
   const activeNote = attachedNote ?? draftNote;
 
-  const legacyLayout = inkVersion !== undefined && inkVersion < 3;
+  const legacyLayout = version < 3;
 
   // Track reading position and last read
   useEffect(() => {
@@ -240,8 +255,27 @@ function LectureReaderContent() {
           </div>
         </div>
 
-        <DocumentInkOverlay
-          key={lecture.id}
+        {hasPriorEdition && (
+          <div className="reader-toolbar">
+            <span>{readingCorrected ? 'Corrected edition' : 'Saved annotation edition ' + inkVersion}</span>
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={() => setShowCurrent(!showCurrent)}
+            >
+              {readingCorrected ? 'Return to saved annotations' : 'Read the corrected edition'}
+            </button>
+          </div>
+        )}
+        {historicalCorrection && (
+          <details>
+            <summary>Correction for this saved edition</summary>
+            <p>{historicalCorrection}</p>
+          </details>
+        )}
+
+        <LectureSheet
+          key={lecture.id + '-' + version}
           initialData={activeNote.lectureInk}
           legacyLayout={legacyLayout}
           contentVersion={version}
@@ -343,6 +377,7 @@ function LectureReaderContent() {
                       lectureId={lecture.id}
                       completedLectures={data.completedLectures}
                       concise
+                      showClosure={currentEdition}
                     />
                   )}
                 </details>
@@ -352,6 +387,7 @@ function LectureReaderContent() {
                     citations={lecture.theoreticalCitations}
                     onOpenPaper={openPaper}
                     concise
+                    showSourceLinks={currentEdition}
                   />
                 </details>
               </div>
@@ -400,6 +436,7 @@ function LectureReaderContent() {
               codeReferences={lecture.codeReferences}
               implementationChoices={lecture.implementationChoices}
               codeWalkthrough={lecture.content.codeWalkthrough}
+              labelIllustrative={currentEdition}
             />
 
             {/* Section 5: Associated Research Papers */}
@@ -428,6 +465,16 @@ function LectureReaderContent() {
                 </p>
               )}
               <MarkdownView source={lecture.content.exercise} />
+              {currentEdition && lecture.content.reflectionPrompts.length > 0 && (
+                <details data-reading-only>
+                  <summary>Reflection questions</summary>
+                  <ul>
+                    {lecture.content.reflectionPrompts.map((prompt) => (
+                      <li key={prompt}>{prompt}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </section>
 
             {/* Bottom Navigation */}
@@ -473,7 +520,7 @@ function LectureReaderContent() {
 
           {/* Column 2: Dedicated Preserved Margin Column (240px invariant width) */}
           <LectureMarginGutter legacyLayout={legacyLayout} />
-        </DocumentInkOverlay>
+        </LectureSheet>
       </div>
 
       {/* EASY-TO-TOGGLE STYLUS & PEN NOTE TAKER */}

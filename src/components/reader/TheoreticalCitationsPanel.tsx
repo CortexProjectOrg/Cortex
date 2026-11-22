@@ -5,6 +5,7 @@ import { MathFormula } from '../MathFormula';
 
 interface TheoreticalCitationsPanelProps {
   concise?: boolean;
+  showSourceLinks?: boolean;
   citations?: TheoreticalCitation[];
   onOpenPaper: (paper: ResolvedPaper) => void;
 }
@@ -12,7 +13,8 @@ interface TheoreticalCitationsPanelProps {
 export function TheoreticalCitationsPanel({
   concise = false,
   citations,
-  onOpenPaper
+  onOpenPaper,
+  showSourceLinks = false
 }: TheoreticalCitationsPanelProps) {
   if (!citations || citations.length === 0) return null;
 
@@ -71,6 +73,11 @@ export function TheoreticalCitationsPanel({
                 <span>
                   Source: <em>{cite.source}</em> · {cite.theoremOrEquation}
                 </span>
+                {!resolvedCite && showSourceLinks && cite.doiOrUrl?.startsWith('https://') && (
+                  <a href={cite.doiOrUrl} target="_blank" rel="noreferrer">
+                    Open source
+                  </a>
+                )}
                 {resolvedCite && (
                   <button
                     type="button"

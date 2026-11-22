@@ -1,6 +1,6 @@
 # Saturday 1: binary linear algebra and Rust
 
-[Index](../../README.md) · [Next session](../02-quantum-paulis/README.md) · [My notes](../../notes/01-foundations.md)
+[Study plan](../../PLAN.md) · [Next session](../02-quantum-paulis/README.md) · [My notes](../../notes/01-foundations.md)
 
 **Main question:** how can bit operations be understood as linear algebra?
 

@@ -10,7 +10,7 @@ $$\omega(u, v) = u_x \cdot v_z \oplus u_z \cdot v_x = \sum_{j=0}^{n-1} (u_{x,j} 
 
 If $\omega(u, v) = 0$, then $P_u P_v = P_v P_u$. If $\omega(u, v) = 1$, they anticommute: $P_u P_v = -P_v P_u$.
 
-The following example shows how this calculation is expressed in Rust:
+The following example uses Hermitian tensor-product axes, with $Y=iXZ$. The phase exponent is added to the Hermitian output label. Moving to raw $X^xZ^z$ representatives requires the phase conversion from the [theory](theory.md). Start with the label type in the [first code tour](../01-foundations/code-tour.md).
 
 ```rust
 impl PauliString {
@@ -51,12 +51,12 @@ impl PauliString {
 
             // Standard Pauli multiplication phase table modulo 4
             match ((ux, uz), (vx, vz)) {
-                ((true, false), (false, true)) => phase_sum += 1,  // X * Z = -i Y (phase factor)
-                ((false, true), (true, false)) => phase_sum += 3,  // Z * X = +i Y
-                ((true, true), (true, false))  => phase_sum += 1,  // Y * X = -i Z
-                ((true, false), (true, true))  => phase_sum += 3,  // X * Y = +i Z
-                ((false, true), (true, true))  => phase_sum += 1,  // Z * Y = -i X
-                ((true, true), (false, true))  => phase_sum += 3,  // Y * Z = +i X
+                ((true, false), (false, true)) => phase_sum += 3,  // X * Z = -i Y (phase factor)
+                ((false, true), (true, false)) => phase_sum += 1,  // Z * X = +i Y
+                ((true, true), (true, false))  => phase_sum += 3,  // Y * X = -i Z
+                ((true, false), (true, true))  => phase_sum += 1,  // X * Y = +i Z
+                ((false, true), (true, true))  => phase_sum += 3,  // Z * Y = -i X
+                ((true, true), (false, true))  => phase_sum += 1,  // Y * Z = +i X
                 _ => {} // Products with Identity or identical operators contribute 0 phase
             }
         }
@@ -68,6 +68,19 @@ impl PauliString {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn signed_products_follow_the_hermitian_axis_convention() {
+        let x = PauliString::qubit(1, 0);
+        let y = PauliString::qubit(1, 1);
+        let z = PauliString::qubit(0, 1);
+        assert_eq!(x.acquired_phase(&y), 1);
+        assert_eq!(y.acquired_phase(&z), 1);
+        assert_eq!(z.acquired_phase(&x), 1);
+        assert_eq!(y.acquired_phase(&x), 3);
+        assert_eq!(z.acquired_phase(&y), 3);
+        assert_eq!(x.acquired_phase(&z), 3);
+    }
 
     #[test]
     fn test_pauli_commutation_relations() {

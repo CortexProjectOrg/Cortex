@@ -53,7 +53,7 @@ The build tools temporarily use a [vendored picomatch security patch](vendor/pic
 
 ## Reading and annotations
 
-Reading mode reflows to the screen. Annotation mode uses a fixed coordinate system with **Fit page** / **Actual size** controls, keeping ink anchored while its display scales. Existing lecture drawings retain their original content and geometry (versions 1–3); new drawings use content revision 4. The original lecture record remains intact so revised foundations and topic names do not move existing ink. Deploy the matching API validator before syncing revision-4 drawings; older clients do not understand that revision.
+Reading mode reflows to the screen. Annotation mode uses a fixed coordinate system with **Fit page** / **Actual size** controls, keeping ink anchored while its display scales. The saved drawing's `visualization.version` selects the corresponding lecture and dependency graph. Existing drawings can open editions 1–6, and new lecture annotations use edition 7. Use **Read the corrected edition** to open the latest text alongside an older drawing's retained edition. The client and API share [the ink validator](./shared/ink.ts).
 
 Scratchpad drawings retain their stored dimensions across screen changes. Undo/redo covers strokes and typed annotations. Pen/mouse drawing and touch scrolling are separate; physical stylus and installed Safari/Android testing remain release checks.
 
@@ -75,6 +75,6 @@ Read [the rollout and recovery runbook](notes/CLEANUP_IMPLEMENTATION.md) before 
 - `src/lib/curriculumData.ts`: full lecture content; the generated catalog supplies lightweight navigation metadata.
 - `api/`: Google verification and authenticated revisioned workspace API. The obsolete curriculum write endpoint returns 410.
 - `migrations/` and `scripts/migrate.ts`: explicit, additive database preparation.
-- `content-manifest.json`: the only Markdown files published in the Library. Internal notes, setup files, and new Markdown files are not automatically published.
+- `content-manifest.json`: the reference-shelf allowlist, including the session practice setup. Personal notes and path files stay local.
 
-Tests verify data boundaries, database revision statements, account lifecycle, graph invariants, rendering, and content structure. They do not certify every mathematical claim or citation in the curriculum. `SETUP.md` includes an explicitly labeled architecture stub, not a working simulator.
+Tests verify data boundaries, database revision statements, account lifecycle, graph invariants, rendering, and content structure. The [practice setup](./SETUP.md) includes a runnable Rust statevector example for small study circuits.
