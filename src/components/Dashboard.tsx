@@ -37,7 +37,7 @@ export function Dashboard() {
         <Link className="button secondary" to="/tree">
           <Network size={17} /> Explore the Knowledge Map
         </Link>
-        <Link className="button secondary" to="/papers">
+        <Link className="button secondary" to="/tree?study=paper">
           <FileText size={17} /> {active ? 'Resume paper' : 'Study a paper'}
         </Link>
       </nav>

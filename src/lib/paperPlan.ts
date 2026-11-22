@@ -12,7 +12,7 @@ import {
 } from './studyGraph';
 
 const text = (max: number) => z.string().trim().min(1).max(max);
-const id = z.string().regex(/^[a-z][a-z0-9-]{0,63}$/);
+const id = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/);
 export const paperAnalysisSchema = z.object({
   paperTitle: text(300),
   theorem: z
