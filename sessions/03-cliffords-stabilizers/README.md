@@ -1,6 +1,6 @@
 # Saturday 3: Clifford maps and stabilizer states
 
-[Index](../../README.md) · [Previous](../02-quantum-paulis/README.md) · [Next](../04-measurement-performance/README.md) · [My notes](../../notes/03-cliffords-stabilizers.md)
+[Study plan](../../PLAN.md) · [Previous](../02-quantum-paulis/README.md) · [Next](../04-measurement-performance/README.md) · [My notes](../../notes/03-cliffords-stabilizers.md)
 
 **Main question:** why can some quantum circuits be represented by their action on a small set of operators?
 

@@ -10,9 +10,7 @@ Explain which result is random and which is fixed by an earlier observation. Ext
 
 ## E2. Follow one CPU route
 
-Use the [code tour](code-tour.md) to locate counts, the simulator's run implementation, Routes::shots, and frame_shots. Draw where the program is compiled, where work is shared, and where records reach the callback.
-
-Do not read every route. Identify the condition that selects frames for your zero-start, noiseless Clifford program. Explain why matching a function name alone does not prove every program takes that route.
+Follow the [code tour](code-tour.md) from the shared reference trajectory through packed propagation to final readout. Then follow the [practice harness](../../SETUP.md#circuit-harness-for-sessions-2-and-3) from gate evolution to the cumulative distribution and counts. Identify the work each method shares across shots.
 
 ## E3. Estimate before measuring
 
@@ -24,7 +22,7 @@ Extension: draw eight shot bits in one frame column, XOR two short words, and ex
 
 ## E4. A small CPU timing experiment
 
-Build one 16-qubit GHZ program: H on qubit 0, then CX from 0 to each other qubit, then measure all. Before timing, explain its possible measurement records.
+Use the practice harness to build one 16-qubit GHZ program: H on qubit 0, then CX from 0 to each other qubit, then measure all. Before timing, explain its possible measurement records.
 
 In a release build, use std::time::Instant to time counts for 100, 1,000, and 10,000 shots. Warm up once, take three repetitions per size, and consume/check the output. Build the Program before the timed call and print/write the CSV afterward. Keep raw rows:
 

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const CURRENT_LECTURE_EDITION = 7;
+
 const coordinate = z.number().finite().min(-100_000).max(100_000);
 const id = z.string().min(1).max(160);
 const color = z.string().regex(/^#[0-9a-f]{3}(?:[0-9a-f]{3})?(?:[0-9a-f]{2})?$/i);
@@ -33,7 +35,7 @@ export const inkSchema = z.object({
       canonicalWidth: z.number().positive().max(10_000),
       contentWidth: z.number().positive().max(10_000),
       marginWidth: z.number().positive().max(10_000),
-      version: z.number().int().min(1).max(6)
+      version: z.number().int().min(1).max(CURRENT_LECTURE_EDITION)
     })
     .optional()
 });

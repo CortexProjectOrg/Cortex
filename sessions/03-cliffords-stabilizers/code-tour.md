@@ -6,7 +6,7 @@
 
 In robust quantum computing frameworks, a circuit description (`Program`) is strictly immutable data. It does not execute itself or allocate simulation matrices. A simulation engine (`Backend`) consumes this pure data structure and advances internal state.
 
-The following example shows this separation:
+The following example shows this separation using a **Bell count fixture**. It checks only the interface and does not execute gate evolution. Use the [practice statevector harness](../../SETUP.md#circuit-harness-for-sessions-2-and-3) to verify the exercise's predictions.
 
 ```rust
 use std::collections::HashMap;
@@ -67,7 +67,7 @@ pub trait Backend {
     fn run(&mut self, program: &Program, shots: usize) -> HashMap<String, usize>;
 }
 
-/// Example stabilizer tableau simulator
+/// Bell count fixture for testing the backend interface
 pub struct StabilizerSimulator {
     // Stores 2n x 2n binary tableau and 2n phase bits
     tableau_size: usize,
@@ -107,9 +107,9 @@ impl Backend for StabilizerSimulator {
         }
 
         let mut counts = HashMap::new();
-        // Sample measurement outcomes according to current stabilizer generators
+        // Supply canned counts that account for the full requested budget.
         counts.insert("00".to_string(), shots / 2);
-        counts.insert("11".to_string(), shots / 2);
+        counts.insert("11".to_string(), shots - shots / 2);
         counts
     }
 }
@@ -119,7 +119,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bell_state_construction() {
+    fn test_bell_fixture_interface() {
         let mut prog = Program::new(2);
         prog.h(0);
         prog.cx(0, 1);
@@ -129,8 +129,9 @@ mod tests {
         assert_eq!(prog.measurements.len(), 2);
 
         let mut sim = StabilizerSimulator::new(2);
-        let counts = sim.run(&prog, 1000);
-        assert_eq!(counts.len(), 2);
+        let counts = sim.run(&prog, 1001);
+        assert_eq!(counts.values().sum::<usize>(), 1001);
+        assert_eq!((counts["00"], counts["11"]), (500, 501));
     }
 }
 ```
@@ -157,7 +158,7 @@ Program (Data Structure)
 ## Questions to Consider
 
 - What is the difference in lifetime and ownership between a circuit description and simulator state?
-- Why do binary tableau updates scale as $O(n^2)$ per Clifford gate compared to $O(4^n)$ for state vectors?
+- Why does a local Clifford gate touch O(n) tableau row entries and O(2^n) statevector amplitudes? How does tableau measurement differ?
 - Which operator images are affected during a controlled-NOT gate?
 
 Record your answers and diagrams in [your personal notes](../../notes/03-cliffords-stabilizers.md).

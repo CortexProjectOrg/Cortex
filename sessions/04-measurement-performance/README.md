@@ -1,6 +1,6 @@
 # Saturday 4: measurement, simulation, and performance
 
-[Index](../../README.md) · [Previous](../03-cliffords-stabilizers/README.md) · [Choose what follows](../../PERSONAL_PATH.md) · [My notes](../../notes/04-measurement-performance.md)
+[Study plan](../../PLAN.md) · [Previous](../03-cliffords-stabilizers/README.md) · [Choose what follows](../../PERSONAL_PATH.md) · [My notes](../../notes/04-measurement-performance.md)
 
 **Main question:** how can a compact description produce the right random outcomes, and what work is worth accelerating?
 

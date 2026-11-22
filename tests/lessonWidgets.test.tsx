@@ -148,7 +148,7 @@ it('cancels alternating coherent rotations without changing the stochastic compa
 });
 
 it('refocuses a static offset at half time and restores the full phase variance in Ramsey', () => {
-  open('L84-noise-spectroscopy-filter-functions');
+  open('L84-noise-spectroscopy-filter-functions', 'Explore: Move the refocusing pulse');
   expect(value('Static-offset variance / Ramsey')).toBe('0.25');
   fireEvent.change(screen.getByRole('slider', { name: 'Pulse position' }), { target: { value: '50' } });
   expect(value('Static-offset variance / Ramsey')).toBe('0.00');
@@ -167,8 +167,15 @@ it('shows that 3 has an inverse modulo 5 and becomes a zero divisor modulo 6', (
 it('recalculates Pauli commutation when a second local minus sign is removed', () => {
   open('L18-symplectic-product-commutation');
   expect(value('Result')).toBe('Commute (+1)');
-  fireEvent.change(screen.getByRole('combobox', { name: 'Site 2' }), { target: { value: 'I' } });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Right string, site 2' }), {
+    target: { value: 'I' }
+  });
   expect(value('Result')).toBe('Anticommute (−1)');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Left string, site 1' }), { target: { value: 'Y' } });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Right string, site 1' }), {
+    target: { value: 'Y' }
+  });
+  expect(value('Result')).toBe('Commute (+1)');
 });
 
 it('shows the invalid Euler result while retaining the exact positive population', () => {
@@ -260,7 +267,7 @@ it('bounds circuit length and allows editing after the cap is reached', () => {
 });
 
 it('accumulates measurement shots, reports uncertainty, and clears samples when probability changes', () => {
-  open('L52-bayesian-adaptive-allocation');
+  open('L64-quantum-trajectories', 'Explore: Measurement and sampling');
   expect(value('Observed frequency of 1')).toBe('—');
   fireEvent.click(screen.getByRole('button', { name: 'Take 100 shots' }));
   expect(value('Total shots')).toBe('100');

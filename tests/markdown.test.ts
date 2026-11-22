@@ -18,6 +18,13 @@ const authoredLectures = ALL_LECTURES.filter((lecture) => {
 });
 
 describe('MarkdownView Math & KaTeX Formula Rendering', () => {
+  it.each([28, 29, 56])('renders the worked-example matrix and subsequent prose in lecture %i', (number) => {
+    const lecture = ALL_LECTURES.find(({ lectureNumber }) => lectureNumber === number)!;
+    const html = renderToString(React.createElement(MarkdownView, { source: lecture.content.workedExample }));
+    expect(html).toMatch(/class="katex-display"[\s\S]*<mtable[\s\S]*<\/math>[\s\S]*<p>/);
+    expect(html).not.toMatch(/katex-error|<merror>/);
+  });
+
   it('places an insertion after a complete subsection, including nested headings and equations', () => {
     const source = '### First\n\nExplanation.\n\n#### Detail\n\n$$\nx^2\n$$\n\n### Next\n\nMore text.';
     const html = renderToString(

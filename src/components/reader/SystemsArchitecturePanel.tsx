@@ -7,13 +7,15 @@ interface SystemsArchitecturePanelProps {
   codeReferences: CodeReference[];
   implementationChoices: string[];
   codeWalkthrough: string;
+  labelIllustrative?: boolean;
 }
 
 export function SystemsArchitecturePanel({
   legacyLayout = false,
   codeReferences,
   implementationChoices,
-  codeWalkthrough
+  codeWalkthrough,
+  labelIllustrative = false
 }: SystemsArchitecturePanelProps) {
   if (!codeReferences.length && !implementationChoices.length && !codeWalkthrough.trim()) return null;
   return (
@@ -21,6 +23,9 @@ export function SystemsArchitecturePanel({
       <h2 style={{ fontFamily: 'var(--serif)', fontSize: '24px', marginBottom: '16px' }}>
         {legacyLayout ? '4. Systems & Implementation Architecture' : 'Implementation'}
       </h2>
+      {labelIllustrative && (
+        <p>Illustrative implementation notes. Path cards name example locations for the algorithms.</p>
+      )}
 
       <div
         style={{

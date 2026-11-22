@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CURRENT_LECTURE_EDITION } from '../../../shared/ink';
 import type { LectureVisualKind } from '../../lib/lectureVisualPlacements';
 import { COMPUTING_PRACTICE_WIDGETS } from './ComputingPracticeWidgets';
 import { CURRICULUM_WIDGETS } from './CurriculumWidgets';
@@ -9,6 +10,7 @@ import { MATH_PRACTICE_WIDGETS } from './MathPracticeWidgets';
 import { SIMULATION_PRACTICE_WIDGETS } from './SimulationPracticeWidgets';
 import { DiagramWidget } from './DiagramWidget';
 import { LECTURE_DIAGRAMS } from './lectureDiagrams';
+import { REVISED_LECTURE_DIAGRAMS } from './lectureDiagramsRevised';
 import { QuickCheck, type WidgetSpec } from './WidgetParts';
 import './lectureWidget.css';
 
@@ -80,9 +82,18 @@ function WidgetSession({ spec: { title, Component, check } }: { spec: WidgetSpec
   );
 }
 
-export function LectureWidget({ lectureId, kind }: { lectureId: string; kind?: LectureVisualKind }) {
+export function LectureWidget({
+  lectureId,
+  kind,
+  edition = CURRENT_LECTURE_EDITION
+}: {
+  lectureId: string;
+  kind?: LectureVisualKind;
+  edition?: number;
+}) {
   const spec = kind !== 'diagram' ? widgets[LECTURE_WIDGETS[lectureId]] : undefined;
-  const diagram = kind !== 'practice' ? LECTURE_DIAGRAMS[lectureId] : undefined;
+  const revised = edition >= CURRENT_LECTURE_EDITION ? REVISED_LECTURE_DIAGRAMS[lectureId] : undefined;
+  const diagram = kind !== 'practice' ? (revised ?? LECTURE_DIAGRAMS[lectureId]) : undefined;
   return (
     <>
       {diagram && <DiagramWidget key={`diagram-${lectureId}`} spec={diagram} />}
