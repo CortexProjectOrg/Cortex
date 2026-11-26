@@ -4,12 +4,13 @@ import { Link } from 'react-router-dom';
 import { lectureRoute, makeNote } from '../../lib/model';
 import { MAX_PAPER_TREE_BYTES, PAPER_TARGET_ID, paperPlanMarkdown } from '../../lib/paperPlan';
 import { usePaperStudySession } from '../../lib/paperStudySession';
-import { toggleLecture } from '../../lib/progress';
+import { LectureProgressButtons } from '../ui/StudyControls';
 import { getReadiness, getStudyOrder, type StudyNode } from '../../lib/studyGraph';
 import { formatStudyTime } from '../../lib/studyTime';
 import { useWorkspace } from '../../lib/workspace';
 import { MarkdownView } from '../MarkdownView';
-import { StudyBranchList } from './StudyBranchList';
+import { PaperBranch } from './PaperBranch';
+import { DagRamificationExplorer } from '../DagRamificationExplorer';
 import '../paperPlanner.css';
 
 export function PaperStudyResult() {
@@ -27,7 +28,21 @@ export function PaperStudyResult() {
       updateActive(revision, (current) => ({ ...current, savedNoteId: null }));
   }, [data.notes, loaded, revision, savedNoteId, updateActive]);
 
-  if (!active) return null;
+  if (!active)
+    return (
+      <section className="page study-page">
+        <h1>Paper study tree</h1>
+        <p>Open a saved tree or build one from a paper to explore its prerequisites.</p>
+        <div className="study-actions">
+          <Link className="button secondary" to="/papers#open-saved-tree">
+            Open saved tree
+          </Link>
+          <Link className="button primary" to="/papers">
+            Build a tree
+          </Link>
+        </div>
+      </section>
+    );
   const { plan, evidenceStatus } = active;
   const { graph } = plan;
   const theorem = plan.analysis.theorem!;
@@ -42,7 +57,7 @@ export function PaperStudyResult() {
   const next = order.next ? graph.nodes.get(order.next) : undefined;
   const nextLecture = next ? plan.metadataById.get(next.id)?.lecture : undefined;
   const select = (id: string) => updateActive(revision, (current) => ({ ...current, selected: id }));
-  const selectBranch = (id: string) => updateActive(revision, (current) => ({ ...current, root: id }));
+
   const renderNode = (node: StudyNode) => {
     const status = getReadiness(graph, node.id, completed).status;
     const readiness =
@@ -93,12 +108,15 @@ export function PaperStudyResult() {
   };
 
   return (
-    <section className="paper-result" aria-label="Study plan">
+    <section className="page study-page paper-result" aria-label="Study plan">
       <div className="page-title-row">
-        <h2 ref={resultHeading} tabIndex={-1}>
+        <h1 ref={resultHeading} tabIndex={-1}>
           {plan.analysis.paperTitle}
-        </h2>
+        </h1>
         <div className="paper-actions">
+          <Link className="button secondary small" to="/papers">
+            Change paper or theorem
+          </Link>
           <button className="button secondary small" type="button" onClick={exportTree}>
             <Download size={15} /> Export tree
           </button>
@@ -158,72 +176,27 @@ export function PaperStudyResult() {
       </details>
       <div className="paper-result-grid">
         <aside>
-          <div className="paper-view-switch" role="group" aria-label="Plan view">
-            <button
-              type="button"
-              className={active.view === 'tree' ? 'selected' : ''}
-              aria-pressed={active.view === 'tree'}
-              onClick={() => updateActive(revision, (current) => ({ ...current, view: 'tree' }))}
-            >
-              Dependencies
-            </button>
-            <button
-              type="button"
-              className={active.view === 'order' ? 'selected' : ''}
-              aria-pressed={active.view === 'order'}
-              onClick={() => updateActive(revision, (current) => ({ ...current, view: 'order' }))}
-            >
-              Study order
-            </button>
-          </div>
-          {active.view === 'tree' ? (
-            <nav className="paper-tree" aria-label="Theorem dependency tree">
-              <div className="paper-tree-controls">
-                <label>
-                  Depth{' '}
-                  <select
-                    value={active.depth}
-                    onChange={(event) => {
-                      const depth = Number(event.target.value);
-                      updateActive(revision, (current) => ({ ...current, depth }));
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5, 6].map((depth) => (
-                      <option key={depth}>{depth}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={active.showCompleted}
-                    onChange={(event) => {
-                      const showCompleted = event.target.checked;
-                      updateActive(revision, (current) => ({ ...current, showCompleted }));
-                    }}
-                  />{' '}
-                  Show completed
-                </label>
-                {active.root !== PAPER_TARGET_ID && (
-                  <button type="button" className="text-button" onClick={() => selectBranch(PAPER_TARGET_ID)}>
-                    Back to theorem
-                  </button>
-                )}
-              </div>
-              <StudyBranchList
-                key={`${revision}:${active.root}`}
-                graph={graph}
-                root={active.root}
-                direction="prerequisites"
-                depth={active.depth}
-                selected={selected.id}
-                completed={completed}
-                showCompleted={active.showCompleted}
-                selectedLabel="Selected prerequisite"
-                renderNode={renderNode}
-              />
-            </nav>
-          ) : (
+          <PaperBranch
+            graph={graph}
+            root={PAPER_TARGET_ID}
+            selected={selected.id}
+            branches={active.branches}
+            inspect={select}
+            toggle={(id, d) =>
+              updateActive(revision, (current) => ({
+                ...current,
+                branches: {
+                  ...current.branches,
+                  [id]: {
+                    ...current.branches[id],
+                    [d]: !(current.branches[id]?.[d] ?? id === PAPER_TARGET_ID)
+                  }
+                }
+              }))
+            }
+          />
+          <details className="study-disclosure">
+            <summary>Study order</summary>
             <nav aria-label="Study order">
               <ol className="paper-study-order">
                 {order.remaining.map((id) => (
@@ -235,117 +208,104 @@ export function PaperStudyResult() {
               </ol>
               {order.remaining.length === 0 && <p>All prerequisites complete.</p>}
             </nav>
-          )}
+          </details>
         </aside>
-        <article className="paper-lesson" aria-label="Selected lesson">
-          <h3>{selected.title}</h3>
-          {selected.kind !== 'target' && (
-            <div className="paper-actions">
-              {active.view === 'tree' && selected.id !== active.root && (
+        <DagRamificationExplorer graph={graph} id={selected.id} completed={completed} onSelect={select}>
+          <article className="paper-lesson" aria-label="Selected lesson">
+            <h3>{selected.title}</h3>
+            {selected.kind !== 'target' && (
+              <div className="paper-actions">
                 <button
                   type="button"
                   className="button secondary small"
-                  onClick={() => selectBranch(selected.id)}
+                  aria-pressed={active.known.has(selected.id)}
+                  onClick={() => {
+                    updateActive(revision, (current) => {
+                      const known = new Set(current.known);
+                      if (known.has(selected.id)) known.delete(selected.id);
+                      else known.add(selected.id);
+                      return { ...current, known };
+                    });
+                  }}
                 >
-                  Explore from here
+                  Known for this paper
                 </button>
-              )}
-              <button
-                type="button"
-                className="button secondary small"
-                aria-pressed={active.known.has(selected.id)}
-                onClick={() => {
-                  updateActive(revision, (current) => {
-                    const known = new Set(current.known);
-                    if (known.has(selected.id)) known.delete(selected.id);
-                    else known.add(selected.id);
-                    return { ...current, known };
-                  });
-                }}
-              >
-                Known for this paper
-              </button>
-              {metadata.lecture && (
-                <>
-                  <Link
-                    className="button primary small"
-                    to={lectureRoute(metadata.lecture.topicId, metadata.lecture.id)}
-                  >
-                    Read lesson
-                  </Link>
-                  <button
-                    className="button secondary small"
-                    type="button"
-                    aria-pressed={recorded.has(metadata.lecture.id)}
-                    onClick={() => update((workspace) => toggleLecture(workspace, metadata.lecture!.id))}
-                  >
-                    Mark done
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-          {metadata.concepts.map((concept) => (
-            <section key={concept.id} className="paper-concept">
-              {(metadata.lecture || metadata.concepts.length > 1) && <h4>{concept.title}</h4>}
-              <p>{concept.reason}</p>
-              <ul>
-                {concept.objectives.map((objective, index) => (
-                  <li key={index}>{objective}</li>
-                ))}
-              </ul>
-              <MarkdownView allowImages={false} source={concept.explanation} />
-              <h4>Worked example</h4>
-              <MarkdownView allowImages={false} source={concept.example} />
-              <h4>Practice · {concept.practiceMinutes} min</h4>
-              <MarkdownView allowImages={false} source={concept.exercise} />
-              {concept.evidence ? (
-                <details>
-                  <summary>
-                    {evidenceStatus} · {concept.source}
-                  </summary>
-                  <blockquote>{concept.evidence}</blockquote>
-                </details>
-              ) : (
-                <p className="subtle">Background prerequisite</p>
-              )}
-            </section>
-          ))}
-          {metadata.suggestions.length > 0 && (
-            <section>
-              <h4>Possible matches</h4>
-              <ul>
-                {metadata.suggestions.map((lecture) => (
-                  <li key={lecture.id}>
-                    <Link to={lectureRoute(lecture.topicId, lecture.id)}>{lecture.title}</Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {graph.incoming.get(selected.id)!.length > 0 && (
-            <section>
-              <h4>Learn first</h4>
-              <ul>
-                {graph.incoming.get(selected.id)!.map((id) => {
-                  const sources =
-                    graph.edges.find((edge) => edge.prerequisiteId === id && edge.dependentId === selected.id)
-                      ?.sources ?? [];
-                  return (
-                    <li key={id}>
-                      <button type="button" className="text-button" onClick={() => select(id)}>
-                        {graph.nodes.get(id)!.title}
-                      </button>
-                      {sources.includes('catalog') && (
-                        <small> · Catalog{sources.includes('paper') && ' and paper'}</small>
-                      )}
+                {metadata.lecture && (
+                  <>
+                    <Link
+                      className="button primary small"
+                      to={lectureRoute(metadata.lecture.topicId, metadata.lecture.id)}
+                    >
+                      Read lesson
+                    </Link>
+                    <LectureProgressButtons id={metadata.lecture.id} />
+                  </>
+                )}
+              </div>
+            )}
+            {metadata.concepts.map((concept) => (
+              <section key={concept.id} className="paper-concept">
+                {(metadata.lecture || metadata.concepts.length > 1) && <h4>{concept.title}</h4>}
+                <p>{concept.reason}</p>
+                <ul>
+                  {concept.objectives.map((objective, index) => (
+                    <li key={index}>{objective}</li>
+                  ))}
+                </ul>
+                <MarkdownView allowImages={false} source={concept.explanation} />
+                <h4>Worked example</h4>
+                <MarkdownView allowImages={false} source={concept.example} />
+                <h4>Practice · {concept.practiceMinutes} min</h4>
+                <MarkdownView allowImages={false} source={concept.exercise} />
+                {concept.evidence ? (
+                  <details>
+                    <summary>
+                      {evidenceStatus} · {concept.source}
+                    </summary>
+                    <blockquote>{concept.evidence}</blockquote>
+                  </details>
+                ) : (
+                  <p className="subtle">Background prerequisite</p>
+                )}
+              </section>
+            ))}
+            {metadata.suggestions.length > 0 && (
+              <section>
+                <h4>Possible matches</h4>
+                <ul>
+                  {metadata.suggestions.map((lecture) => (
+                    <li key={lecture.id}>
+                      <Link to={lectureRoute(lecture.topicId, lecture.id)}>{lecture.title}</Link>
                     </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-        </article>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {graph.incoming.get(selected.id)!.length > 0 && (
+              <section>
+                <h4>Learn first</h4>
+                <ul>
+                  {graph.incoming.get(selected.id)!.map((id) => {
+                    const sources =
+                      graph.edges.find(
+                        (edge) => edge.prerequisiteId === id && edge.dependentId === selected.id
+                      )?.sources ?? [];
+                    return (
+                      <li key={id}>
+                        <button type="button" className="text-button" onClick={() => select(id)}>
+                          {graph.nodes.get(id)!.title}
+                        </button>
+                        {sources.includes('catalog') && (
+                          <small> · Catalog{sources.includes('paper') && ' and paper'}</small>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+          </article>
+        </DagRamificationExplorer>
       </div>
     </section>
   );
