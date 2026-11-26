@@ -1,16 +1,9 @@
 import { FileText, Network, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import {
-  analyzePaper,
-  DEFAULT_GEMINI_MODEL,
-  describePaperAnalysisError,
-  MAX_PAPER_TEXT,
-  readPaperFile,
-  type PaperInput
-} from '../lib/gemini';
+import { analyzePaper, describePaperAnalysisError, MAX_PAPER_TEXT, readPaperFile } from '../lib/gemini';
 import { buildPaperPlan, MAX_PAPER_TREE_BYTES, type PaperPlan } from '../lib/paperPlan';
 import { usePaperStudySession, type EvidenceStatus } from '../lib/paperStudySession';
-import { PaperStudyResult } from './graph/PaperStudyResult';
+import { Link, useNavigate } from 'react-router-dom';
 import './paperPlanner.css';
 
 interface PendingProposal {
@@ -21,19 +14,14 @@ interface PendingProposal {
 }
 
 export function PaperPlanner() {
-  const { active, revision, acceptPlan } = usePaperStudySession();
-  const [apiKey, setApiKey] = useState('');
-  const [model, setModel] = useState(DEFAULT_GEMINI_MODEL);
-  const [sourceText, setSourceText] = useState('');
-  const [file, setFile] = useState<PaperInput | null>(null);
-  const [fileName, setFileName] = useState('');
-  const [target, setTarget] = useState('');
+  const { active, revision, acceptPlan, draft, editDraft } = usePaperStudySession();
+  const navigate = useNavigate();
+  const { apiKey, model, sourceText, file, fileName, target } = draft;
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState(false);
   const [error, setError] = useState('');
   const [guidance, setGuidance] = useState('');
   const [proposal, setProposal] = useState<PendingProposal | null>(null);
-  const [editing, setEditing] = useState(false);
   const request = useRef<AbortController | null>(null);
   const fileRequest = useRef(0);
   const confirmationHeading = useRef<HTMLHeadingElement>(null);
@@ -55,7 +43,7 @@ export function PaperPlanner() {
     setProposal(null);
     setGuidance('');
     acceptPlan(plan, evidenceStatus, expectedRevision);
-    setEditing(false);
+    navigate('/papers/result');
   };
   const generate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -93,22 +81,18 @@ export function PaperPlanner() {
     }
   };
   return (
-    <section className="paper-planner" aria-label="Paper to tree">
+    <section className="page study-page paper-planner" aria-label="Paper to tree">
       <div className="page-title-row">
-        {active ? (
-          <button
-            className="button secondary small"
-            type="button"
-            onClick={() => setEditing((value) => !value)}
-          >
-            {editing ? 'Close settings' : 'Change paper or theorem'}
-          </button>
-        ) : (
-          <h2>Build a prerequisite tree</h2>
+        <h1>Paper to Tree</h1>
+        {active && (
+          <Link className="button secondary small" to="/papers/result">
+            Resume paper
+          </Link>
         )}
         <label className="button secondary small paper-import">
           Open saved tree
           <input
+            id="open-saved-tree"
             type="file"
             accept=".json"
             disabled={busy || reading}
@@ -141,7 +125,7 @@ export function PaperPlanner() {
           />
         </label>
       </div>
-      <form onSubmit={generate} className="paper-form" hidden={!!active && !editing}>
+      <form onSubmit={generate} className="paper-form">
         <fieldset disabled={busy || reading} aria-label="Build a prerequisite tree">
           <div className="paper-input-grid">
             <div className="paper-source">
@@ -158,13 +142,13 @@ export function PaperPlanner() {
                   setReading(true);
                   setError('');
                   setProposal(null);
-                  setFile(null);
-                  setFileName('');
+                  editDraft({ file: null });
+                  editDraft({ fileName: '' });
                   try {
                     const next = await readPaperFile(selectedFile);
                     if (sequence === fileRequest.current) {
-                      setFile(next);
-                      setFileName(selectedFile.name);
+                      editDraft({ file: next });
+                      editDraft({ fileName: selectedFile.name });
                     }
                   } catch (failure) {
                     if (sequence === fileRequest.current)
@@ -185,8 +169,8 @@ export function PaperPlanner() {
                     aria-label="Remove paper"
                     onClick={() => {
                       setProposal(null);
-                      setFile(null);
-                      setFileName('');
+                      editDraft({ file: null });
+                      editDraft({ fileName: '' });
                     }}
                   >
                     <X size={18} />
@@ -200,7 +184,7 @@ export function PaperPlanner() {
                     value={sourceText}
                     onChange={(event) => {
                       setProposal(null);
-                      setSourceText(event.target.value);
+                      editDraft({ sourceText: event.target.value });
                     }}
                     maxLength={MAX_PAPER_TEXT}
                     rows={7}
@@ -218,7 +202,7 @@ export function PaperPlanner() {
                   autoComplete="off"
                   spellCheck={false}
                   value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  onChange={(e) => editDraft({ apiKey: e.target.value })}
                   maxLength={1024}
                   required
                 />
@@ -226,7 +210,7 @@ export function PaperPlanner() {
                   type="button"
                   className="text-button"
                   disabled={!apiKey}
-                  onClick={() => setApiKey('')}
+                  onClick={() => editDraft({ apiKey: '' })}
                 >
                   Clear
                 </button>
@@ -250,7 +234,7 @@ export function PaperPlanner() {
                 value={target}
                 onChange={(event) => {
                   setProposal(null);
-                  setTarget(event.target.value);
+                  editDraft({ target: event.target.value });
                 }}
                 maxLength={500}
                 placeholder="Main theorem, or e.g. Theorem 3.2"
@@ -261,7 +245,7 @@ export function PaperPlanner() {
                 <input
                   id="gemini-model"
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  onChange={(e) => editDraft({ model: e.target.value })}
                   maxLength={87}
                   required
                 />
@@ -317,7 +301,6 @@ export function PaperPlanner() {
           </button>
         </section>
       )}
-      <PaperStudyResult />
     </section>
   );
 }

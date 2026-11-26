@@ -4,6 +4,7 @@ import {
   Calendar,
   Check,
   Compass,
+  GitBranch,
   Layers,
   LayoutDashboard,
   LoaderCircle,
@@ -18,8 +19,8 @@ import {
   X
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { lazy, Suspense, useEffect, useState, useRef } from 'react';
-import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { lazy, Suspense, useMemo, useEffect, useState, useRef } from 'react';
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { SaveStatus } from './components/ui/SaveStatus';
 import { SubfieldIcon } from './components/SubfieldIcon';
@@ -27,6 +28,7 @@ import { useMediaQuery } from './components/ui/useMediaQuery';
 import { useDrawerFocus } from './components/ui/useDrawerFocus';
 
 import { useAuth } from './lib/auth';
+import type { CanvasSnapshot } from './components/InteractiveDagCanvas';
 import { PaperStudySessionProvider } from './lib/paperStudySession';
 import { SUBFIELDS } from './lib/topicDiscovery';
 import { usePdfViewer } from './lib/pdfViewerContext';
@@ -44,6 +46,18 @@ const LectureReader = lazy(() =>
 );
 const KnowledgeGraphView = lazy(() =>
   import('./components/KnowledgeGraphView').then((m) => ({ default: m.KnowledgeGraphView }))
+);
+const ConnectionsPage = lazy(() =>
+  import('./components/KnowledgeGraphView').then((m) => ({ default: m.ConnectionsPage }))
+);
+const LegacyTree = lazy(() =>
+  import('./components/KnowledgeGraphView').then((m) => ({ default: m.LegacyTree }))
+);
+const PaperPlanner = lazy(() =>
+  import('./components/PaperPlanner').then((m) => ({ default: m.PaperPlanner }))
+);
+const PaperStudyResult = lazy(() =>
+  import('./components/graph/PaperStudyResult').then((m) => ({ default: m.PaperStudyResult }))
 );
 const NotebookView = lazy(() =>
   import('./components/NotebookView').then((m) => ({ default: m.NotebookView }))
@@ -107,6 +121,8 @@ export default function App() {
   const compact = useMediaQuery('(max-width: 1100px)');
   const navigationRef = useRef<HTMLElement>(null);
   useDrawerFocus(navigationRef, compact && menuOpen, () => setMenuOpen(false));
+  const owner = user?.uid ?? 'guest';
+  const canvases = useMemo(() => ({ owner, entries: new Map<string, CanvasSnapshot>() }), [owner]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
       return (
@@ -184,7 +200,8 @@ export default function App() {
   const navItems = [
     { to: '/', label: 'Dashboard', icon: <LayoutDashboard size={19} /> },
     { to: '/topics', label: 'Topics', icon: <Layers size={19} /> },
-    { to: '/tree', label: 'Knowledge map', icon: <Network size={19} /> },
+    { to: '/graph', label: 'Graph', icon: <Network size={19} /> },
+    { to: '/papers', label: 'Paper to Tree', icon: <GitBranch size={19} /> },
     { to: '/path', label: 'Study path', icon: <Calendar size={19} /> },
     { to: '/notes', label: 'Notebook', icon: <PenTool size={19} /> },
     { to: '/library', label: 'Library', icon: <BookOpen size={19} /> }
@@ -406,25 +423,20 @@ export default function App() {
             </div>
           )}
           <main id="main-content">
-            <PaperStudySessionProvider>
+            <PaperStudySessionProvider key={user?.uid ?? 'guest'}>
               {loaded ? (
                 <Suspense fallback={<div className="loading-workspace">Loading…</div>}>
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/topics" element={<TopicBrowser />} />
                     <Route path="/topics/:topicId/:lectureId" element={<LectureReader />} />
-                    <Route path="/tree" element={<KnowledgeGraphView />} />
-                    <Route
-                      path="/graph"
-                      element={
-                        <Navigate
-                          to={{ pathname: '/tree', search: location.search, hash: location.hash }}
-                          replace
-                        />
-                      }
-                    />
+                    <Route path="/tree" element={<LegacyTree />} />
+                    <Route path="/connections/lecture/:lectureId" element={<ConnectionsPage />} />
+                    <Route path="/connections/track/:trackId" element={<ConnectionsPage />} />
+                    <Route path="/graph" element={<KnowledgeGraphView history={canvases.entries} />} />
                     <Route path="/path" element={<StudyPathView />} />
-                    <Route path="/papers" element={<Navigate to="/tree?study=paper" replace />} />
+                    <Route path="/papers" element={<PaperPlanner />} />
+                    <Route path="/papers/result" element={<PaperStudyResult />} />
                     <Route path="/notes" element={<NotebookView />} />
                     <Route path="/notes/:id" element={<NotebookView />} />
                     <Route path="/library" element={<Library />} />

@@ -3,7 +3,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { File as NodeFile } from 'node:buffer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { Routes, Route, MemoryRouter } from 'react-router-dom';
+import { PaperStudyResult } from '../src/components/graph/PaperStudyResult';
 import { PaperPlanner } from '../src/components/PaperPlanner';
 import { analyzePaper, PaperAnalysisError } from '../src/lib/gemini';
 import { buildPaperPlan, MAX_PAPER_TREE_BYTES, type PaperAnalysis } from '../src/lib/paperPlan';
@@ -29,9 +30,12 @@ beforeEach(() => {
 afterEach(cleanup);
 function mount() {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={['/papers']}>
       <PaperStudySessionProvider>
-        <PaperPlanner />
+        <Routes>
+          <Route path="/papers" element={<PaperPlanner />} />
+          <Route path="/papers/result" element={<PaperStudyResult />} />
+        </Routes>
       </PaperStudySessionProvider>
     </MemoryRouter>
   );
@@ -56,8 +60,8 @@ it('generates a tree and saves only the study note after an explicit action', as
   expect(screen.getByRole('navigation', { name: 'Theorem dependency tree' })).toBeTruthy();
   expect(workspace.update).not.toHaveBeenCalled();
   expect(localStorage.length + sessionStorage.length).toBe(0);
-  expect(screen.getByLabelText('Gemini API key').closest('form')!.hidden).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Study order' }));
+  expect(screen.queryByLabelText('Gemini API key')).toBeNull();
+  fireEvent.click(screen.getByText('Study order', { selector: 'summary' }));
   expect(screen.getByRole('navigation', { name: 'Study order' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Add to notebook' }));
   const saved = (workspace.update.mock.calls[0][0] as (data: Workspace) => Workspace)(emptyWorkspace());
@@ -80,13 +84,13 @@ it('keeps the active tree and source after an unexpected error and shows fixed c
   fill();
   fireEvent.click(screen.getByRole('button', { name: 'Generate tree' }));
   await screen.findByRole('heading', { name: 'Inverses of maps' });
-  fireEvent.click(screen.getByRole('button', { name: 'Change paper or theorem' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Change paper or theorem' }));
   vi.mocked(analyzePaper).mockRejectedValueOnce(new Error('PRIVATE TITLE'));
   fireEvent.click(screen.getByRole('button', { name: 'Generate tree' }));
   expect((await screen.findByRole('alert')).textContent).toBe(
     'Could not generate the study plan. Try again.'
   );
-  expect(screen.getByRole('heading', { name: 'Inverses of maps' })).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Resume paper' })).toBeTruthy();
   expect((screen.getByLabelText('Or paste the theorem and proof') as HTMLTextAreaElement).value).toBe(
     sourcePaper
   );
@@ -142,7 +146,7 @@ it('opens an exported tree without an API call', async () => {
   fireEvent.change(screen.getByLabelText('Open saved tree'), { target: { files: [file] } });
   await screen.findByRole('heading', { name: 'Inverses of maps' });
   expect(analyzePaper).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Change paper or theorem' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Change paper or theorem' }));
   await waitFor(() => expect(screen.getByLabelText('Gemini API key').closest('form')!.hidden).toBe(false));
 });
 
@@ -156,12 +160,12 @@ it('requires confirmation for a named proposal and discards a proposal when an i
   fireEvent.click(confirm);
   await screen.findByRole('heading', { name: 'Inverses of maps' });
 
-  fireEvent.click(screen.getByRole('button', { name: 'Change paper or theorem' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Change paper or theorem' }));
   fireEvent.click(screen.getByRole('button', { name: 'Generate tree' }));
   await screen.findByRole('button', { name: 'Use this theorem' });
   importTree({ ...paperAnalysis, paperTitle: 'Imported theorem' });
   await screen.findByRole('heading', { name: 'Imported theorem' });
-  fireEvent.click(screen.getByRole('button', { name: 'Change paper or theorem' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Change paper or theorem' }));
   expect(screen.queryByRole('button', { name: 'Use this theorem' })).toBeNull();
   expect(analyzePaper).toHaveBeenCalledTimes(2);
 });
@@ -172,16 +176,17 @@ it('preserves paper knowledge after both no-theorem generation and no-theorem im
   importTree(paperAnalysis);
   await screen.findByRole('heading', { name: 'Inverses of maps' });
   const tree = within(screen.getByRole('navigation', { name: 'Theorem dependency tree' }));
-  fireEvent.click(tree.getByRole('button', { name: /^Bijections and inverse functions/ }));
+  fireEvent.click(tree.getByRole('button', { name: /^Info for Bijections and inverse functions/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Known for this paper' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Change paper or theorem' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Change paper or theorem' }));
   fill();
   vi.mocked(analyzePaper).mockResolvedValueOnce(buildPaperPlan(noTheorem));
   fireEvent.click(screen.getByRole('button', { name: 'Generate tree' }));
   await screen.findByText(noTheorem.explanation);
-  expect(screen.getByRole('button', { name: 'Known for this paper', pressed: true })).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Resume paper' })).toBeTruthy();
   importTree({ ...noTheorem, explanation: 'The saved tree contains no theorem.' });
   await screen.findByText('The saved tree contains no theorem.');
+  fireEvent.click(screen.getByRole('link', { name: 'Resume paper' }));
   expect(screen.getByRole('button', { name: 'Known for this paper', pressed: true })).toBeTruthy();
 });
 
@@ -235,14 +240,13 @@ it('round-trips a near-limit UTF-8 file in compact form and retains disconnected
     });
     const downloadedFile = new NodeFile([Buffer.from(exported)], 'downloaded.json');
     expect(JSON.parse(await downloadedFile.text())).toEqual(envelope);
+    fireEvent.click(screen.getByRole('link', { name: 'Change paper or theorem' }));
     fireEvent.change(screen.getByLabelText('Open saved tree'), { target: { files: [downloadedFile] } });
-    await waitFor(() =>
-      expect((screen.getByLabelText('Open saved tree') as HTMLInputElement).disabled).toBe(false)
-    );
+    await screen.findByRole('heading', { name: analysis.paperTitle });
     expect(screen.queryByRole('alert')).toBeNull();
     const tree = within(screen.getByRole('navigation', { name: 'Theorem dependency tree' }));
-    expect(tree.getByRole('button', { name: /^Foundations 0/, pressed: false })).toBeTruthy();
-    expect(tree.queryByRole('button', { name: /^Foundations 1/, pressed: false })).toBeNull();
+    expect(tree.getByRole('button', { name: /^Info for Foundations 0/ })).toBeTruthy();
+    expect(tree.queryByRole('button', { name: /^Info for Foundations 1/ })).toBeNull();
     expect(analyzePaper).not.toHaveBeenCalled();
   } finally {
     download.mockRestore();

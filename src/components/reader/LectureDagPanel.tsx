@@ -56,7 +56,7 @@ export function LectureDagPanel({
           </span>
         </div>
         <Link
-          to={`/tree?focus=${lectureId}`}
+          to={`/connections/lecture/${lectureId}`}
           style={{
             display: 'inline-flex',
             alignItems: 'center',

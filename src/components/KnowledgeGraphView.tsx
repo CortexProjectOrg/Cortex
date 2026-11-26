@@ -1,460 +1,277 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { FileText, Network } from 'lucide-react';
-import {
-  computeNodeReadiness,
-  getKnowledgeDAG,
-  projectCatalogStudyGraph,
-  type KnowledgeDAG
-} from '../lib/knowledgeGraph';
-import { queryLectures } from '../lib/knowledgeGraphQuery';
-import { lectureRoute } from '../lib/model';
-import { toggleLecture } from '../lib/progress';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { X } from 'lucide-react';
+import { ALL_LECTURES, FOUR_HOUR_MASTERY_PATH, LECTURE_MAP } from '../lib/curriculumCatalog';
+import { getKnowledgeDAG, projectCatalogStudyGraph } from '../lib/knowledgeGraph';
+import { getReadiness, getShortestRoute, getStudyOrder } from '../lib/studyGraph';
+import { trackAnchor } from '../lib/studyDashboard';
 import { formatStudyTime } from '../lib/studyTime';
-import { getReadiness, getShortestRoute, getStudyOrder, type StudyDirection } from '../lib/studyGraph';
+import { lectureRoute } from '../lib/model';
+import { usePaperStudySession } from '../lib/paperStudySession';
 import { useWorkspace } from '../lib/workspace';
 import { DagRamificationExplorer } from './DagRamificationExplorer';
-import { HierarchicalTopicGraph } from './HierarchicalTopicGraph';
-import { InteractiveDagCanvas } from './InteractiveDagCanvas';
-
-import { GraphToolbar, type StatusFilter, type ViewMode } from './graph/GraphToolbar';
+import { InteractiveDagCanvas, type CanvasSnapshot } from './InteractiveDagCanvas';
+import { LectureProgressButtons } from './ui/StudyControls';
 import { Modal } from './ui/Modal';
-import { LectureDetailDrawer } from './graph/LectureDetailDrawer';
-import { StratifiedTreeView } from './graph/StratifiedTreeView';
-import { NodeCard, type StudyCardActions } from './graph/NodeCard';
-import { StudyBranchList } from './graph/StudyBranchList';
-import { PaperPlanner } from './PaperPlanner';
+import { useMediaQuery } from './ui/useMediaQuery';
 import './knowledgeMap.css';
 
-function RouteEndpoint({
-  dag,
-  label,
-  searchLabel,
-  value,
-  onChange
-}: {
-  dag: KnowledgeDAG;
-  label: string;
-  searchLabel: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [query, setQuery] = useState('');
-  const matches = queryLectures({ query }, dag);
-  const selected = value ? dag.nodes.get(value) : undefined;
-  const pinned = selected && !matches.some((node) => node.id === selected.id) ? [selected] : [];
-  const options = [...matches, ...pinned].sort(
-    (a, b) => a.lectureNumber - b.lectureNumber || a.id.localeCompare(b.id)
-  );
+const graph = projectCatalogStudyGraph(getKnowledgeDAG());
+const lectureUrl = (id: string) => '/connections/lecture/' + encodeURIComponent(id);
+export function LegacyTree() {
+  const { active } = usePaperStudySession();
+  const location = useLocation(),
+    q = new URLSearchParams(location.search),
+    id = q.get('focus');
   return (
-    <div className="study-route-endpoint">
-      <label>
-        {searchLabel}
-        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} />
-      </label>
-      <label>
-        {label}
-        <select value={value} onChange={(event) => onChange(event.target.value)}>
-          <option value="">Choose a lesson</option>
-          {options.map((node) => (
-            <option key={node.id} value={node.id}>
-              {node.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      {matches.length === 0 && <span role="status">No matching lessons</span>}
-    </div>
-  );
-}
-
-export function KnowledgeGraphView() {
-  const [searchParams] = useSearchParams();
-  const paper = searchParams.get('study') === 'paper';
-  const curriculumParams = new URLSearchParams(searchParams);
-  curriculumParams.delete('study');
-  const paperParams = new URLSearchParams(curriculumParams);
-  paperParams.set('study', 'paper');
-  return (
-    <div className="page knowledge-map">
-      <header className="map-header">
-        <h1>Knowledge map</h1>
-        <nav aria-label="Map source" className="map-sources">
-          <Link
-            to={{ pathname: '/tree', search: curriculumParams.toString() }}
-            aria-current={!paper ? 'page' : undefined}
-          >
-            <Network size={16} /> Curriculum
-          </Link>
-          <Link
-            to={{ pathname: '/tree', search: paperParams.toString() }}
-            aria-current={paper ? 'page' : undefined}
-          >
-            <FileText size={16} /> Paper to tree
-          </Link>
-        </nav>
-      </header>
-      <div hidden={paper}>
-        <CatalogKnowledgeGraphView focusId={searchParams.get('focus')} />
-      </div>
-      {paper && <PaperPlanner />}
-    </div>
-  );
-}
-
-function CatalogKnowledgeGraphView({ focusId }: { focusId: string | null }) {
-  const { data, update } = useWorkspace();
-
-  const dag = useMemo(() => getKnowledgeDAG(), []);
-  const graph = projectCatalogStudyGraph(dag);
-  const completedSet = useMemo(() => new Set(data.completedLectures || []), [data.completedLectures]);
-
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(
-    focusId && dag.nodes.has(focusId) ? focusId : null
-  );
-  const [detailsNodeId, setDetailsNodeId] = useState<string | null>(null);
-  const detailsOpener = useRef<HTMLButtonElement | null>(null);
-  const page = useRef<HTMLDivElement>(null);
-  const branchHeading = useRef<HTMLHeadingElement>(null);
-  const [branch, setBranch] = useState<{ root: string; direction: StudyDirection } | null>(null);
-  const [branchDepth, setBranchDepth] = useState(2);
-  const [startId, setStartId] = useState('');
-  const [goalId, setGoalId] = useState('');
-  const [routeOpen, setRouteOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [topicFilter, setTopicFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('ramifications');
-
-  useEffect(() => {
-    if (branch) branchHeading.current?.focus();
-  }, [branch]);
-
-  // Sync focus param
-  useEffect(() => {
-    if (focusId && dag.nodes.has(focusId)) {
-      setSelectedNodeId(focusId);
-    }
-  }, [focusId, dag]);
-
-  useEffect(() => {
-    if (detailsNodeId || !detailsOpener.current) return;
-    const opener = detailsOpener.current;
-    detailsOpener.current = null;
-    if (opener.isConnected && !opener.closest('[hidden]')) opener.focus();
-    else page.current?.querySelector<HTMLInputElement>('[aria-label="Search knowledge map"]')?.focus();
-  }, [detailsNodeId]);
-
-  const studyActions: StudyCardActions = useMemo(
-    () => ({
-      select: setSelectedNodeId,
-      branch: (root, direction) => {
-        setSelectedNodeId(root);
-        setBranch({ root, direction });
-        setBranchDepth(2);
-      },
-      start: (id) => {
-        setStartId(id);
-        setRouteOpen(true);
-      },
-      goal: (id) => {
-        setGoalId(id);
-        setRouteOpen(true);
+    <Navigate
+      replace
+      to={
+        (q.get('study') === 'paper'
+          ? active
+            ? '/papers/result'
+            : '/papers'
+          : id && graph.nodes.has(id)
+            ? lectureUrl(id)
+            : '/graph') + location.hash
       }
-    }),
-    []
+    />
   );
-
-  const showDetails = (id: string, opener: HTMLButtonElement) => {
-    detailsOpener.current = opener;
-    setDetailsNodeId(id);
-  };
-  const detailsNode = detailsNodeId ? dag.nodes.get(detailsNodeId) || null : null;
-  const detailsReadiness = detailsNode ? computeNodeReadiness(detailsNode.id, completedSet, dag) : null;
-
-  const exploreNode = (id: string) => {
-    setSelectedNodeId(id);
-    setViewMode('canvas');
-  };
-
-  const toggleLectureMastery = (id: string) => update((cur) => toggleLecture(cur, id));
-
-  // Node readiness map for fast queries
-  const nodeReadinessMap = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof computeNodeReadiness>>();
-    for (const node of dag.nodeList) {
-      map.set(node.id, computeNodeReadiness(node.id, completedSet, dag));
-    }
-    return map;
-  }, [dag, completedSet]);
-
-  // Overall Statistics
-  const stats = useMemo(() => {
-    let completed = 0;
-    let ready = 0;
-    let locked = 0;
-
-    for (const [, r] of nodeReadinessMap.entries()) {
-      if (r.status === 'completed') completed++;
-      else if (r.status === 'ready') ready++;
-      else locked++;
-    }
-
-    return {
-      total: dag.nodeList.length,
-      completed,
-      ready,
-      locked,
-      percentDone: Math.round((completed / dag.nodeList.length) * 100),
-      edges: dag.totalPrerequisiteEdges,
-      softLinks: dag.totalSoftLinks,
-      maxRank: Math.max(...dag.nodeList.map((n) => n.topologicalRank))
-    };
-  }, [dag, nodeReadinessMap]);
-
-  const filteredNodes = useMemo(
-    () =>
-      queryLectures({ query: searchQuery, status: statusFilter, topicId: topicFilter }, dag, completedSet),
-    [dag, completedSet, statusFilter, topicFilter, searchQuery]
-  );
-
-  const filteredNodeIds = useMemo(() => new Set(filteredNodes.map((n) => n.id)), [filteredNodes]);
-  const order = goalId ? getStudyOrder(graph, goalId, completedSet) : null;
-  const route = startId && goalId ? getShortestRoute(graph, startId, goalId) : null;
-  const previewCompleted = branch && new Set([...completedSet, branch.root]);
-  const catalogLink = (id: string) => {
-    const node = dag.nodes.get(id)!;
-    return <Link to={lectureRoute(node.topicId, id)}>{node.title}</Link>;
-  };
-
+}
+function CatalogConnections({
+  id,
+  select,
+  track
+}: {
+  id: string;
+  select: (id: string) => void;
+  track?: Set<string>;
+}) {
+  const { data } = useWorkspace(),
+    lecture = LECTURE_MAP.get(id)!;
+  const done = useMemo(() => new Set(data.completedLectures), [data.completedLectures]);
+  const readiness = getReadiness(graph, id, done),
+    order = getStudyOrder(graph, id, done);
+  const [start, setStart] = useState('');
+  const route = start ? getShortestRoute(graph, start, id) : [];
   return (
-    <div ref={page}>
-      {/* Filter and Control Toolbar */}
-      <GraphToolbar
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        topicFilter={topicFilter}
-        setTopicFilter={setTopicFilter}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        totalNodes={dag.nodeList.length}
-        stats={stats}
-      />
-
-      <details
-        className="path-finder"
-        open={routeOpen}
-        onToggle={(event) => setRouteOpen(event.currentTarget.open)}
-      >
-        <summary>Study route</summary>
-        <div className="path-fields study-route-fields">
-          <RouteEndpoint
-            dag={dag}
-            label="From"
-            searchLabel="Search starting lessons"
-            value={startId}
-            onChange={setStartId}
-          />
-          <RouteEndpoint
-            dag={dag}
-            label="To"
-            searchLabel="Search goal lessons"
-            value={goalId}
-            onChange={setGoalId}
-          />
+    <>
+      <DagRamificationExplorer graph={graph} id={id} completed={done} onSelect={select} track={track}>
+        <div className="section-title">
+          <h2>{lecture.title}</h2>
         </div>
-        {route &&
+        <p className="subtle">
+          {'Lecture ' +
+            lecture.lectureNumber +
+            ' · ' +
+            formatStudyTime(lecture.durationMinutes) +
+            ' · Pack ' +
+            lecture.packNumber}
+        </p>
+        <p>{lecture.question}</p>
+        <p>
+          {readiness.status === 'completed'
+            ? 'Completed'
+            : data.lectureProgress[id]?.startedAt
+              ? 'In progress'
+              : readiness.status === 'ready'
+                ? 'Ready to study'
+                : readiness.missingPrereqs.length + ' prerequisites to study'}
+        </p>
+        <div className="study-actions">
+          <Link className="button primary small" to={lectureRoute(lecture.topicId, id)}>
+            Read lecture
+          </Link>
+          <LectureProgressButtons id={id} />
+        </div>
+      </DagRamificationExplorer>
+      <div className="study-actions">
+        <Link className="text-link" to={'/graph?focus=' + encodeURIComponent(id)}>
+          Open in graph
+        </Link>
+      </div>
+      <details className="study-disclosure">
+        <summary>Study order</summary>
+        <ol>
+          {order.ordered.map((key) => (
+            <li key={key}>
+              <button className="text-button" onClick={() => select(key)}>
+                {graph.nodes.get(key)!.title}
+              </button>{' '}
+              {done.has(key) ? 'Done' : order.background.has(key) ? 'Background to revisit' : ''}
+            </li>
+          ))}
+        </ol>
+      </details>
+      <details className="study-disclosure">
+        <summary>Compare a starting lecture</summary>
+        <label>
+          Starting lecture{' '}
+          <select value={start} onChange={(e) => setStart(e.target.value)}>
+            <option value="">Choose a lecture</option>
+            {ALL_LECTURES.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        {start &&
           (route.length ? (
-            <ol aria-label="Shortest prerequisite route" className="study-route-chain">
-              {route.map((id) => (
-                <li key={id}>{catalogLink(id)}</li>
+            <ol>
+              {route.map((n) => (
+                <li key={n}>{graph.nodes.get(n)!.title}</li>
               ))}
             </ol>
           ) : (
-            <p>No connecting route</p>
+            <p>No directed prerequisite route connects these lectures.</p>
           ))}
-        {order && (
-          <section aria-label="Study order" className="study-route-order">
-            <h2>Study order</h2>
-            {order.next && <p>Next: {catalogLink(order.next)}</p>}
-            {!order.next && completedSet.has(goalId) && <p>Goal complete</p>}
-            {order.remaining.length > 0 && (
-              <p>
-                {formatStudyTime(order.remainingMinutes)} remaining
-                {order.unknownDurationCount > 0 && ` · ${order.unknownDurationCount} without an estimate`}
-              </p>
-            )}
-            <ol>
-              {order.remaining.map((id) => (
-                <li key={id}>
-                  {catalogLink(id)}
-                  {order.background.has(id) && <small>Background to revisit</small>}
-                </li>
-              ))}
-            </ol>
-          </section>
-        )}
       </details>
-
-      {branch && (
-        <section className="study-focus" aria-label="Focused lesson connections">
-          <div className="study-focus-toolbar">
-            <h2 ref={branchHeading} tabIndex={-1}>
-              {branch.direction === 'prerequisites' ? 'Prerequisites' : 'What this unlocks'}
-            </h2>
-            <label>
-              Depth{' '}
-              <select value={branchDepth} onChange={(event) => setBranchDepth(Number(event.target.value))}>
-                {[1, 2, 3, 4, 5, 6].map((depth) => (
-                  <option key={depth}>{depth}</option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className="text-button"
-              onClick={(event) => {
-                const search = page.current?.querySelector<HTMLInputElement>(
-                  '[aria-label="Search knowledge map"]'
-                );
-                if (event.currentTarget === document.activeElement) search?.focus();
-                setBranch(null);
-              }}
-            >
-              Close connections
-            </button>
-          </div>
-          <StudyBranchList
-            key={`${branch.root}:${branch.direction}`}
-            graph={graph}
-            root={branch.root}
-            direction={branch.direction}
-            depth={branchDepth}
-            selected={selectedNodeId}
-            renderNode={({ id }) => {
-              const node = dag.nodes.get(id)!;
-              const readiness = nodeReadinessMap.get(id)!;
-              const preview =
-                id !== branch.root &&
-                branch.direction === 'unlocks' &&
-                readiness.status !== 'completed' &&
-                previewCompleted
-                  ? getReadiness(graph, id, previewCompleted)
-                  : null;
-              const label =
-                preview &&
-                (readiness.status === 'ready'
-                  ? 'Ready now'
-                  : preview.status === 'ready'
-                    ? 'Ready after this lesson'
-                    : 'More prerequisites needed');
-              return (
-                <>
-                  <NodeCard
-                    node={node}
-                    readiness={readiness}
-                    isSelected={selectedNodeId === id}
-                    studyActions={studyActions}
-                    onExplore={() => exploreNode(id)}
-                    onDetails={(opener) => showDetails(id, opener)}
-                  />
-                  {label && (
-                    <p className="study-preview">
-                      {label}
-                      {preview?.missingPrereqs.map((missing) => (
-                        <span key={missing}>{catalogLink(missing)}</span>
-                      ))}
-                    </p>
-                  )}
-                </>
-              );
-            }}
-          />
-        </section>
+      {!!lecture.softLinks?.length && (
+        <details className="study-disclosure">
+          <summary>Related lectures</summary>
+          {lecture.softLinks
+            .filter((l) => graph.nodes.has(l.targetId))
+            .map((l) => (
+              <button key={l.targetId} className="study-row text-button" onClick={() => select(l.targetId)}>
+                {graph.nodes.get(l.targetId)!.title} · {l.relationship}
+              </button>
+            ))}
+        </details>
       )}
-
-      {/* Main Graph Content Area & Details Drawer */}
-      <div
-        className="graph-content"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr)',
-          gap: '24px',
-          alignItems: 'start'
-        }}
-      >
-        {/* Graph Display Area */}
-        <div style={{ minWidth: 0 }}>
-          {filteredNodes.length === 0 && <p className="empty-state">No lectures match these filters.</p>}
-          {viewMode === 'hierarchical' && filteredNodes.length > 0 && (
-            <HierarchicalTopicGraph
-              dag={dag}
-              filteredNodeIds={filteredNodeIds}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={exploreNode}
-              onShowDetails={showDetails}
-              studyActions={studyActions}
-              completedSet={completedSet}
-            />
-          )}
-
-          {viewMode === 'canvas' && filteredNodes.length > 0 && (
-            <InteractiveDagCanvas
-              dag={dag}
-              filteredNodeIds={filteredNodeIds}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={setSelectedNodeId}
-              onShowDetails={showDetails}
-              studyActions={studyActions}
-              completedSet={completedSet}
-              onSelectTopic={(tId) => setTopicFilter(tId)}
-            />
-          )}
-
-          {viewMode === 'ramifications' && filteredNodes.length > 0 && (
-            <DagRamificationExplorer
-              dag={dag}
-              selectedNodeId={
-                selectedNodeId && filteredNodeIds.has(selectedNodeId) ? selectedNodeId : filteredNodes[0].id
-              }
-              onSelectNode={setSelectedNodeId}
-              onExploreGraph={exploreNode}
-              onShowDetails={showDetails}
-              studyActions={studyActions}
-              filteredNodeIds={filteredNodeIds}
-              completedSet={completedSet}
-            />
-          )}
-
-          {viewMode === 'stratified' && filteredNodes.length > 0 && (
-            <StratifiedTreeView
-              dag={dag}
-              filteredNodeIds={filteredNodeIds}
-              nodeReadinessMap={nodeReadinessMap}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={exploreNode}
-              onShowDetails={showDetails}
-              studyActions={studyActions}
-            />
-          )}
-        </div>
-
-        {/* Selected Node Inspector Drawer */}
-        {detailsNode && detailsReadiness && (
-          <Modal label="Lecture details" onClose={() => setDetailsNodeId(null)}>
-            <LectureDetailDrawer
-              selectedNode={detailsNode}
-              selectedReadiness={detailsReadiness}
-              dag={dag}
-              completedSet={completedSet}
-              onSelectNode={setDetailsNodeId}
-              onClose={() => setDetailsNodeId(null)}
-              onToggleMastery={toggleLectureMastery}
-            />
-          </Modal>
-        )}
+    </>
+  );
+}
+export function ConnectionsPage() {
+  const { lectureId, trackId } = useParams(),
+    [q] = useSearchParams(),
+    navigate = useNavigate(),
+    { data } = useWorkspace();
+  const pack = FOUR_HOUR_MASTERY_PATH.packs.find((p) => String(p.packNumber) === trackId);
+  const focus = q.get('focus');
+  const id = pack
+    ? focus && graph.nodes.has(focus)
+      ? focus
+      : trackAnchor(pack.lectureIds, data.completedLectures)
+    : lectureId;
+  const select = (key: string) =>
+    navigate(
+      pack ? '/connections/track/' + pack.packNumber + '?focus=' + encodeURIComponent(key) : lectureUrl(key)
+    );
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, [id]);
+  if (!id || !graph.nodes.has(id))
+    return (
+      <div className="page">
+        <h1>Study item unavailable</h1>
+        <Link to="/">Return to My Study</Link>
+      </div>
+    );
+  return (
+    <div className="page study-page">
+      <header className="page-title-row">
+        <h1 ref={heading} tabIndex={-1}>
+          {pack ? pack.title : 'Connections'}
+        </h1>
+      </header>
+      {pack && (
+        <details className="study-disclosure">
+          <summary>Lectures in this track ({pack.lectureIds.length})</summary>
+          {pack.lectureIds.map((key) => (
+            <button key={key} className="study-row text-button" onClick={() => select(key)}>
+              {graph.nodes.get(key)?.title}
+            </button>
+          ))}
+        </details>
+      )}
+      <CatalogConnections id={id} select={select} track={pack && new Set(pack.lectureIds)} />
+    </div>
+  );
+}
+export function KnowledgeGraphView({ history }: { history?: Map<string, CanvasSnapshot> }) {
+  const [q] = useSearchParams(),
+    location = useLocation(),
+    navigate = useNavigate();
+  const root = q.get('focus') && graph.nodes.has(q.get('focus')!) ? q.get('focus')! : ALL_LECTURES[0].id;
+  const historyKey = location.key + ':' + root;
+  const snapshot = useMemo(() => {
+    const found = history?.get(historyKey);
+    if (found) return found;
+    const next = { open: {}, camera: null };
+    history?.set(historyKey, next);
+    return next;
+  }, [historyKey, history]);
+  const [info, setInfo] = useState<string | null>(null),
+    opener = useRef<HTMLButtonElement | null>(null),
+    heading = useRef<HTMLHeadingElement>(null),
+    page = useRef<HTMLDivElement>(null);
+  const compact = useMediaQuery('(max-width: 760px)');
+  useLayoutEffect(() => {
+    if (info) heading.current?.focus();
+    else if (opener.current) {
+      (opener.current.isConnected ? opener.current : page.current)?.focus();
+      opener.current = null;
+    }
+  }, [info]);
+  useEffect(() => {
+    if (!info) return;
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setInfo(null);
+    };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [info]);
+  const content = info && (
+    <>
+      <header className="section-title">
+        <h2 tabIndex={-1} ref={heading}>
+          Lecture info
+        </h2>
+        <button className="icon-button" aria-label="Close lecture info" onClick={() => setInfo(null)}>
+          <X size={18} />
+        </button>
+      </header>
+      <CatalogConnections id={info} select={setInfo} />
+    </>
+  );
+  return (
+    <div className="page study-page" tabIndex={-1} ref={page}>
+      <header className="page-title-row">
+        <h1>Graph</h1>
+        <label>
+          Focus lecture{' '}
+          <select value={root} onChange={(e) => navigate('/graph?focus=' + e.target.value)}>
+            {ALL_LECTURES.map((l) => (
+              <option value={l.id} key={l.id}>
+                {l.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      </header>
+      <div className="graph-stage">
+        <InteractiveDagCanvas
+          key={historyKey}
+          dag={getKnowledgeDAG()}
+          root={root}
+          historyEntry={snapshot}
+          onInfo={(id, button) => {
+            opener.current = button;
+            setInfo(id);
+          }}
+        />
+        {info &&
+          (compact ? (
+            <Modal className="graph-info-modal" label="Lecture info" onClose={() => setInfo(null)}>
+              {content}
+            </Modal>
+          ) : (
+            <aside className="graph-info" aria-label="Lecture info">
+              {content}
+            </aside>
+          ))}
       </div>
     </div>
   );
